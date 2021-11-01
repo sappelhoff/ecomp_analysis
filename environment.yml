@@ -1,0 +1,25 @@
+name: ecomp_analysis
+channels:
+- defaults
+- conda-forge
+dependencies:
+- python=3.8
+- pip
+- ipython
+- ipykernel
+- numpy
+- scipy
+- pandas
+- matplotlib
+- pre-commit
+- black
+- isort
+- flake8
+- flake8-docstrings
+- pytest-cov
+- pytest-sugar
+- pytest
+- pip:
+  - mne
+  - pingouin
+  - statsmodels
