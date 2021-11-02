@@ -1,11 +1,11 @@
 """Sanity check the data."""
 
 # %%
-from config import get_sourcedata
-
-import pandas as pd
 import mne
+import numpy as np
+import pandas as pd
 
+from config import get_sourcedata
 
 # %%
 # Load data
@@ -50,7 +50,6 @@ for sub in range(1, 8):
             msg = f"{value} is not as expected: {occurrences} != {expected}"
             assert occurrences == expected, msg
 
-
         # %%
         # Check number of digit ttl codes
         # These should be 300 (trials) * 10 (digits per trial)
@@ -61,7 +60,6 @@ for sub in range(1, 8):
         for value in digit_vals:
             n_occurrences += vcounts.get(value, 0)
         assert n_occurrences == 3000, n_occurrences
-
 
         # %%
         # Check number of choice ttl codes
@@ -76,7 +74,6 @@ for sub in range(1, 8):
             n_occurrences += vcounts.get(value, 0)
         assert n_occurrences == (300 - n_timeouts), n_occurrences
 
-
         # %%
         # Check number of feedback ttl codes
 
@@ -90,7 +87,6 @@ for sub in range(1, 8):
         for value in fdbk_vals:
             n_occurrences += vcounts.get(value, 0)
         assert n_occurrences == 300, n_occurrences
-
 
         # %%
         # Crosscheck with behavioral data
@@ -107,6 +103,11 @@ for sub in range(1, 8):
         # Inter-trial-interval should be within bounds
         assert df["iti"].min() >= 500
         assert df["iti"].max() <= 1500
+
+        # %%
+        # Ensure there is no NaN in the data
+        data = raw.get_data()
+        assert not np.isnan(data).any()
 
 # %%
 

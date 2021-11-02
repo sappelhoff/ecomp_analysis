@@ -1,9 +1,13 @@
 """Configure common variables and data locations."""
 
 import json
+import warnings
 from pathlib import Path
 
-DATA_DIR = Path("/run/user/1000/gvfs/sftp:host=141.14.156.202,user=appelhoff/home/appelhoff/Projects/ARC-Studies/eeg_compression/ecomp_data")
+start = "/run/user/1000/gvfs/sftp:host=141.14.156.202,user=appelhoff"
+DATA_DIR = Path(
+    start + "/home/appelhoff/Projects/ARC-Studies/eeg_compression/ecomp_data"
+)
 
 
 def get_sourcedata(sub, stream, data_dir=DATA_DIR):
@@ -17,6 +21,10 @@ def get_sourcedata(sub, stream, data_dir=DATA_DIR):
 
 def get_daysback(data_dir=DATA_DIR):
     """Get the 'daysback' for anonymizing this dataset."""
-    with open(data_dir / "code" / "DAYSBACK.json", "r") as fin:
-        data = json.load(fin)
+    try:
+        with open(data_dir / "code" / "DAYSBACK.json", "r") as fin:
+            data = json.load(fin)
+    except FileNotFoundError:
+        warnings.warn("Did not find DAYSBACK.json. Retuning 0.")
+        data = dict(daysback=0)
     return data["daysback"]
