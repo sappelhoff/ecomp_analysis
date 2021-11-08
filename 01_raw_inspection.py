@@ -1,6 +1,7 @@
 """Inspect the raw data."""
 
 # %%
+import matplotlib.pyplot as plt
 import mne
 import numpy as np
 
@@ -76,3 +77,41 @@ for ith_break in range(nbreaks):
 # Mark data from last block break offset to end bad
 dur = (raw.last_samp / raw.info["sfreq"]) - offset
 annots.append(offset, dur, "BAD_break")
+
+# %%
+
+# Mark muscles
+raw_copy = raw.copy()
+raw_copy.notch_filter([50, 100])
+
+threshold_muscle = 6
+annots_muscle, scores_muscle = mne.preprocessing.annotate_muscle_zscore(
+    raw_copy, threshold=threshold_muscle, ch_type="eeg"
+)
+
+# %%
+fig, ax = plt.subplots()
+ax.plot(raw.times, scores_muscle)
+ax.axhline(y=threshold_muscle, color="r")
+ax.set(xlabel="time, (s)", ylabel="zscore", title="Muscle activity")
+
+# %%
+raw_copy.set_annotations(annots_muscle)
+raw_copy.plot(block=True)
+# %%
+
+# mark flat
+
+annots_flat, bads = mne.preprocessing.annotate_flat(raw, picks="eeg", min_duration=1)
+
+# %%
+
+# TODO: downsample before plotting
+fig = raw.plot(
+    n_channels=len(raw.ch_names), bad_color=(1, 0, 0), duration=20.0, block=True
+)
+
+# save
+# union of annotations
+# bad channels
+# threshold for auto muscle detection
