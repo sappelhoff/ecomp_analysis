@@ -24,6 +24,13 @@ raw.set_montage(montage)
 # raw.set_annotations(None)
 
 # %%
+# Temporarily remove existing annotations for faster interactive plotting
+raw.set_annotations(None)
+
+with mne.viz.use_browser_backend("pyqtgraph"):
+    raw.plot(block=True, use_opengl=False)
+
+# %%
 
 
 def get_stim_onset(raw, stim, nth_stim=0):

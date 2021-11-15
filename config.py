@@ -9,6 +9,8 @@ DATA_DIR = Path(
     start + "/home/appelhoff/Projects/ARC-Studies/eeg_compression/ecomp_data"
 )
 
+DATA_DIR_LOCAL = Path("/home/stefanappelhoff/Desktop/eComp")
+
 
 def get_sourcedata(sub, stream, data_dir=DATA_DIR):
     """Return path to source .vhdr and .tsv file for sub and stream."""
