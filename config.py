@@ -11,6 +11,11 @@ DATA_DIR = Path(
 
 DATA_DIR_LOCAL = Path("/home/stefanappelhoff/Desktop/eComp")
 
+BAD_SUBJS = {
+    15: "Consistently performed at chance level.",
+    23: "Misunderstood response cues in one of the tasks.",
+}
+
 
 def get_sourcedata(sub, stream, data_dir=DATA_DIR):
     """Return path to source .vhdr and .tsv file for sub and stream."""
