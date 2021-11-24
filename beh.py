@@ -8,7 +8,7 @@ from config import DATA_DIR_LOCAL, get_sourcedata
 
 # %%
 # Check how often participants "timed out" on their choices
-for sub in range(1, 31):
+for sub in range(1, 33):
     for stream in ["single", "dual"]:
         _, tsv = get_sourcedata(sub, stream, DATA_DIR_LOCAL)
         df = pd.read_csv(tsv, sep="\t")
@@ -19,7 +19,7 @@ for sub in range(1, 31):
 # %%
 # Read data
 
-sub = 1
+sub = 5
 stream = "single"
 _, tsv = get_sourcedata(sub, stream, DATA_DIR_LOCAL)
 
@@ -159,5 +159,124 @@ tmp.columns = ["number", "nhigher", "noverall"]
 tmp["weight"] = tmp["nhigher"] / tmp["noverall"]
 
 plt.plot(tmp["number"], tmp["weight"])
+# %%
 
+
+def calc_nonp_weights(df):
+    """Calculate non-parametric weights.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The behavioral data of a subject.
+
+    Returns
+    -------
+    weights : np.ndarray, shape(9,)
+        The weight for each of the 9 numbers in ascending
+        order (1 to 9).
+    position_weights : np.ndarray, shape(9, 10)
+        The weight for each of the 9 numbers in ascending
+        order, calculated for each of the 10 sample positions.
+
+    """
+    # work on a copy of the data
+    weights_df = df.copy()
+
+    stream = np.unique(weights_df["stream"])[0]
+
+    # remove NaN rows
+    nan_row_idxs = np.nonzero(~weights_df["validity"].to_numpy())[0]
+    for idx in nan_row_idxs:
+        assert pd.isna(weights_df.loc[idx, "direction"])
+    weights_df = weights_df.drop(nan_row_idxs)
+
+    # prepare data
+    nsamples = 10
+    isamples = [f"sample{i}" for i in range(1, nsamples + 1)]  # samples 1 to nsamples
+    samples_signed = weights_df.loc[:, isamples].to_numpy().reshape(-1)
+    samples = np.abs(samples_signed)
+    colors = (np.sign(samples_signed) + 1) / 2  # color1=0, color2=1
+    positions = np.tile(
+        np.arange(len(isamples)), len(weights_df["trial"])
+    )  # sample positions
+    assert positions.shape == samples.shape
+
+    if stream == "single":
+        # sanity check
+        np.testing.assert_array_equal(
+            np.unique(weights_df["choice"]), ["higher", "lower"]
+        )
+
+        # map lower/higher to 0/1 ... and repeat choice for each sample
+        choices = np.repeat(
+            weights_df["choice"].map({"lower": 0, "higher": 1}).to_numpy(),
+            len(isamples),
+        )
+        assert choices.shape == samples.shape
+    else:
+        assert stream == "dual"
+        # sanity check
+        np.testing.assert_array_equal(np.unique(weights_df["choice"]), ["red", "blue"])
+
+        # map red/blue to 0/1 ... and repeat choice for each sample
+        choices = np.repeat(
+            weights_df["choice"].map({"red": 0, "blue": 1}).to_numpy(), len(isamples)
+        )
+        assert choices.shape == samples.shape
+
+    # Calculate overall weights and for each sample position
+    numbers = np.arange(1, 10, dtype=int)  # numbers 1 to 9 were shown
+    weights = np.zeros(len(numbers))
+    position_weights = np.zeros((len(numbers), len(isamples)))
+    for inumber, number in enumerate(numbers):
+
+        if stream == "single":
+
+            # overall weights
+            weights[inumber] = np.mean(choices[samples == number])
+
+            # weights for each sample position
+            for pos in np.unique(positions):
+                position_weights[inumber, pos] = np.mean(
+                    choices[(samples == number) & (positions == pos)]
+                )
+
+        else:
+            assert stream == "dual"
+
+            # overall weights
+            weights[inumber] = np.mean(
+                np.hstack(
+                    [
+                        choices[(samples == number) & (colors == 1)],
+                        -choices[(samples == number) & (colors == 0)] + 1,
+                    ]
+                )
+            )
+
+            # weights for each sample position
+            for pos in np.unique(positions):
+                position_weights[inumber, pos] = np.mean(
+                    np.hstack(
+                        [
+                            choices[
+                                (samples == number) & (colors == 1) & (positions == pos)
+                            ],
+                            -choices[
+                                (samples == number) & (colors == 0) & (positions == pos)
+                            ]
+                            + 1,
+                        ]
+                    )
+                )
+
+    return weights, position_weights
+
+
+weights, position_weights = calc_nonp_weights(df)
+
+# %%
+for i in range(10):
+    plt.plot(np.arange(1, 10), position_weights[:, i])
 # %%
