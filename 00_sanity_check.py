@@ -1,6 +1,7 @@
-"""Sanity check the data."""
+"""Sanity check the EEG data."""
 
 # %%
+# Imports
 import mne
 import numpy as np
 import pandas as pd
@@ -9,9 +10,9 @@ from config import get_sourcedata
 
 # %%
 # Load data
-for sub in range(1, 8):
+for sub in range(1, 33):
     for stream in ["single", "dual"]:
-        print(sub, stream)
+        print(f"Checking {sub}-{stream}")
 
         vhdr, tsv = get_sourcedata(sub, stream)
         with mne.utils.use_log_level(0):
@@ -20,11 +21,11 @@ for sub in range(1, 8):
 
         # %%
         # Check amount of triggers are exactly as expected
-
         events_series = pd.Series(events[:, -1])
         vcounts = events_series.value_counts()
 
-        # Check misc ttl codes
+        # Check misc ttl codes, see:
+        # https://github.com/sappelhoff/ecomp_experiment/blob/main/ecomp_experiment/define_ttl.py
         occur = {
             80: 1,
             90: 1,
@@ -38,14 +39,28 @@ for sub in range(1, 8):
         if stream == "dual":
             occur = {key + 100: val for key, val in occur.items()}
 
+        # for explanation of codes 10001 and 99999, see:
+        # https://mne.tools/stable/generated/mne.events_from_annotations.html#mne.events_from_annotations
         special = {
-            10001: 2,
-            99999: 2,
+            10001: 2,  # e.g., "Comment,ControlBox ...", "Comment,actiCAP Data On", etc.
+            99999: 2,  # "New Segment/"
         }
 
         occur.update(special)
 
         for value, expected in occur.items():
+
+            # skip this check for a few subjs and specific markers,
+            # these are cases where deviations are known and in order
+            toskip = {
+                "02-dual": "Recording immediately started (not stopped again).",
+                "04-single": "Paused twice, instead of once.",
+                "10-dual": "Control box was still connected via USB.",
+                "19-single": "Recording immediately started (not stopped again).",
+            }
+            if f"{sub:02}-{stream}" in toskip and value in special:
+                continue
+
             occurrences = vcounts.get(value, 0)
             msg = f"{value} is not as expected: {occurrences} != {expected}"
             assert occurrences == expected, msg
@@ -76,11 +91,11 @@ for sub in range(1, 8):
 
         # %%
         # Check number of feedback ttl codes
-
-        assert n_timeouts == vcounts.get(6, 0)
+        fdbk_timeout = 6 if stream == "single" else 106
+        assert n_timeouts == vcounts.get(fdbk_timeout, 0)
 
         # these should be 300
-        fdbk_vals = [4, 5]
+        fdbk_vals = [4, 5, 6]
         if stream == "dual":
             fdbk_vals = [val + 100 for val in fdbk_vals]
         n_occurrences = 0
@@ -93,7 +108,6 @@ for sub in range(1, 8):
         df = pd.read_csv(tsv, sep="\t")
 
         # %%
-
         # Check that timeouts fit
         assert df["validity"].sum() == (300 - n_timeouts)
 
@@ -109,10 +123,5 @@ for sub in range(1, 8):
         data = raw.get_data()
         assert not np.isnan(data).any()
 
-# %%
-
-# %%
-
-# %%
-
+        print("    done!")
 # %%

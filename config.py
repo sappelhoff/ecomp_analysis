@@ -10,6 +10,7 @@ DATA_DIR = Path(
 )
 
 DATA_DIR_LOCAL = Path("/home/stefanappelhoff/Desktop/eComp")
+ANALYSIS_DIR = Path("/home/stefanappelhoff/Desktop/eComp/ecomp_analysis")
 
 BAD_SUBJS = {
     15: "Consistently performed at chance level.",
@@ -21,7 +22,7 @@ def get_sourcedata(sub, stream, data_dir=DATA_DIR):
     """Return path to source .vhdr and .tsv file for sub and stream."""
     sub_sourcedata = data_dir / "sourcedata" / f"sub-{sub:02}"
     substream = f"sub-{sub:02}_stream-{stream}"
-    vhdr = sub_sourcedata / (substream + ".vhdr")
+    vhdr = sub_sourcedata / f"{stream}" / (substream + ".vhdr")
     tsv = sub_sourcedata / f"{stream}" / (substream + "_beh.tsv")
     return vhdr, tsv
 
