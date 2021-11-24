@@ -1,10 +1,12 @@
 """Beh analysis."""
 # %%
+# Imports
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
-from config import DATA_DIR_LOCAL, get_sourcedata
+from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_LOCAL, get_sourcedata
 
 # %%
 # Check how often participants "timed out" on their choices
@@ -17,153 +19,16 @@ for sub in range(1, 33):
             print(sub, stream, f" - n timeouts: {df.shape[0]-validity_sum}")
 
 # %%
-# Read data
-
-sub = 5
-stream = "single"
-_, tsv = get_sourcedata(sub, stream, DATA_DIR_LOCAL)
-
-# %%
-df = pd.read_csv(tsv, sep="\t")
-df
-# %%
-# Calculate weightings
-#
-# single: evidence of each number towards "higher"
-#
-# Go through trials and count for each number:
-# how often did it occur in trials where the final choice was "higher"
-# how often did it occur overall
-# the weight is the former divided by the latter:
-# It is "1", if occurrence of a number *always* led to the choice "higher",
-# and it is "0", if occurrence of a number *never* led to the choice "higher",
-# and it is "0.5" if it evenly led to either choice "higher" or "lower".
-# Note that practically, the extreme weights are statistically unlikely to ever
-# be reached, because a sample vector or [9, 9, 9, 9, 9, 9, 9, 9, 9, 1] will
-# reasonably be followed by a choice "higher", which will count the sample "1"
-# as having a weight >0.5 towards "higher", as opposed to the sensible weight
-# being <0.5 (i.e., towards "lower").
-
-
-n_number_higher_dict = {i: [0] for i in range(1, 10)}
-n_number_overall_dict = {i: [0] for i in range(1, 10)}
-for trial in np.unique(df["trial"]):
-
-    valid = df.loc[df["trial"] == trial, "validity"][trial]
-    choice = df.loc[df["trial"] == trial, "choice"][trial]
-    samples = (
-        df[df["trial"] == trial][[f"sample{i}" for i in range(1, 11)]]
-        .to_numpy()
-        .squeeze()
-    )
-
-    for number in samples:
-        if choice == "higher":
-            n_number_higher_dict[np.abs(number)][0] += 1
-        n_number_overall_dict[np.abs(number)][0] += 1
-
-tmp = pd.concat(
-    [
-        pd.DataFrame.from_dict(n_number_higher_dict),
-        pd.DataFrame.from_dict(n_number_overall_dict),
-    ]
-).T
-tmp = tmp.reset_index()
-tmp.columns = ["number", "nhigher", "noverall"]
-tmp["weight"] = tmp["nhigher"] / tmp["noverall"]
-
-plt.plot(tmp["number"], tmp["weight"])
-
-# %%
-# verena approach "single"
-
-numbers = df.loc[:, "sample1":"sample10"].to_numpy().reshape(-1)
-numbers = np.abs(numbers)
-finchoice = np.repeat(df["choice"].map({"lower": 0, "higher": 1}).to_numpy(), 10)
-assert finchoice.shape == numbers.shape
-
-weights = np.zeros(9)
-for i, number in enumerate(range(1, 10)):
-
-    weights[i] = np.mean(finchoice[numbers == number])
-    print(
-        number, finchoice[numbers == number].sum(), finchoice[numbers == number].shape
-    )
-
-plt.plot(np.arange(1, 10), weights)
-
-# %%
-
-# verena approach for "dual"
-#
-# finchoice vector: coded 1 for red, 0 for blue final choice
-# repeat each element for number of samples
-# for each red number, select same index from vector
-# for each blue number, select same index from vector, but flip (blue=1, red=0)
-# concatenate these two vectors and take the mean --> corresponds to:
-# sum(red number and red choice, blue number and blue choice) / all numbers
-
-numbers = df.loc[:, "sample1":"sample10"].to_numpy().reshape(-1)
-catcols = (np.sign(numbers) + 1) / 2  # -=0, +=1
-numbers = np.abs(numbers)
-finchoice = np.repeat(df["choice"].map({"lower": 0, "higher": 1}).to_numpy(), 10)
-assert finchoice.shape == numbers.shape
-
-weights = np.zeros(9)
-for i, number in enumerate(range(1, 10)):
-
-    x = finchoice[np.logical_and(numbers == number, catcols == 1)]
-    y = -finchoice[np.logical_and(numbers == number, catcols == 0)] + 1
-
-    weights[i] = np.mean(np.hstack([x, y]))
-
-plt.plot(np.arange(1, 10), weights)
-# %%
-
-# compute analogously to "SP" analysis:
-# For each number:
-# (
-# number was shown in red and red was selected
-# PLUS
-# number was shown in blue and blue was selected
-# )
-# DIVIDED BY
-# all times the number was shown
-
-n_number_higher_dict = {i: [0] for i in range(1, 10)}
-n_number_overall_dict = {i: [0] for i in range(1, 10)}
-for trial in np.unique(df["trial"]):
-
-    valid = df.loc[df["trial"] == trial, "validity"][trial]
-    choice = df.loc[df["trial"] == trial, "choice"][trial]
-    samples = (
-        df[df["trial"] == trial][[f"sample{i}" for i in range(1, 11)]]
-        .to_numpy()
-        .squeeze()
-    )
-
-    for number in samples:
-        if (choice == "higher" and number > 0) or (choice == "lower" and number < 0):
-            n_number_higher_dict[np.abs(number)][0] += 1
-
-        n_number_overall_dict[np.abs(number)][0] += 1
-
-tmp = pd.concat(
-    [
-        pd.DataFrame.from_dict(n_number_higher_dict),
-        pd.DataFrame.from_dict(n_number_overall_dict),
-    ]
-).T
-tmp = tmp.reset_index()
-tmp.columns = ["number", "nhigher", "noverall"]
-tmp["weight"] = tmp["nhigher"] / tmp["noverall"]
-
-plt.plot(tmp["number"], tmp["weight"])
-# %%
 
 
 def calc_nonp_weights(df):
     """Calculate non-parametric weights.
+
+    In the "single stream" task, the weight of a number is its
+    relative frequency with which it led to a "larger" choice.
+    In the "dual stream" task, the weight of a number is its
+    relative frequency with which its color was selected as
+    a choice.
 
     Parameters
     ----------
@@ -175,10 +40,9 @@ def calc_nonp_weights(df):
     weights : np.ndarray, shape(9,)
         The weight for each of the 9 numbers in ascending
         order (1 to 9).
-    position_weights : np.ndarray, shape(9, 10)
+    position_weights : np.ndarray, shape(10, 9)
         The weight for each of the 9 numbers in ascending
         order, calculated for each of the 10 sample positions.
-
     """
     # work on a copy of the data
     weights_df = df.copy()
@@ -198,7 +62,7 @@ def calc_nonp_weights(df):
     samples = np.abs(samples_signed)
     colors = (np.sign(samples_signed) + 1) / 2  # color1=0, color2=1
     positions = np.tile(
-        np.arange(len(isamples)), len(weights_df["trial"])
+        np.arange(len(isamples), dtype=int), len(weights_df["trial"])
     )  # sample positions
     assert positions.shape == samples.shape
 
@@ -217,7 +81,7 @@ def calc_nonp_weights(df):
     else:
         assert stream == "dual"
         # sanity check
-        np.testing.assert_array_equal(np.unique(weights_df["choice"]), ["red", "blue"])
+        np.testing.assert_array_equal(np.unique(weights_df["choice"]), ["blue", "red"])
 
         # map red/blue to 0/1 ... and repeat choice for each sample
         choices = np.repeat(
@@ -228,7 +92,7 @@ def calc_nonp_weights(df):
     # Calculate overall weights and for each sample position
     numbers = np.arange(1, 10, dtype=int)  # numbers 1 to 9 were shown
     weights = np.zeros(len(numbers))
-    position_weights = np.zeros((len(numbers), len(isamples)))
+    position_weights = np.zeros((len(isamples), len(numbers)))
     for inumber, number in enumerate(numbers):
 
         if stream == "single":
@@ -238,7 +102,7 @@ def calc_nonp_weights(df):
 
             # weights for each sample position
             for pos in np.unique(positions):
-                position_weights[inumber, pos] = np.mean(
+                position_weights[pos, inumber] = np.mean(
                     choices[(samples == number) & (positions == pos)]
                 )
 
@@ -257,7 +121,7 @@ def calc_nonp_weights(df):
 
             # weights for each sample position
             for pos in np.unique(positions):
-                position_weights[inumber, pos] = np.mean(
+                position_weights[pos, inumber] = np.mean(
                     np.hstack(
                         [
                             choices[
@@ -274,9 +138,133 @@ def calc_nonp_weights(df):
     return weights, position_weights
 
 
-weights, position_weights = calc_nonp_weights(df)
+# %%
+
+# calculate weights over subjects
+numbers = np.arange(1, 10, dtype=int)
+positions = np.arange(10)
+weight_dfs = []
+posweight_dfs = []
+for sub in range(1, 33):
+
+    # skip bad subjs
+    if sub in BAD_SUBJS:
+        continue
+
+    for stream in ["single", "dual"]:
+
+        _, tsv = get_sourcedata(sub, stream, DATA_DIR_LOCAL)
+        df = pd.read_csv(tsv, sep="\t")
+
+        weights, position_weights = calc_nonp_weights(df)
+
+        # save in DF
+        wdf = pd.DataFrame.from_dict(
+            dict(sub=sub, stream=stream, number=numbers, weight=weights)
+        )
+        pwdf = pd.DataFrame.from_dict(
+            dict(
+                sub=[sub] * len(positions) * len(numbers),
+                stream=[stream] * len(positions) * len(numbers),
+                number=np.tile(numbers, len(positions)),
+                position=np.tile(positions, len(numbers)),
+                weight=position_weights.reshape(-1),
+            )
+        )
+
+        weight_dfs.append(wdf)
+        posweight_dfs.append(pwdf)
+
+weightdata = pd.concat(weight_dfs)
+posweightdata = pd.concat(posweight_dfs)
+
+# plot weights
+fig, ax = plt.subplots()
+sns.pointplot(
+    x="number", y="weight", hue="stream", data=weightdata, ax=ax, dodge=False, ci=68
+)
+ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
+
+fname = ANALYSIS_DIR / "figures" / "weights.jpg"
+
+
+# plot regression lines per task
+_tmp = weightdata.groupby(["stream", "number"])["weight"].mean().reset_index()
+for _stream, _color in zip(["single", "dual"], ["C0", "C1"]):
+    xy = _tmp[_tmp["stream"] == _stream][["number", "weight"]].to_numpy()
+    m, b = np.polyfit(xy[:, 0], xy[:, 1], 1)
+    plt.plot(np.arange(9), m * xy[:, 0] + b, color=_color)
+
+# optional horizontal, vertical, and diagonal (=linear weights) reference lines
+plot_ref_lines = False
+if plot_ref_lines:
+    ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
+    ax.axvline(4, linestyle="--", color="black", lw=0.5)
+    ax.plot(np.arange(9), np.linspace(0, 1, 9), linestyle="--", color="black", lw=0.5)
+    fname = str(fname).replace(".jpg", "_reflines.jpg")
+
+sns.despine(fig)
+fig.savefig(fname)
+
 
 # %%
-for i in range(10):
-    plt.plot(np.arange(1, 10), position_weights[:, i])
+# plot weights over positions: numbers as hue
+fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
+
+for stream, ax in zip(["single", "dual"], axs):
+
+    sns.pointplot(
+        x="position",
+        y="weight",
+        hue="number",
+        data=posweightdata[posweightdata["stream"] == stream],
+        ax=ax,
+        dodge=False,
+        ci=68,
+        palette="crest_r",
+    )
+    ax.set_title(stream)
+    ax.set_ylim(None, 0.85)
+    ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
+    if stream == "single":
+        ax.get_legend().remove()
+    else:
+        ax.legend(ncol=5, title="number")
+
+fig.tight_layout()
+sns.despine(fig)
+fname = ANALYSIS_DIR / "figures" / "posweights_numberhue.jpg"
+fig.savefig(fname)
+
+# %%
+# plot weights over positions: positions as hue
+fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
+for stream, ax in zip(["single", "dual"], axs):
+
+    data = posweightdata[
+        (posweightdata["stream"] == stream) & (posweightdata["position"].isin([0, 9]))
+    ]
+    # data = posweightdata[posweightdata["stream"] == stream]  # this is too crowded
+
+    sns.pointplot(
+        x="number",
+        y="weight",
+        hue="position",
+        data=data,
+        ax=ax,
+        dodge=False,
+        ci=68,
+        palette="crest_r",
+    )
+    ax.set_title(stream)
+    ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
+    if stream == "single":
+        ax.get_legend().remove()
+    else:
+        ax.legend(ncol=5, title="position")
+
+fig.tight_layout()
+sns.despine(fig)
+fname = ANALYSIS_DIR / "figures" / "posweights_positionhue.jpg"
+fig.savefig(fname)
 # %%
