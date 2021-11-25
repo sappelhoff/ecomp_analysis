@@ -1,4 +1,4 @@
-"""Beh analysis."""
+"""Analyze weights."""
 # %%
 # Imports
 import matplotlib.pyplot as plt
