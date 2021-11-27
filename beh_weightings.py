@@ -258,3 +258,49 @@ sns.despine(fig)
 fname = ANALYSIS_DIR / "figures" / "posweights_positionhue.jpg"
 fig.savefig(fname)
 # %%
+
+# Plotting over- and underweighting according to model
+numbers = np.arange(1, 10)
+numbers_rescaled = np.interp(numbers, (numbers.min(), numbers.max()), (-1, +1))
+
+
+def eq1(X, bias, kappa):
+    """See equation 1 from Spitzer et al. 2017, Nature Human Behavior."""
+    dv = np.sign(X + bias) * (np.abs(X + bias) ** kappa)
+    return dv
+
+
+# numberline
+cmap = sns.color_palette("crest_r", as_cmap=True)
+
+bs = np.linspace(-1, 1, 7)
+ks = np.linspace(0.4, 3, 5)
+
+fig, axs = plt.subplots(1, len(bs), figsize=(10, 5), sharex=True, sharey=True)
+for i, b in enumerate(bs):
+    ax = axs.flat[i]
+    ax.plot(
+        np.linspace(-1, 1, 9),
+        eq1(numbers_rescaled, bias=0, kappa=1),
+        color="k",
+        marker="o",
+        label="b=0, k=1",
+    )
+    ax.set(title=f"bias={b:.2}", ylabel="decision weight", xlabel="X")
+
+    for k in ks:
+        ax.plot(
+            np.linspace(-1, 1, 1000),
+            eq1(np.linspace(-1, 1, 1000), b, k),
+            color=cmap(k / ks.max()),
+            label=f"k={k:.2f}",
+        )
+
+    ax.axhline(0, color="k", linestyle="--")
+    ax.axvline(0, color="k", linestyle="--")
+    if i == 0:
+        ax.legend()
+
+fig.tight_layout()
+
+# %%
