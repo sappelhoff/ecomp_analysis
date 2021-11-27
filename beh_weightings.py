@@ -264,7 +264,6 @@ sns.despine(fig)
 fname = ANALYSIS_DIR / "figures" / "posweights_positionhue.jpg"
 fig.savefig(fname)
 # %%
-
 # Plotting over- and underweighting according to model
 numbers = np.arange(1, 10)
 numbers_rescaled = np.interp(numbers, (numbers.min(), numbers.max()), (-1, +1))
