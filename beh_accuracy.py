@@ -34,6 +34,8 @@ for sub in range(1, 33):
         data["acc"] += [np.mean(corrects)]
 
 df_acc = pd.DataFrame.from_dict(data)
+fname = ANALYSIS_DIR / "derived_data" / "accuracies.tsv"
+df_acc.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
 # %%
 

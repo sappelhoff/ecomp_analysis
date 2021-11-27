@@ -165,8 +165,14 @@ for sub in range(1, 33):
         weight_dfs.append(wdf)
         posweight_dfs.append(pwdf)
 
+# save to files
 weightdata = pd.concat(weight_dfs)
+fname = ANALYSIS_DIR / "derived_data" / "weights.tsv"
+weightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
+
 posweightdata = pd.concat(posweight_dfs)
+fname = ANALYSIS_DIR / "derived_data" / "posweights.tsv"
+weightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
 # plot weights
 fig, ax = plt.subplots()
