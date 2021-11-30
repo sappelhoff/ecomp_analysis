@@ -49,18 +49,16 @@ Automatic marking of bad segments
 We use three methods to "pre-mark" segments as bad, and then verify the results in
 an interactive screening:
 
-- we know when a participant was having breaks, we mark these as bad_break
+- mne.preprocessing.annotate_break to mark block breaks
 - mne.preprocessing.annotate_flat helps us to mark flat segments (and channels)
 - mne.preprocessing.annotate_muscle_zscore helps us mark segments with muscle activity
 
 We let these functions mostly operate with their default values, and double check the
 results.
 """
-
-import pathlib
-
 # %%
 # Imports
+import pathlib
 import sys
 
 import click
@@ -88,7 +86,7 @@ data_dir = DATA_DIR_EXTERNAL
 overwrite = False
 
 # interactive mode: if False, expects the annotations to be loadable
-interactive = False
+interactive = True
 
 # %%
 
@@ -205,7 +203,7 @@ if not interactive:
 
 # ... else, we continue with interactive screening of the data
 # remove annotations from raw, we'll add some more on a blank slate now
-raw = raw.set_annotations(None, verbose=False)
+raw = raw.set_annotations(None)
 
 # %%
 # Automatically add annotations on bad segments
@@ -216,43 +214,23 @@ annots_flat = mne.Annotations(
 )
 raw.info["bads"] += bads
 
-
-# Bad "break" segments
-def get_stim_onset(annots, stim, nth_stim=0):
-    """Help to find onset of a stimulus in the data."""
-    idx = (annots.description == stim).nonzero()[0][nth_stim]
-    return idx, annots.onset[idx]
-
-
-annots_break = mne.Annotations([], [], [])
-for stream in ["single", "dual"]:
-    # marker meanings, see ecomp_experiment package
-    ttl_start = "Stimulus/S 80" if stream == "single" else "Stimulus/S180"
-    ttl_break_begin = "Stimulus/S  7" if stream == "single" else "Stimulus/S107"
-    ttl_break_end = "Stimulus/S  8" if stream == "single" else "Stimulus/S108"
-
-    # Mark data prior to start bad
-    _, recording_onset = get_stim_onset(annots_orig, ttl_start)
-    tbuffer = 1
-    start = raw.first_samp / raw.info["sfreq"]
-    dur = (recording_onset - start) - tbuffer
-    annots_break.append(start, dur, "BAD_break")
-
-    # Mark block breaks bad
-    nbreaks = 6
-    tbuffer = 1
-    for ith_break in range(nbreaks):
-        _, onset = get_stim_onset(annots_orig, ttl_break_begin, nth_stim=ith_break)
-        _, offset = get_stim_onset(annots_orig, ttl_break_end, nth_stim=ith_break)
-
-        begin = onset + tbuffer
-        dur = (offset - tbuffer) - begin
-        annots_break.append(begin, dur, "BAD_break")
-
-    # Mark data from last block break offset to end bad
-    dur = (raw.last_samp / raw.info["sfreq"]) - offset
-    annots_break.append(offset, dur, "BAD_break")
-
+# Bad "break" segments, temporarily add original annotations back for the algorithm
+raw = raw.set_annotations(annots_orig)
+annots_break = mne.preprocessing.annotate_break(
+    raw,
+    min_break_duration=3,
+    t_start_after_previous=1,
+    t_stop_before_next=1,
+    ignore=(
+        "bad",
+        "edge",
+        "Stimulus/S 90",
+        "Stimulus/S190",
+        "Stimulus/S  8",
+        "Stimulus/S108",
+    ),
+)
+raw = raw.set_annotations(None)
 
 # bad muscle segments
 raw_copy = raw.copy()
