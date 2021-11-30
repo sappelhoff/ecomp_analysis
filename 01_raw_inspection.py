@@ -230,6 +230,9 @@ annots_break = mne.preprocessing.annotate_break(
         "Stimulus/S108",
     ),
 )
+annots_break = mne.Annotations(
+    annots_break.onset, annots_break.duration, annots_break.description
+)
 raw = raw.set_annotations(None)
 
 # bad muscle segments
@@ -240,6 +243,18 @@ threshold_muscle = 6
 annots_muscle, scores_muscle = mne.preprocessing.annotate_muscle_zscore(
     raw_copy, threshold=threshold_muscle, ch_type="eeg"
 )
+
+# delete bad muscle segments that are nested in a bad break segment
+bad_muscle_remove_idxs = []
+for annot_b in annots_break:
+    onset = annot_b["onset"]
+    offset = onset + annot_b["duration"]
+    for i, annot_m in enumerate(annots_muscle):
+        if (annot_m["onset"] > onset) and (annot_m["onset"] < offset):
+            bad_muscle_remove_idxs.append(i)
+
+annots_muscle.delete(bad_muscle_remove_idxs)
+
 
 # combine all automatically identified bad segments
 annots_bad = annots_flat + annots_break + annots_muscle
