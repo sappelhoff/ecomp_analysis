@@ -6,7 +6,7 @@ import mne
 import numpy as np
 import pandas as pd
 
-from config import get_sourcedata
+from config import DATA_DIR_EXTERNAL, get_sourcedata
 
 # %%
 # Load data
@@ -14,7 +14,7 @@ for sub in range(1, 33):
     for stream in ["single", "dual"]:
         print(f"Checking {sub}-{stream}")
 
-        vhdr, tsv = get_sourcedata(sub, stream)
+        vhdr, tsv = get_sourcedata(sub, stream, DATA_DIR_EXTERNAL)
         with mne.utils.use_log_level(0):
             raw = mne.io.read_raw_brainvision(vhdr)
             events, event_id = mne.events_from_annotations(raw)

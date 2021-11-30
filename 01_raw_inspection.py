@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 import mne
 import numpy as np
 
-from config import get_sourcedata
+from config import DATA_DIR_EXTERNAL, get_sourcedata
 
 # %%
 # Load and prepare data
 stream = "single"
-vhdr, tsv = get_sourcedata(1, stream)
+vhdr, tsv = get_sourcedata(1, stream, DATA_DIR_EXTERNAL)
 raw = mne.io.read_raw_brainvision(vhdr, preload=True)
 
 # Set the EOG and ECG channels to their type
