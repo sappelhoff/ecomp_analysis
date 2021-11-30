@@ -10,7 +10,7 @@ raw data object, and save the data object as a FIF file. This is helpful when
 only the raw data and annotation files have been shared and you want to re-create
 the FIF files.
 
-In generel, this is the workflow:
+In general, this is the workflow:
 
 - For each subject:
     - Load data from both tasks and concatenate to a single raw file
@@ -24,6 +24,18 @@ In generel, this is the workflow:
     - Save bad channels and segments
     - Get union of "annots_orig" and newly created annotations and add to raw
     - Save raw with full annotations (original + bad) and bad channels in FIF format
+
+How to use the script?
+----------------------
+Either run in an interactive IPython session and have code cells rendered ("# %%")
+by an editor such as VSCode, **or** run this from the command line, optionally
+specifying settings as command line arguments:
+
+```shell
+
+python 01_raw_inspection.py --sub=1
+
+```
 
 Anonymization
 -------------
@@ -45,10 +57,13 @@ We let these functions mostly operate with their default values, and double chec
 results.
 """
 
+import pathlib
+
 # %%
 # Imports
 import sys
 
+import click
 import mne
 import numpy as np
 import pandas as pd
@@ -74,6 +89,36 @@ overwrite = False
 
 # interactive mode: if False, expects the annotations to be loadable
 interactive = False
+
+# %%
+
+
+# Potentially overwrite settings with command line arguments
+@click.command()
+@click.option("-s", "--sub", default=sub, type=int, help="Subject number")
+@click.option("-d", "--data_dir", default=data_dir, type=str, help="Data location")
+@click.option("-o", "--overwrite", default=overwrite, type=bool, help="Overwrite?")
+@click.option("-i", "--interactive", default=interactive, type=bool, help="Interative?")
+def get_inputs(sub, data_dir, overwrite, interactive):
+    """Parse inputs in case script is run from command line."""
+    print("Overwriting settings from command line.\nUsing the following settings:")
+    for name, opt in [
+        ("sub", sub),
+        ("data_dir", data_dir),
+        ("overwrite", overwrite),
+        ("interactive", interactive),
+    ]:
+        print(f"    > {name}: {opt}")
+
+    data_dir = pathlib.Path(data_dir)
+    return sub, data_dir, overwrite, interactive
+
+
+# only run this when not in an IPython session
+# https://docs.python.org/3/library/sys.html#sys.ps1
+if not hasattr(sys, "ps1"):
+    sub, data_dir, overwrite, interactive = get_inputs.main(standalone_mode=False)
+
 
 # %%
 # Prepare file paths
