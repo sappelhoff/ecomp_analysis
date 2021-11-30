@@ -4,6 +4,14 @@ In this script we go through each participant and prepare the data for preproces
 with ICA. We will mainly prepare the BrainVision data to be in an MNE-Python accessible
 format and screen it for bad channels and segments.
 
+We can also run this in non-interactive mode, by setting `interactive=False`. In that
+case, the script will search for already-saved annotation files, apply them to the
+raw data object, and save the data object as a FIF file. This is helpful when
+only the raw data and annotation files have been shared and you want to re-create
+the FIF files.
+
+In generel, this is the workflow:
+
 - For each subject:
     - Load data from both tasks and concatenate to a single raw file
     - anonymize the file (see below)
@@ -11,7 +19,7 @@ format and screen it for bad channels and segments.
     - Get all annotations, and remove the BrainVision ones ("New Segment", ...)
     - Save these annotations in a variable ("annots_orig")
     - Remove existing annotations from raw, for browsing the data without them
-    - Automatically create some new annotations (block breaks, muscle scores; see below)
+    - Automatically create some new annotations (block breaks, ...; see below)
     - screen data for bad channels and segments, double checking the autocreated ones
     - Save bad channels and segments
     - Get union of "annots_orig" and newly created annotations and add to raw
@@ -35,16 +43,23 @@ an interactive screening:
 
 We let these functions mostly operate with their default values, and double check the
 results.
-
-
 """
 
 # %%
 # Imports
+import sys
+
 import mne
 import numpy as np
+import pandas as pd
 
-from config import ANALYSIS_DIR, DATA_DIR_EXTERNAL, get_daysback, get_sourcedata
+from config import (
+    ANALYSIS_DIR,
+    BAD_SUBJS,
+    DATA_DIR_EXTERNAL,
+    get_daysback,
+    get_sourcedata,
+)
 
 # %%
 # Settings
@@ -57,14 +72,45 @@ data_dir = DATA_DIR_EXTERNAL
 # overwrite existing annotation data?
 overwrite = False
 
+# interactive mode: if False, expects the annotations to be loadable
+interactive = False
+
+# %%
+# Prepare file paths
+savedir = ANALYSIS_DIR / "derived_data" / "annotations"
+savedir.mkdir(parents=True, exist_ok=True)
+
+fname_bad_channels = savedir / f"sub-{sub:02}_bad-channels.txt"
+
+fname_annots = savedir / f"sub-{sub:02}_annotations.txt"
+
+derivatives = data_dir / "derivatives" / f"sub-{sub:02}"
+derivatives.mkdir(parents=True, exist_ok=True)
+fname_fif = derivatives / f"sub-{sub:02}_concat_raw.fif.gz"
+
+overwrite_msg = "\nfile exists and overwrite is False:\n\n>>> {}\n"
+
 # %%
 # Load and concatenate data
+if sub in BAD_SUBJS:
+    raise RuntimeError("No need to work on the bad subjs.")
+
 raws = []
 for stream in ["single", "dual"]:
     vhdr, tsv = get_sourcedata(1, stream, data_dir)
     raw_stream = mne.io.read_raw_brainvision(vhdr, preload=True)
     raws.append(raw_stream)
 
+# put in order as recorded
+participants_tsv = ANALYSIS_DIR / "derived_data" / "participants.tsv"
+df_participants = pd.read_csv(participants_tsv, sep="\t")
+first_task = df_participants.loc[
+    df_participants["participant_id"] == f"sub-{sub:02}", "first_task"
+].to_list()[0]
+if first_task == "dual":
+    raws = raws[::-1]
+
+# concatenate
 raw = mne.concatenate_raws(raws)
 
 # %%
@@ -96,6 +142,23 @@ for annot in bv_annots_to_remove:
 
 annots_orig.delete(idxs_to_remove)
 
+# if we run in non-interactive mode, we can exit here
+if not interactive:
+    if not all((fname_bad_channels.exists(), fname_annots.exists())):
+        raise RuntimeError(f"Did not find annotation files for sub-{sub:02}.")
+
+    annots_bad = mne.read_annotations(fname_annots)
+    raw = raw.load_bads(fname_bad_channels)
+    annots_all = annots_orig + annots_bad
+    raw = raw.set_annotations(annots_all)
+
+    if not fname_fif.exists() or overwrite:
+        raw.save(fname_fif)
+    else:
+        raise RuntimeError(overwrite_msg.format(fname_fif))
+    sys.exit()
+
+# ... else, we continue with interactive screening of the data
 # remove annotations from raw, we'll add some more on a blank slate now
 raw = raw.set_annotations(None, verbose=False)
 
@@ -103,6 +166,9 @@ raw = raw.set_annotations(None, verbose=False)
 # Automatically add annotations on bad segments
 # mark flat segments
 annots_flat, bads = mne.preprocessing.annotate_flat(raw, picks="eeg", min_duration=0.5)
+annots_flat = mne.Annotations(
+    annots_flat.onset, annots_flat.duration, annots_flat.description
+)
 raw.info["bads"] += bads
 
 
@@ -153,9 +219,9 @@ annots_muscle, scores_muscle = mne.preprocessing.annotate_muscle_zscore(
 )
 
 # combine all automatically identified bad segments
-# TODO: COMBINE ANNOTS
-annots_bad = 1
-raw.set_annotations(annots_bad)
+annots_bad = annots_flat + annots_break + annots_muscle
+raw = raw.set_annotations(annots_bad)
+
 # %%
 # Screen the data
 
@@ -173,34 +239,23 @@ with mne.viz.use_browser_backend("pyqtgraph"):
 # %%
 # Save results
 
-savedir = ANALYSIS_DIR / "derived_data" / "annotations"
-savedir.mkdir(parents=True, exist_ok=True)
-
-overwrite_msg = "\nfile exists and overwrite is False:\n\n>>> {}\n"
-
 # Save bad channels
-fname_channels = savedir / f"sub-{sub:02}_bad-channels.txt"
-if not fname_channels.exists() or overwrite:
-    with open(fname_channels, "w") as fout:
+if not fname_bad_channels.exists() or overwrite:
+    with open(fname_bad_channels, "w") as fout:
         lines = "\n".join(raw.info["bads"])
         fout.writelines(lines)
 else:
-    raise RuntimeError(overwrite_msg.format(fname_channels))
+    raise RuntimeError(overwrite_msg.format(fname_bad_channels))
 
 # Save bad annotations
-fname_annots = savedir / f"sub-{sub:02}_annotations.txt"
 if not fname_annots.exists() or overwrite:
     raw.annotations.save(fname_annots)
 else:
     raise RuntimeError(overwrite_msg.format(fname_annots))
 
 # Save data with all annots as FIF
-derivatives = data_dir / "derivatives" / f"sub-{sub:02}"
-derivatives.mkdir(parents=True, exist_ok=True)
-fname_fif = derivatives / f"sub-{sub:02}_concat_raw.fif.gz"
-
-all_annots = annots_orig + raw.annotations
-raw.set_annotations(all_annots)
+annots_all = annots_orig + raw.annotations
+raw.set_annotations(annots_all)
 
 if not fname_fif.exists() or overwrite:
     raw.save(fname_fif)
