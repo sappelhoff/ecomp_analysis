@@ -27,13 +27,13 @@ for sub in range(1, 33):
         # Check misc ttl codes, see:
         # https://github.com/sappelhoff/ecomp_experiment/blob/main/ecomp_experiment/define_ttl.py
         occur = {
-            80: 1,
-            90: 1,
-            1: 300,
-            2: 300,
-            3: 300,
-            7: 6,
-            8: 6,
+            80: 1,  # experiment started
+            90: 1,  # experiment stopped
+            1: 300,  # new trial
+            2: 300,  # fixstim offset in each trial
+            3: 300,  # response prompt onset
+            7: 6,  # block break started
+            8: 6,  # block break stopped
         }
 
         if stream == "dual":
