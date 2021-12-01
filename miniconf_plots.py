@@ -195,3 +195,45 @@ with sns.plotting_context(**plotting_context):
 fname = ANALYSIS_DIR / "figures" / "miniconf.jpg"
 fig.savefig(fname, bbox_inches="tight", bbox_extra_artists=extra_artists)
 # %%
+
+# compute RDMs
+rdms = []
+for kappa in [1, 0.5, 2]:
+    xx = eq1_rescale(numbers_rescaled, bias=0, kappa=kappa)
+    arrs = list()
+    for num in xx:
+        arrs.append(np.abs(xx - num))
+    rdm = np.stack(arrs, axis=0)
+
+    rdm = rdm / rdm.max()
+    assert np.isclose(rdm.min(), 0)
+    assert np.isclose(rdm.max(), 1)
+
+    rdms.append(rdm)
+
+# plot
+ticklabels = [str(i) for i in range(11)]
+
+with sns.plotting_context(**plotting_context):
+    fig, axs = plt.subplots(1, 3, figsize=(15, 5), sharex=True, sharey=True)
+
+    for ax, rdm, title in zip(axs, rdms, ["linear", "compressed", "anti-compressed"]):
+        im = ax.imshow(rdm)
+        ax.set_title(title)
+
+    ax.locator_params(nbins=9)
+    _ = ax.set(xticklabels=ticklabels, yticklabels=ticklabels)
+
+    fig.tight_layout()
+
+    cbar = fig.colorbar(
+        im, ax=axs.ravel().tolist(), shrink=0.75, label="distance", pad=0.025
+    )
+    cbar.set_ticks(np.arange(0, 1.1, 0.5))
+    cbar.set_ticklabels(["low", "medium", "high"])
+
+extra_artists = [cbar]
+fname = ANALYSIS_DIR / "figures" / "miniconf2.jpg"
+fig.savefig(fname, bbox_extra_artists=extra_artists)
+
+# %%
