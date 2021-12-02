@@ -299,3 +299,5 @@ if not fname_fif.exists() or overwrite:
     raw.save(fname_fif)
 else:
     raise RuntimeError(overwrite_msg.format(fname_fif))
+
+# %%
