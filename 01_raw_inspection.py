@@ -209,9 +209,6 @@ raw = raw.set_annotations(None)
 # Automatically add annotations on bad segments
 # mark flat segments
 annots_flat, bads = mne.preprocessing.annotate_flat(raw, picks="eeg", min_duration=0.5)
-annots_flat = mne.Annotations(
-    annots_flat.onset, annots_flat.duration, annots_flat.description
-)
 raw.info["bads"] += bads
 
 # Bad "break" segments, temporarily add original annotations back for the algorithm
@@ -230,9 +227,6 @@ annots_break = mne.preprocessing.annotate_break(
         "Stimulus/S108",
     ),
 )
-annots_break = mne.Annotations(
-    annots_break.onset, annots_break.duration, annots_break.description
-)
 raw = raw.set_annotations(None)
 
 # bad muscle segments
@@ -242,6 +236,12 @@ raw_copy.notch_filter([50, 100])
 threshold_muscle = 6
 annots_muscle, scores_muscle = mne.preprocessing.annotate_muscle_zscore(
     raw_copy, threshold=threshold_muscle, ch_type="eeg"
+)
+annots_muscle = mne.Annotations(
+    annots_muscle.onset,
+    annots_muscle.duration,
+    annots_muscle.description,
+    orig_time=raw.info["meas_date"],
 )
 
 # delete bad muscle segments that are nested in a bad break segment
