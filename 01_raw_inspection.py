@@ -236,7 +236,7 @@ raw = raw.set_annotations(None)
 raw_copy = raw.copy()
 raw_copy.notch_filter([50, 100])
 
-threshold_muscle = 6
+threshold_muscle = 5
 annots_muscle, scores_muscle = mne.preprocessing.annotate_muscle_zscore(
     raw_copy, threshold=threshold_muscle, ch_type="eeg"
 )
