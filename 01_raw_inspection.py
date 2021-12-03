@@ -62,9 +62,12 @@ import pathlib
 import sys
 
 import click
+import matplotlib
+import matplotlib.pyplot as plt
 import mne
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 from config import (
     ANALYSIS_DIR,
@@ -259,6 +262,17 @@ annots_muscle.delete(bad_muscle_remove_idxs)
 # combine all automatically identified bad segments
 annots_bad = annots_flat + annots_break + annots_muscle
 raw = raw.set_annotations(annots_bad)
+
+# %%
+# Inspect the channel-wise power spectrum
+# This will open in a separate window, click on individual lines to see channel names
+matplotlib.use("Qt5Agg")
+with sns.plotting_context("talk"):
+    fig, ax = plt.subplots(figsize=(20, 10))
+    ax.axvline(10, color="gray", linestyle="-.")
+    fig = raw.plot_psd(picks="eeg", fmax=60, ax=ax)
+    sns.despine(fig)
+plt.show(block=True)
 
 # %%
 # Screen the data
