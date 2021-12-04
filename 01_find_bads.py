@@ -40,8 +40,9 @@ from utils import prepare_raw_from_source
 # Select the subject to work on here
 sub = 1
 
-# Select the data source here
+# Select the data source and analysis directory here
 data_dir = DATA_DIR_EXTERNAL
+analysis_dir = ANALYSIS_DIR
 
 # overwrite existing annotation data?
 overwrite = False
@@ -56,31 +57,35 @@ pyprep_rng = 42
 @click.command()
 @click.option("-s", "--sub", default=sub, type=int, help="Subject number")
 @click.option("-d", "--data_dir", default=data_dir, type=str, help="Data location")
+@click.option("-a", "--analysis_dir", default=data_dir, type=str, help="Analysis dir")
 @click.option("-o", "--overwrite", default=overwrite, type=bool, help="Overwrite?")
 @click.option("-r", "--pyprep_rng", default=pyprep_rng, type=int, help="PyPrep seed")
-def get_inputs(sub, data_dir, overwrite, pyprep_rng):
+def get_inputs(sub, data_dir, analysis_dir, overwrite, pyprep_rng):
     """Parse inputs in case script is run from command line."""
     print("Overwriting settings from command line.\nUsing the following settings:")
     for name, opt in [
         ("sub", sub),
         ("data_dir", data_dir),
+        ("analysis_dir", data_dir),
         ("overwrite", overwrite),
         ("pyprep_rng", pyprep_rng),
     ]:
         print(f"    > {name}: {opt}")
 
     data_dir = pathlib.Path(data_dir)
-    return sub, data_dir, overwrite, pyprep_rng
+    return sub, data_dir, analysis_dir, overwrite, pyprep_rng
 
 
 # only run this when not in an IPython session
 # https://docs.python.org/3/library/sys.html#sys.ps1
 if not hasattr(sys, "ps1"):
-    sub, data_dir, overwrite, pyprep_rng = get_inputs.main(standalone_mode=False)
+    sub, data_dir, analysis_dir, overwrite, pyprep_rng = get_inputs.main(
+        standalone_mode=False
+    )
 
 # %%
 # Prepare file paths
-savedir = ANALYSIS_DIR / "derived_data" / "annotations"
+savedir = analysis_dir / "derived_data" / "annotations"
 savedir.mkdir(parents=True, exist_ok=True)
 
 fname_pyprep = savedir / f"sub-{sub:02}_bads_pyprep.json"
@@ -97,7 +102,7 @@ if fname_pyprep.exists() and not overwrite:
 if sub in BAD_SUBJS:
     raise RuntimeError("No need to work on the bad subjs.")
 
-raw = prepare_raw_from_source(sub, data_dir, ANALYSIS_DIR)
+raw = prepare_raw_from_source(sub, data_dir, analysis_dir)
 
 # %%
 # Run pyprep

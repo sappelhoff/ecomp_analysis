@@ -22,15 +22,16 @@ import sys
 import click
 import mne
 
-from config import BAD_SUBJS, DATA_DIR_EXTERNAL
+from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_EXTERNAL
 
 # %%
 # Settings
 # Select the subject to work on here
 sub = 1
 
-# Select the data source here
+# Select the data source and analysis directory here
 data_dir = DATA_DIR_EXTERNAL
+analysis_dir = ANALYSIS_DIR
 
 # overwrite existing annotation data?
 overwrite = False
@@ -46,17 +47,19 @@ high_cutoff = 40.0
 @click.command()
 @click.option("-s", "--sub", default=sub, type=int, help="Subject number")
 @click.option("-d", "--data_dir", default=data_dir, type=str, help="Data location")
+@click.option("-a", "--analysis_dir", default=data_dir, type=str, help="Analysis dir")
 @click.option("-o", "--overwrite", default=overwrite, type=bool, help="Overwrite?")
 @click.option("-l", "--low_cutoff", default=low_cutoff, type=float, help="low_cutoff")
 @click.option(
     "-h", "--high_cutoff", default=high_cutoff, type=float, help="high_cutoff"
 )
-def get_inputs(sub, data_dir, overwrite, low_cutoff, high_cutoff):
+def get_inputs(sub, data_dir, analysis_dir, overwrite, low_cutoff, high_cutoff):
     """Parse inputs in case script is run from command line."""
     print("Overwriting settings from command line.\nUsing the following settings:")
     for name, opt in [
         ("sub", sub),
         ("data_dir", data_dir),
+        ("analysis_dir", data_dir),
         ("overwrite", overwrite),
         ("low_cutoff", low_cutoff),
         ("high_cutoff", high_cutoff),
@@ -64,13 +67,13 @@ def get_inputs(sub, data_dir, overwrite, low_cutoff, high_cutoff):
         print(f"    > {name}: {opt}")
 
     data_dir = pathlib.Path(data_dir)
-    return sub, data_dir, overwrite, low_cutoff, high_cutoff
+    return sub, data_dir, analysis_dir, overwrite, low_cutoff, high_cutoff
 
 
 # only run this when not in an IPython session
 # https://docs.python.org/3/library/sys.html#sys.ps1
 if not hasattr(sys, "ps1"):
-    sub, data_dir, overwrite = get_inputs.main(standalone_mode=False)
+    sub, data_dir, analysis_dir, overwrite = get_inputs.main(standalone_mode=False)
 
 # %%
 # Prepare file paths
@@ -80,6 +83,10 @@ fname_fif = derivatives / f"sub-{sub:02}_concat_raw.fif.gz"
 fname_fif_clean = derivatives / f"sub-{sub:02}_clean_raw.fif.gz"
 
 fname_ica = derivatives / f"sub-{sub:02}_concat_ica.fif.gz"
+
+# %%
+# TODO: interactive way to run
+print(analysis_dir)
 
 # %%
 # Read data
