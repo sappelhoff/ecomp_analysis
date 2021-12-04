@@ -23,11 +23,10 @@ python 01_find_bads.py --sub=1
 ```
 
 """
-import json
-import pathlib
-
 # %%
 # Imports
+import json
+import pathlib
 import sys
 
 import click

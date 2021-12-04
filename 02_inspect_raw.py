@@ -60,10 +60,9 @@ an interactive screening:
 We let these functions mostly operate with their default values, and double check the
 results.
 """
-import json
-
 # %%
 # Imports
+import json
 import pathlib
 import sys
 
