@@ -7,15 +7,19 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from config import ANALYSIS_DIR
+from config import ANALYSIS_DIR_LOCAL
 
+# %%
+# Settings
+
+analysis_dir = ANALYSIS_DIR_LOCAL
 # %%
 
 # load data
-fname = ANALYSIS_DIR / "derived_data" / "weights.tsv"
+fname = analysis_dir / "derived_data" / "weights.tsv"
 weightdata = pd.read_csv(fname, sep="\t")
 
-fname = ANALYSIS_DIR / "derived_data" / "accuracies.tsv"
+fname = analysis_dir / "derived_data" / "accuracies.tsv"
 accdata = pd.read_csv(fname, sep="\t")
 
 # calc model weights
@@ -192,7 +196,7 @@ with sns.plotting_context(**plotting_context):
         )
         extra_artists.append(ax)
 
-fname = ANALYSIS_DIR / "figures" / "miniconf.jpg"
+fname = analysis_dir / "figures" / "miniconf.jpg"
 fig.savefig(fname, bbox_inches="tight", bbox_extra_artists=extra_artists)
 # %%
 
@@ -233,7 +237,7 @@ with sns.plotting_context(**plotting_context):
     cbar.set_ticklabels(["low", "medium", "high"])
 
 extra_artists = [cbar]
-fname = ANALYSIS_DIR / "figures" / "miniconf2.jpg"
+fname = analysis_dir / "figures" / "miniconf2.jpg"
 fig.savefig(fname, bbox_extra_artists=extra_artists)
 
 # %%

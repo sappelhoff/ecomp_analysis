@@ -8,8 +8,13 @@ import pingouin
 import seaborn as sns
 from scipy.stats import sem
 
-from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_LOCAL
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_LOCAL
 from utils import get_sourcedata
+
+# %%
+# Settings
+
+analysis_dir = ANALYSIS_DIR_LOCAL
 
 # %%
 # Get accuracies from participants
@@ -35,7 +40,7 @@ for sub in range(1, 33):
         data["acc"] += [np.mean(corrects)]
 
 df_acc = pd.DataFrame.from_dict(data)
-fname = ANALYSIS_DIR / "derived_data" / "accuracies.tsv"
+fname = analysis_dir / "derived_data" / "accuracies.tsv"
 df_acc.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
 # %%
@@ -129,7 +134,7 @@ with sns.plotting_context(**plotting_context):
     ax.set_xticklabels([i.capitalize() for i in stream_order])
 
     sns.despine(fig)
-    fname = ANALYSIS_DIR / "figures" / "accs.jpg"
+    fname = analysis_dir / "figures" / "accs.jpg"
     fig.savefig(fname)
 
 

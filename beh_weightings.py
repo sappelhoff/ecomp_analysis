@@ -6,8 +6,13 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_LOCAL
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_LOCAL
 from utils import get_sourcedata
+
+# %%
+# Settings
+
+analysis_dir = ANALYSIS_DIR_LOCAL
 
 # %%
 
@@ -168,11 +173,11 @@ for sub in range(1, 33):
 
 # save to files
 weightdata = pd.concat(weight_dfs)
-fname = ANALYSIS_DIR / "derived_data" / "weights.tsv"
+fname = analysis_dir / "derived_data" / "weights.tsv"
 weightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
 posweightdata = pd.concat(posweight_dfs)
-fname = ANALYSIS_DIR / "derived_data" / "posweights.tsv"
+fname = analysis_dir / "derived_data" / "posweights.tsv"
 weightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
 # plot weights
@@ -182,7 +187,7 @@ sns.pointplot(
 )
 ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
 
-fname = ANALYSIS_DIR / "figures" / "weights.jpg"
+fname = analysis_dir / "figures" / "weights.jpg"
 
 
 # plot regression lines per task
@@ -230,7 +235,7 @@ for stream, ax in zip(["single", "dual"], axs):
 
 fig.tight_layout()
 sns.despine(fig)
-fname = ANALYSIS_DIR / "figures" / "posweights_numberhue.jpg"
+fname = analysis_dir / "figures" / "posweights_numberhue.jpg"
 fig.savefig(fname)
 
 # %%
@@ -262,7 +267,7 @@ for stream, ax in zip(["single", "dual"], axs):
 
 fig.tight_layout()
 sns.despine(fig)
-fname = ANALYSIS_DIR / "figures" / "posweights_positionhue.jpg"
+fname = analysis_dir / "figures" / "posweights_positionhue.jpg"
 fig.savefig(fname)
 # %%
 # Plotting over- and underweighting according to model

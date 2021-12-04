@@ -5,8 +5,13 @@ import json
 
 import pandas as pd
 
-from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_LOCAL
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_LOCAL
 from utils import get_sourcedata
+
+# %%
+# Settings
+
+analysis_dir = ANALYSIS_DIR_LOCAL
 
 # %%
 # Check how often participants "timed out" on their choices
@@ -67,7 +72,7 @@ for sub in range(1, 33):
 
 # save
 participants_tsv = pd.DataFrame.from_dict(data)
-fname = ANALYSIS_DIR / "derived_data" / "participants.tsv"
+fname = analysis_dir / "derived_data" / "participants.tsv"
 participants_tsv.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
 # print descriptives for included participants
