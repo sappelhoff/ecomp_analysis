@@ -29,6 +29,18 @@ We do the following steps:
 - running ICA on non-broken EEG channels only (using an RNG seed)
 - Save the ICA object
 
+How to use the script?
+----------------------
+Either run in an interactive IPython session and have code cells rendered ("# %%")
+by an editor such as VSCode, **or** run this from the command line, optionally
+specifying settings as command line arguments:
+
+```shell
+
+python 03_run_ica.py --sub=1
+
+```
+
 """
 # %%
 # Imports

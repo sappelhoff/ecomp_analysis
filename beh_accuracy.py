@@ -8,7 +8,8 @@ import pingouin
 import seaborn as sns
 from scipy.stats import sem
 
-from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_LOCAL, get_sourcedata
+from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_LOCAL
+from utils import get_sourcedata
 
 # %%
 # Get accuracies from participants

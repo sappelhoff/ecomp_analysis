@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_LOCAL, get_sourcedata
+from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_LOCAL
+from utils import get_sourcedata
 
 # %%
 

@@ -25,6 +25,7 @@ dependencies:
   - pooch
   - tqdm
   - python-picard
+  - pyprep
   - git+https://github.com/mne-tools/mne-qt-browser.git@06e586a44fc7934b14ad7c0cde89f527bafbd879
   - psutil
   - pyopengl

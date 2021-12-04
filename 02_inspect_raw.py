@@ -12,18 +12,20 @@ the FIF files.
 
 In general, this is the workflow:
 
-- For each subject:
+- prepare the data, this includes the following steps:
     - Load data from both tasks and concatenate to a single raw file
-    - anonymize the file (see below)
+    - anonymize the file
     - Set channel types (EEG, EOG, ECG) and add electrode positions (standard montage)
-    - Get all annotations, and remove the BrainVision ones ("New Segment", ...)
-    - Save these annotations in a variable ("annots_orig")
-    - Remove existing annotations from raw, for browsing the data without them
-    - Automatically create some new annotations (block breaks, ...; see below)
-    - screen data for bad channels and segments, double checking the autocreated ones
-    - Save bad channels and segments
-    - Get union of "annots_orig" and newly created annotations and add to raw
-    - Save raw with full annotations (original + bad) and bad channels in FIF format
+    - Set line noise frequency to 50Hz
+- Get all annotations, and remove the BrainVision ones ("New Segment", ...)
+- Save these annotations in a variable ("annots_orig")
+- Remove existing annotations from raw, for browsing the data without them
+- Automatically mark some channels as bad (see below)
+- Automatically create some new annotations (block breaks, ...; see below)
+- screen data for bad channels and segments, double checking the autocreated ones
+- Save bad channels and segments
+- Get union of "annots_orig" and newly created annotations and add to raw
+- Save raw with full annotations (original + bad) and bad channels in FIF format
 
 How to use the script?
 ----------------------
@@ -33,16 +35,18 @@ specifying settings as command line arguments:
 
 ```shell
 
-python 01_raw_inspection.py --sub=1
+python 02_inspect_raw.py --sub=1
 
 ```
 
-Anonymization
--------------
-To anonymize the file, we change the recording date by subtracting a certain number of
-days, read from a local file called `DAYSBACK.json`. If that file is not available
-on your system, the recording dates will remain unchanged. To make sure that the
-anonymization serves its purpose, `DAYSBACK.json` is not shared publicly.
+Automatic marking of bad channels
+---------------------------------
+The outputs from the "01_find_bads.py" script are optionally read in and "pre-marked"
+in the raw data as bad channels. In the interactive inspection of the data these
+automatically marked bad channels should then be double checked and either kept
+as bad, or revised to be "good" instead.
+
+Automatic marking of bad channels happens via the "pyprep" Python package.
 
 Automatic marking of bad segments
 ---------------------------------
@@ -56,6 +60,8 @@ an interactive screening:
 We let these functions mostly operate with their default values, and double check the
 results.
 """
+import json
+
 # %%
 # Imports
 import pathlib
@@ -66,16 +72,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 import mne
 import numpy as np
-import pandas as pd
 import seaborn as sns
 
-from config import (
-    ANALYSIS_DIR,
-    BAD_SUBJS,
-    DATA_DIR_EXTERNAL,
-    get_daysback,
-    get_sourcedata,
-)
+from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_EXTERNAL
+from utils import prepare_raw_from_source
 
 # %%
 # Settings
@@ -126,8 +126,8 @@ if not hasattr(sys, "ps1"):
 savedir = ANALYSIS_DIR / "derived_data" / "annotations"
 savedir.mkdir(parents=True, exist_ok=True)
 
+fname_pyprep = savedir / f"sub-{sub:02}_bads_pyprep.json"
 fname_bad_channels = savedir / f"sub-{sub:02}_bad-channels.txt"
-
 fname_annots = savedir / f"sub-{sub:02}_annotations.txt"
 
 derivatives = data_dir / "derivatives" / f"sub-{sub:02}"
@@ -137,44 +137,18 @@ fname_fif = derivatives / f"sub-{sub:02}_concat_raw.fif.gz"
 overwrite_msg = "\nfile exists and overwrite is False:\n\n>>> {}\n"
 
 # %%
-# Load and concatenate data
+# Check overwrite
+if not overwrite:
+    for fname in [fname_bad_channels, fname_annots, fname_fif]:
+        if fname.exists():
+            raise RuntimeError(overwrite_msg.format(fname))
+
+# %%
+# Prepare data
 if sub in BAD_SUBJS:
     raise RuntimeError("No need to work on the bad subjs.")
 
-raws = []
-for stream in ["single", "dual"]:
-    vhdr, tsv = get_sourcedata(1, stream, data_dir)
-    raw_stream = mne.io.read_raw_brainvision(vhdr, preload=True)
-    raws.append(raw_stream)
-
-# put in order as recorded
-participants_tsv = ANALYSIS_DIR / "derived_data" / "participants.tsv"
-df_participants = pd.read_csv(participants_tsv, sep="\t")
-first_task = df_participants.loc[
-    df_participants["participant_id"] == f"sub-{sub:02}", "first_task"
-].to_list()[0]
-if first_task == "dual":
-    raws = raws[::-1]
-
-# concatenate
-raw = mne.concatenate_raws(raws)
-
-# %%
-# Anonymize data
-daysback = get_daysback(data_dir)
-raw = raw.anonymize(daysback=daysback, keep_his=False, verbose=False)
-
-# %%
-# Prepare raw object (ch_types, montage, ...)
-# Set the EOG and ECG channels to their type
-raw = raw.set_channel_types({"ECG": "ecg", "HEOG": "eog", "VEOG": "eog"})
-
-# Set a standard montage for plotting later
-montage = mne.channels.make_standard_montage("standard_1020")
-raw = raw.set_montage(montage)
-
-# Add some recording info
-raw.info["line_freq"] = 50
+raw = prepare_raw_from_source(sub, data_dir, ANALYSIS_DIR)
 
 # %%
 # Handle original annotations
@@ -198,15 +172,22 @@ if not interactive:
     annots_all = annots_orig + annots_bad
     raw = raw.set_annotations(annots_all)
 
-    if not fname_fif.exists() or overwrite:
-        raw.save(fname_fif)
-    else:
-        raise RuntimeError(overwrite_msg.format(fname_fif))
+    raw.save(fname_fif, overwrite=overwrite)
     sys.exit()
 
 # ... else, we continue with interactive screening of the data
 # remove annotations from raw, we'll add some more on a blank slate now
 raw = raw.set_annotations(None)
+
+# pre-mark bad channels identified in "01_find_bads.py"
+if fname_pyprep.exists():
+    with open(fname_pyprep, "r") as fin:
+        bads_dict = json.load(fin)
+    raw.info["bads"] += bads_dict["bad_all"]
+    bads_str = json.dumps(bads_dict, indent=4)
+    print(f"Pre-marking bad channels, please double check:\n\n{bads_str}\n\n")
+else:
+    print("Not pre-marking any bad channels. Consider running '01_find_bads.py'.")
 
 # %%
 # Automatically add annotations on bad segments
@@ -290,28 +271,16 @@ with mne.viz.use_browser_backend("pyqtgraph"):
 
 # %%
 # Save results
-
-# Save bad channels
-if not fname_bad_channels.exists() or overwrite:
-    with open(fname_bad_channels, "w") as fout:
-        lines = "\n".join(raw.info["bads"])
-        fout.writelines(lines)
-else:
-    raise RuntimeError(overwrite_msg.format(fname_bad_channels))
+with open(fname_bad_channels, "w") as fout:
+    lines = "\n".join(raw.info["bads"])
+    fout.writelines(lines)
 
 # Save bad annotations
-if not fname_annots.exists() or overwrite:
-    raw.annotations.save(fname_annots)
-else:
-    raise RuntimeError(overwrite_msg.format(fname_annots))
+raw.annotations.save(fname_annots, overwrite=overwrite)
 
 # Save data with all annots as FIF
 annots_all = annots_orig + raw.annotations
 raw.set_annotations(annots_all)
-
-if not fname_fif.exists() or overwrite:
-    raw.save(fname_fif)
-else:
-    raise RuntimeError(overwrite_msg.format(fname_fif))
+raw.save(fname_fif, overwrite=overwrite)
 
 # %%

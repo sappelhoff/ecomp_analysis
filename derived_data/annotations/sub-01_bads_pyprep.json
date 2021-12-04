@@ -1,0 +1,15 @@
+{
+    "bad_by_nan": [],
+    "bad_by_flat": [],
+    "bad_by_deviation": [],
+    "bad_by_hf_noise": [
+        "FC1"
+    ],
+    "bad_by_correlation": [],
+    "bad_by_SNR": [],
+    "bad_by_dropout": [],
+    "bad_by_ransac": [],
+    "bad_all": [
+        "FC1"
+    ]
+}

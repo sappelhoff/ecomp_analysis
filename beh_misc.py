@@ -5,7 +5,8 @@ import json
 
 import pandas as pd
 
-from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_LOCAL, get_sourcedata
+from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_LOCAL
+from utils import get_sourcedata
 
 # %%
 # Check how often participants "timed out" on their choices

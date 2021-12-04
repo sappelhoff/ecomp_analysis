@@ -1,4 +1,7 @@
-"""Sanity check the EEG data."""
+"""Sanity check the EEG data.
+
+This script should run without giving any errors.
+"""
 
 # %%
 # Imports
@@ -6,7 +9,8 @@ import mne
 import numpy as np
 import pandas as pd
 
-from config import DATA_DIR_EXTERNAL, get_sourcedata
+from config import DATA_DIR_EXTERNAL
+from utils import get_sourcedata
 
 # %%
 # Load data
