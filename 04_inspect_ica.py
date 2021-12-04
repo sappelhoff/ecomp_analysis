@@ -67,6 +67,7 @@ def get_inputs(sub, data_dir, analysis_dir, overwrite, low_cutoff, high_cutoff):
         print(f"    > {name}: {opt}")
 
     data_dir = pathlib.Path(data_dir)
+    analysis_dir = pathlib.Path(analysis_dir)
     return sub, data_dir, analysis_dir, overwrite, low_cutoff, high_cutoff
 
 
