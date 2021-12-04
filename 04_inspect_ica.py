@@ -22,7 +22,7 @@ import sys
 import click
 import mne
 
-from config import ANALYSIS_DIR, BAD_SUBJS, DATA_DIR_EXTERNAL
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL
 
 # %%
 # Settings
@@ -31,7 +31,7 @@ sub = 1
 
 # Select the data source and analysis directory here
 data_dir = DATA_DIR_EXTERNAL
-analysis_dir = ANALYSIS_DIR
+analysis_dir = ANALYSIS_DIR_LOCAL
 
 # overwrite existing annotation data?
 overwrite = False
