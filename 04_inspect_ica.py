@@ -16,13 +16,12 @@ Finally, this data will go through these steps:
 """
 # %%
 # Imports
-import pathlib
 import sys
 
-import click
 import mne
 
 from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL
+from utils import parse_overwrite
 
 # %%
 # Settings
@@ -41,40 +40,26 @@ low_cutoff = 0.1
 high_cutoff = 40.0
 
 # %%
-
-
-# Potentially overwrite settings with command line arguments
-@click.command()
-@click.option("-s", "--sub", default=sub, type=int, help="Subject number")
-@click.option("-d", "--data_dir", default=data_dir, type=str, help="Data location")
-@click.option("-a", "--analysis_dir", default=data_dir, type=str, help="Analysis dir")
-@click.option("-o", "--overwrite", default=overwrite, type=bool, help="Overwrite?")
-@click.option("-l", "--low_cutoff", default=low_cutoff, type=float, help="low_cutoff")
-@click.option(
-    "-h", "--high_cutoff", default=high_cutoff, type=float, help="high_cutoff"
-)
-def get_inputs(sub, data_dir, analysis_dir, overwrite, low_cutoff, high_cutoff):
-    """Parse inputs in case script is run from command line."""
-    print("Overwriting settings from command line.\nUsing the following settings:")
-    for name, opt in [
-        ("sub", sub),
-        ("data_dir", data_dir),
-        ("analysis_dir", data_dir),
-        ("overwrite", overwrite),
-        ("low_cutoff", low_cutoff),
-        ("high_cutoff", high_cutoff),
-    ]:
-        print(f"    > {name}: {opt}")
-
-    data_dir = pathlib.Path(data_dir)
-    analysis_dir = pathlib.Path(analysis_dir)
-    return sub, data_dir, analysis_dir, overwrite, low_cutoff, high_cutoff
-
-
-# only run this when not in an IPython session
+# When not in an IPython session, get command line inputs
 # https://docs.python.org/3/library/sys.html#sys.ps1
 if not hasattr(sys, "ps1"):
-    sub, data_dir, analysis_dir, overwrite = get_inputs.main(standalone_mode=False)
+    defaults = dict(
+        sub=sub,
+        data_dir=data_dir,
+        analysis_dir=data_dir,
+        overwrite=overwrite,
+        low_cutoff=low_cutoff,
+        high_cutoff=high_cutoff,
+    )
+
+    defaults = parse_overwrite(defaults)
+
+    sub = defaults["sub"]
+    data_dir = defaults["data_dir"]
+    analysis_dir = defaults["data_dir"]
+    overwrite = defaults["overwrite"]
+    low_cutoff = defaults["low_cutoff"]
+    high_cutoff = defaults["high_cutoff"]
 
 # %%
 # Prepare file paths

@@ -63,10 +63,8 @@ results.
 # %%
 # Imports
 import json
-import pathlib
 import sys
 
-import click
 import matplotlib
 import matplotlib.pyplot as plt
 import mne
@@ -74,7 +72,7 @@ import numpy as np
 import seaborn as sns
 
 from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL
-from utils import prepare_raw_from_source
+from utils import parse_overwrite, prepare_raw_from_source
 
 # %%
 # Settings
@@ -92,39 +90,24 @@ overwrite = False
 interactive = True
 
 # %%
-
-
-# Potentially overwrite settings with command line arguments
-@click.command()
-@click.option("-s", "--sub", default=sub, type=int, help="Subject number")
-@click.option("-d", "--data_dir", default=data_dir, type=str, help="Data location")
-@click.option("-a", "--analysis_dir", default=data_dir, type=str, help="Analysis dir")
-@click.option("-o", "--overwrite", default=overwrite, type=bool, help="Overwrite?")
-@click.option("-i", "--interactive", default=interactive, type=bool, help="Interative?")
-def get_inputs(sub, data_dir, analysis_dir, overwrite, interactive):
-    """Parse inputs in case script is run from command line."""
-    print("Overwriting settings from command line.\nUsing the following settings:")
-    for name, opt in [
-        ("sub", sub),
-        ("data_dir", data_dir),
-        ("analysis_dir", data_dir),
-        ("overwrite", overwrite),
-        ("interactive", interactive),
-    ]:
-        print(f"    > {name}: {opt}")
-
-    data_dir = pathlib.Path(data_dir)
-    analysis_dir = pathlib.Path(analysis_dir)
-    return sub, data_dir, analysis_dir, overwrite, interactive
-
-
-# only run this when not in an IPython session
+# When not in an IPython session, get command line inputs
 # https://docs.python.org/3/library/sys.html#sys.ps1
 if not hasattr(sys, "ps1"):
-    sub, data_dir, analysis_dir, overwrite, interactive = get_inputs.main(
-        standalone_mode=False
+    defaults = dict(
+        sub=sub,
+        data_dir=data_dir,
+        analysis_dir=data_dir,
+        overwrite=overwrite,
+        interactive=interactive,
     )
 
+    defaults = parse_overwrite(defaults)
+
+    sub = defaults["sub"]
+    data_dir = defaults["data_dir"]
+    analysis_dir = defaults["data_dir"]
+    overwrite = defaults["overwrite"]
+    interactive = defaults["interactive"]
 
 # %%
 # Prepare file paths

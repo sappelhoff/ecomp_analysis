@@ -1,10 +1,14 @@
 """Functions shared between scripts."""
 
 import json
+import pathlib
 import warnings
 
+import click
 import mne
 import pandas as pd
+
+from config import DEFAULT_RNG_SEED
 
 
 def get_sourcedata(sub, stream, data_dir):
@@ -100,3 +104,68 @@ def prepare_raw_from_source(sub, data_dir, analysis_dir):
     # Add some recording info
     raw.info["line_freq"] = 50
     return raw
+
+
+@click.command()
+@click.option("--sub", type=int, help="Subject number")
+@click.option("--data_dir", type=str, help="Data location")
+@click.option("--analysis_dir", type=str, help="Analysis dir")
+@click.option("--overwrite", default=False, type=bool, help="Overwrite?")
+@click.option("--interactive", default=False, type=bool, help="Interative?")
+@click.option("--pyprep_rng", default=DEFAULT_RNG_SEED, type=int, help="PyPrep seed")
+@click.option("--ica_rng", default=DEFAULT_RNG_SEED, type=int, help="ICA seed")
+@click.option("--low_cutoff", type=float, help="low_cutoff")
+@click.option("--high_cutoff", type=float, help="high_cutoff")
+def get_inputs(
+    sub,
+    data_dir,
+    analysis_dir,
+    overwrite,
+    interactive,
+    pyprep_rng,
+    ica_rng,
+    low_cutoff,
+    high_cutoff,
+):
+    """Parse inputs in case script is run from command line.
+
+    See Also
+    --------
+    parse_overwrite
+    """
+    # strs to pathlib.Path
+    data_dir = pathlib.Path(data_dir) if data_dir else None
+    analysis_dir = pathlib.Path(analysis_dir) if analysis_dir else None
+
+    # collect all in dict
+    inputs = dict(
+        sub=sub,
+        data_dir=data_dir,
+        analysis_dir=analysis_dir,
+        overwrite=overwrite,
+        interactive=interactive,
+        pyprep_rng=pyprep_rng,
+        ica_rng=ica_rng,
+        low_cutoff=low_cutoff,
+        high_cutoff=high_cutoff,
+    )
+
+    return inputs
+
+
+def parse_overwrite(defaults):
+    """Parse which variables to overwrite."""
+    print("\nParsing command line options...\n")
+    inputs = get_inputs.main(standalone_mode=False, default_map=defaults)
+    noverwrote = 0
+    for key, val in defaults.items():
+        if val != inputs[key]:
+            print(f"    > Overwriting '{key}': {val} -> {inputs[key]}")
+            defaults[key] = inputs[key]
+            noverwrote += 1
+    if noverwrote > 0:
+        print(f"\nOverwrote {noverwrote} variables with command line options.\n")
+    else:
+        print("Nothing to overwrite, use defaults defined in script.\n")
+
+    return defaults

@@ -40,3 +40,5 @@ BAD_SUBJS = {
     15: "Consistently performed at chance level.",
     23: "Misunderstood response cues in one of the tasks.",
 }
+
+DEFAULT_RNG_SEED = 42

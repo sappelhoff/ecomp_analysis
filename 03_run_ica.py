@@ -44,13 +44,12 @@ python 03_run_ica.py --sub=1
 """
 # %%
 # Imports
-import pathlib
 import sys
 
-import click
 import mne
 
-from config import BAD_SUBJS, DATA_DIR_EXTERNAL
+from config import BAD_SUBJS, DATA_DIR_EXTERNAL, DEFAULT_RNG_SEED
+from utils import parse_overwrite
 
 # %%
 # Settings
@@ -64,36 +63,25 @@ data_dir = DATA_DIR_EXTERNAL
 overwrite = False
 
 # random number generator seed for the ICA
-ica_rng = 42
+ica_rng = DEFAULT_RNG_SEED
 
 # %%
-
-
-# Potentially overwrite settings with command line arguments
-@click.command()
-@click.option("-s", "--sub", default=sub, type=int, help="Subject number")
-@click.option("-d", "--data_dir", default=data_dir, type=str, help="Data location")
-@click.option("-o", "--overwrite", default=overwrite, type=bool, help="Overwrite?")
-@click.option("-r", "--ica_rng", default=ica_rng, type=int, help="ICA seed")
-def get_inputs(sub, data_dir, overwrite, ica_rng):
-    """Parse inputs in case script is run from command line."""
-    print("Overwriting settings from command line.\nUsing the following settings:")
-    for name, opt in [
-        ("sub", sub),
-        ("data_dir", data_dir),
-        ("overwrite", overwrite),
-        ("ica_rng", ica_rng),
-    ]:
-        print(f"    > {name}: {opt}")
-
-    data_dir = pathlib.Path(data_dir)
-    return sub, data_dir, overwrite, ica_rng
-
-
-# only run this when not in an IPython session
+# When not in an IPython session, get command line inputs
 # https://docs.python.org/3/library/sys.html#sys.ps1
 if not hasattr(sys, "ps1"):
-    sub, data_dir, overwrite, ica_rng = get_inputs.main(standalone_mode=False)
+    defaults = dict(
+        sub=sub,
+        data_dir=data_dir,
+        overwrite=overwrite,
+        ica_rng=ica_rng,
+    )
+
+    defaults = parse_overwrite(defaults)
+
+    sub = defaults["sub"]
+    data_dir = defaults["data_dir"]
+    overwrite = defaults["overwrite"]
+    ica_rng = defaults["ica_rng"]
 
 # %%
 # Prepare file paths

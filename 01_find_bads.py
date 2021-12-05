@@ -26,14 +26,12 @@ python 01_find_bads.py --sub=1
 # %%
 # Imports
 import json
-import pathlib
 import sys
 
-import click
 import pyprep
 
-from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL
-from utils import prepare_raw_from_source
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL, DEFAULT_RNG_SEED
+from utils import parse_overwrite, prepare_raw_from_source
 
 # %%
 # Settings
@@ -48,41 +46,25 @@ analysis_dir = ANALYSIS_DIR_LOCAL
 overwrite = False
 
 # random number generator seed for the ICA
-pyprep_rng = 42
+pyprep_rng = DEFAULT_RNG_SEED
 
 # %%
-
-
-# Potentially overwrite settings with command line arguments
-@click.command()
-@click.option("-s", "--sub", default=sub, type=int, help="Subject number")
-@click.option("-d", "--data_dir", default=data_dir, type=str, help="Data location")
-@click.option("-a", "--analysis_dir", default=data_dir, type=str, help="Analysis dir")
-@click.option("-o", "--overwrite", default=overwrite, type=bool, help="Overwrite?")
-@click.option("-r", "--pyprep_rng", default=pyprep_rng, type=int, help="PyPrep seed")
-def get_inputs(sub, data_dir, analysis_dir, overwrite, pyprep_rng):
-    """Parse inputs in case script is run from command line."""
-    print("Overwriting settings from command line.\nUsing the following settings:")
-    for name, opt in [
-        ("sub", sub),
-        ("data_dir", data_dir),
-        ("analysis_dir", data_dir),
-        ("overwrite", overwrite),
-        ("pyprep_rng", pyprep_rng),
-    ]:
-        print(f"    > {name}: {opt}")
-
-    data_dir = pathlib.Path(data_dir)
-    analysis_dir = pathlib.Path(analysis_dir)
-    return sub, data_dir, analysis_dir, overwrite, pyprep_rng
-
-
-# only run this when not in an IPython session
+# When not in an IPython session, get command line inputs
 # https://docs.python.org/3/library/sys.html#sys.ps1
 if not hasattr(sys, "ps1"):
-    sub, data_dir, analysis_dir, overwrite, pyprep_rng = get_inputs.main(
-        standalone_mode=False
+    defaults = dict(
+        sub=sub,
+        data_dir=data_dir,
+        overwrite=overwrite,
+        pyprep_rng=pyprep_rng,
     )
+
+    defaults = parse_overwrite(defaults)
+
+    sub = defaults["sub"]
+    data_dir = defaults["data_dir"]
+    overwrite = defaults["overwrite"]
+    pyprep_rng = defaults["pyprep_rng"]
 
 # %%
 # Prepare file paths
@@ -115,5 +97,6 @@ bads_dict = nc.get_bads(as_dict=True)
 # Save the outputs
 with open(fname_pyprep, "w") as fout:
     json.dump(bads_dict, fout, indent=4)
+    fout.write("\n")
 
 # %%
