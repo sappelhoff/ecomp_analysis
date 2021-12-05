@@ -1,0 +1,17 @@
+{
+    "bad_by_nan": [],
+    "bad_by_flat": [],
+    "bad_by_deviation": [],
+    "bad_by_hf_noise": [],
+    "bad_by_correlation": [
+        "Fz",
+        "FC2"
+    ],
+    "bad_by_SNR": [],
+    "bad_by_dropout": [],
+    "bad_by_ransac": [],
+    "bad_all": [
+        "Fz",
+        "FC2"
+    ]
+}

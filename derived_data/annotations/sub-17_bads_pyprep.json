@@ -1,0 +1,31 @@
+{
+    "bad_by_nan": [],
+    "bad_by_flat": [],
+    "bad_by_deviation": [
+        "TP10",
+        "O2"
+    ],
+    "bad_by_hf_noise": [
+        "O2",
+        "PO10"
+    ],
+    "bad_by_correlation": [
+        "TP10",
+        "O2",
+        "PO10"
+    ],
+    "bad_by_SNR": [
+        "O2",
+        "PO10"
+    ],
+    "bad_by_dropout": [],
+    "bad_by_ransac": [
+        "FT9"
+    ],
+    "bad_all": [
+        "O2",
+        "TP10",
+        "FT9",
+        "PO10"
+    ]
+}
