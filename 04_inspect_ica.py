@@ -7,11 +7,24 @@ For this, we will use the VEOG, HEOG, and ECG channels in the data
 to inform these decisions.
 We will then reject these components and apply the resulting
 ICA solution to the raw, unfiltered, non-downsampled data.
+
 Finally, this data will go through these steps:
 
 - highpass and lowpass filtering
 - interpolation of bad channels
 - re-referencing to average
+
+How to use the script?
+----------------------
+Either run in an interactive IPython session and have code cells rendered ("# %%")
+by an editor such as VSCode, **or** run this from the command line, optionally
+specifying settings as command line arguments:
+
+```shell
+
+python 04_inspect_ica.py --sub=1
+
+```
 
 """
 # %%
@@ -69,6 +82,15 @@ fname_fif = derivatives / f"sub-{sub:02}_concat_raw.fif.gz"
 fname_fif_clean = derivatives / f"sub-{sub:02}_clean_raw.fif.gz"
 
 fname_ica = derivatives / f"sub-{sub:02}_concat_ica.fif.gz"
+
+overwrite_msg = "\nfile exists and overwrite is False:\n\n>>> {}\n"
+
+# %%
+# Check overwrite
+if not overwrite:
+    for fname in [fname_fif_clean]:
+        if fname.exists():
+            raise RuntimeError(overwrite_msg.format(fname))
 
 # %%
 # TODO: interactive way to run
@@ -172,6 +194,19 @@ raw_clean = raw_clean.set_eeg_reference(
     ref_channels="average", projection=False, ch_type="eeg"
 )
 
+# %%
+# Visually screen clean data for a final sanity check
+with mne.viz.use_browser_backend("pyqtgraph"):
+    raw_clean.plot(
+        block=True,
+        use_opengl=False,
+        n_channels=len(raw_clean.ch_names),
+        bad_color="red",
+        duration=20.0,
+        clipping=None,
+    )
+
+# %%
 # Save as cleaned data
 raw_clean.save(fname_fif_clean)
 
