@@ -71,7 +71,7 @@ import mne
 import numpy as np
 import seaborn as sns
 
-from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL, OVERWRITE_MSG
 from utils import parse_overwrite, prepare_raw_from_source
 
 # %%
@@ -122,14 +122,12 @@ derivatives = data_dir / "derivatives" / f"sub-{sub:02}"
 derivatives.mkdir(parents=True, exist_ok=True)
 fname_fif = derivatives / f"sub-{sub:02}_concat_raw.fif.gz"
 
-overwrite_msg = "\nfile exists and overwrite is False:\n\n>>> {}\n"
-
 # %%
 # Check overwrite
-if not overwrite:
+if (not overwrite) and interactive:
     for fname in [fname_bad_channels, fname_annots, fname_fif]:
         if fname.exists():
-            raise RuntimeError(overwrite_msg.format(fname))
+            raise RuntimeError(OVERWRITE_MSG.format(fname))
 
 # %%
 # Prepare data

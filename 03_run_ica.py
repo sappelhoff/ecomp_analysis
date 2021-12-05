@@ -48,7 +48,7 @@ import sys
 
 import mne
 
-from config import BAD_SUBJS, DATA_DIR_EXTERNAL, DEFAULT_RNG_SEED
+from config import BAD_SUBJS, DATA_DIR_EXTERNAL, DEFAULT_RNG_SEED, OVERWRITE_MSG
 from utils import parse_overwrite
 
 # %%
@@ -92,9 +92,8 @@ fname_ica = derivatives / f"sub-{sub:02}_concat_ica.fif.gz"
 
 # %%
 # Check overwrite
-overwrite_msg = "\nfile exists and overwrite is False:\n\n>>> {}\n"
 if fname_ica.exists() and not overwrite:
-    raise RuntimeError(overwrite_msg.format(fname_ica))
+    raise RuntimeError(OVERWRITE_MSG.format(fname_ica))
 
 if sub in BAD_SUBJS:
     raise RuntimeError("No need to work on the bad subjs.")

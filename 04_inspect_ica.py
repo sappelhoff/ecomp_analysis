@@ -34,7 +34,7 @@ import sys
 
 import mne
 
-from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL, OVERWRITE_MSG
 from utils import parse_overwrite
 
 # %%
@@ -92,14 +92,12 @@ fname_ica = derivatives / f"sub-{sub:02}_concat_ica.fif.gz"
 savedir = analysis_dir / "derived_data" / "annotations"
 fname_exclude = savedir / f"sub-{sub:02}_exclude_ica.json"
 
-overwrite_msg = "\nfile exists and overwrite is False:\n\n>>> {}\n"
-
 # %%
 # Check overwrite
-if not overwrite:
-    for fname in fname_fif_clean:
+if (not overwrite) and interactive:
+    for fname in [fname_fif_clean, fname_exclude]:
         if fname.exists():
-            raise RuntimeError(overwrite_msg.format(fname))
+            raise RuntimeError(OVERWRITE_MSG.format(fname))
 
 # %%
 # Read data
@@ -201,12 +199,9 @@ fig.tight_layout()
 ica.exclude = list(set(exclude_veog + exclude_heog + exclude_ecg))
 print(f"Excluding: {ica.exclude}")
 
-if not fname_exclude.exists() or overwrite:
-    with open(fname_exclude, "w") as fout:
-        json.dump(dict(exclude=ica.exclude), fout, indent=4)
-        fout.write("\n")
-else:
-    raise RuntimeError(overwrite_msg.format(fname_exclude))
+with open(fname_exclude, "w") as fout:
+    json.dump(dict(exclude=ica.exclude), fout, indent=4)
+    fout.write("\n")
 
 # %%
 # Apply ICA to raw data

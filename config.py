@@ -42,3 +42,5 @@ BAD_SUBJS = {
 }
 
 DEFAULT_RNG_SEED = 42
+
+OVERWRITE_MSG = "\nfile exists and overwrite is False:\n\n>>> {}\n"

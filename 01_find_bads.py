@@ -30,7 +30,13 @@ import sys
 
 import pyprep
 
-from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL, DEFAULT_RNG_SEED
+from config import (
+    ANALYSIS_DIR_LOCAL,
+    BAD_SUBJS,
+    DATA_DIR_EXTERNAL,
+    DEFAULT_RNG_SEED,
+    OVERWRITE_MSG,
+)
 from utils import parse_overwrite, prepare_raw_from_source
 
 # %%
@@ -73,12 +79,10 @@ savedir.mkdir(parents=True, exist_ok=True)
 
 fname_pyprep = savedir / f"sub-{sub:02}_bads_pyprep.json"
 
-overwrite_msg = "\nfile exists and overwrite is False:\n\n>>> {}\n"
-
 # %%
 # Check overwrite
 if fname_pyprep.exists() and not overwrite:
-    raise RuntimeError(overwrite_msg.format(fname_pyprep))
+    raise RuntimeError(OVERWRITE_MSG.format(fname_pyprep))
 
 # %%
 # Prepare data
