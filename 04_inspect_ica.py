@@ -29,6 +29,7 @@ python 04_inspect_ica.py --sub=1
 """
 # %%
 # Imports
+import json
 import sys
 
 import mne
@@ -48,6 +49,9 @@ analysis_dir = ANALYSIS_DIR_LOCAL
 # overwrite existing annotation data?
 overwrite = False
 
+# interactive mode: if False, expects the excluded ICA components to be loadable
+interactive = True
+
 # filter settings
 low_cutoff = 0.1
 high_cutoff = 40.0
@@ -61,6 +65,7 @@ if not hasattr(sys, "ps1"):
         data_dir=data_dir,
         analysis_dir=data_dir,
         overwrite=overwrite,
+        interactive=interactive,
         low_cutoff=low_cutoff,
         high_cutoff=high_cutoff,
     )
@@ -71,6 +76,7 @@ if not hasattr(sys, "ps1"):
     data_dir = defaults["data_dir"]
     analysis_dir = defaults["data_dir"]
     overwrite = defaults["overwrite"]
+    interactive = defaults["interactive"]
     low_cutoff = defaults["low_cutoff"]
     high_cutoff = defaults["high_cutoff"]
 
@@ -83,18 +89,17 @@ fname_fif_clean = derivatives / f"sub-{sub:02}_clean_raw.fif.gz"
 
 fname_ica = derivatives / f"sub-{sub:02}_concat_ica.fif.gz"
 
+savedir = analysis_dir / "derived_data" / "annotations"
+fname_exclude = savedir / f"sub-{sub:02}_exclude_ica.json"
+
 overwrite_msg = "\nfile exists and overwrite is False:\n\n>>> {}\n"
 
 # %%
 # Check overwrite
 if not overwrite:
-    for fname in [fname_fif_clean]:
+    for fname in fname_fif_clean:
         if fname.exists():
             raise RuntimeError(overwrite_msg.format(fname))
-
-# %%
-# TODO: interactive way to run
-print(analysis_dir)
 
 # %%
 # Read data
@@ -108,6 +113,29 @@ ica = mne.preprocessing.read_ica(fname_ica)
 # (unfiltered, non-downsampled)
 raw_copy = raw.copy()
 
+# %%
+# if we run in non-interactive mode, we can exit here
+if not interactive:
+    if not fname_exclude.exists():
+        raise RuntimeError(
+            f"Did not find which components to exclude for sub-{sub:02}."
+        )
+        with open(fname_exclude, "r") as fin:
+            exclude_dict = json.load(fin)
+
+    ica.exclude = exclude_dict["exclude"]
+    raw_clean = ica.apply(inst=raw_copy.copy())
+    raw_clean = raw_clean.filter(l_freq=low_cutoff, h_freq=None)
+    raw_clean = raw_clean.filter(l_freq=None, h_freq=high_cutoff)
+    raw_clean = raw_clean.interpolate_bads()
+    raw_clean = raw_clean.set_eeg_reference(
+        ref_channels="average", projection=False, ch_type="eeg"
+    )
+    raw_clean.save(fname_fif_clean, overwrite=overwrite)
+
+    sys.exit()
+
+# ... else, we continue with interactive screening of the ICA
 # %%
 # Preprocess the "ica raw data"
 # highpass filter
@@ -173,6 +201,13 @@ fig.tight_layout()
 ica.exclude = list(set(exclude_veog + exclude_heog + exclude_ecg))
 print(f"Excluding: {ica.exclude}")
 
+if not fname_exclude.exists() or overwrite:
+    with open(fname_exclude, "w") as fout:
+        json.dump(dict(exclude=ica.exclude), fout, indent=4)
+        fout.write("\n")
+else:
+    raise RuntimeError(overwrite_msg.format(fname_exclude))
+
 # %%
 # Apply ICA to raw data
 # Exclude components from ica.exclude
@@ -208,6 +243,6 @@ with mne.viz.use_browser_backend("pyqtgraph"):
 
 # %%
 # Save as cleaned data
-raw_clean.save(fname_fif_clean)
+raw_clean.save(fname_fif_clean, overwrite=overwrite)
 
 # %%
