@@ -105,7 +105,7 @@ if not hasattr(sys, "ps1"):
 
     sub = defaults["sub"]
     data_dir = defaults["data_dir"]
-    analysis_dir = defaults["data_dir"]
+    analysis_dir = defaults["analysis_dir"]
     overwrite = defaults["overwrite"]
     interactive = defaults["interactive"]
 
@@ -157,10 +157,15 @@ if not interactive:
     if not all((fname_bad_channels.exists(), fname_annots.exists())):
         raise RuntimeError(f"Did not find annotation files for sub-{sub:02}.")
 
+    # set bad segments
     annots_bad = mne.read_annotations(fname_annots)
-    raw = raw.load_bads(fname_bad_channels)
     annots_all = annots_orig + annots_bad
     raw = raw.set_annotations(annots_all)
+
+    # set bad channels
+    prev = raw.info["bads"]
+    raw.load_bad_channels(fname_bad_channels)
+    print(f"Setting bad channels: {prev} -> {raw.info['bads']}")
 
     raw.save(fname_fif, overwrite=overwrite)
     sys.exit()

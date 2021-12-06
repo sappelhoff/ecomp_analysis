@@ -12,12 +12,13 @@ from utils import get_sourcedata
 # Settings
 
 analysis_dir = ANALYSIS_DIR_LOCAL
+data_dir = DATA_DIR_LOCAL
 
 # %%
 # Check how often participants "timed out" on their choices
 for sub in range(1, 33):
     for stream in ["single", "dual"]:
-        _, tsv = get_sourcedata(sub, stream, DATA_DIR_LOCAL)
+        _, tsv = get_sourcedata(sub, stream, data_dir)
         df = pd.read_csv(tsv, sep="\t")
         validity_sum = df["validity"].to_numpy().sum()
         if validity_sum != df.shape[0]:
@@ -32,7 +33,7 @@ for sub in range(1, 33):
     for stream in ["single", "dual"]:
 
         fname = (
-            DATA_DIR_LOCAL
+            data_dir
             / "sourcedata"
             / f"sub-{sub:02}"
             / f"sub-{sub:02}_stream-{stream}_info.json"

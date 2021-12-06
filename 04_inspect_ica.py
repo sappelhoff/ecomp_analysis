@@ -74,7 +74,7 @@ if not hasattr(sys, "ps1"):
 
     sub = defaults["sub"]
     data_dir = defaults["data_dir"]
-    analysis_dir = defaults["data_dir"]
+    analysis_dir = defaults["analysis_dir"]
     overwrite = defaults["overwrite"]
     interactive = defaults["interactive"]
     low_cutoff = defaults["low_cutoff"]
