@@ -138,13 +138,17 @@ raw = prepare_raw_from_source(sub, data_dir, analysis_dir)
 
 # %%
 # Handle original annotations
-annots_orig = raw.annotations
+annots_orig = raw.annotations.copy()
 
-bv_annots_to_remove = ["Comment/ControlBox is not connected via USB", "New Segment/"]
+bv_annots_to_remove = [
+    "Comment/ControlBox is not connected via USB",
+    "New Segment/",
+    "Comment/actiCAP Data On",  # only sub-10
+]
 idxs_to_remove = []
 for annot in bv_annots_to_remove:
-    idxs = np.nonzero(annots_orig.description == annot)[0]
-    idxs_to_remove.append(idxs)
+    idxs = np.nonzero(annots_orig.description == annot)[0].tolist()
+    idxs_to_remove += idxs
 
 annots_orig.delete(idxs_to_remove)
 
@@ -214,16 +218,17 @@ annots_muscle = mne.Annotations(
     orig_time=raw.info["meas_date"],
 )
 
-# delete bad muscle segments that are nested in a bad break segment
-bad_muscle_remove_idxs = []
-for annot_b in annots_break:
-    onset = annot_b["onset"]
-    offset = onset + annot_b["duration"]
-    for i, annot_m in enumerate(annots_muscle):
-        if (annot_m["onset"] > onset) and (annot_m["onset"] < offset):
-            bad_muscle_remove_idxs.append(i)
+# delete bad segments that are nested in a bad break segment
+for annots_bad_search in [annots_flat, annots_muscle]:
+    bad_remove_idxs = []
+    for annot_b in annots_break:
+        onset = annot_b["onset"]
+        offset = onset + annot_b["duration"]
+        for i, _annot in enumerate(annots_bad_search):
+            if (_annot["onset"] >= onset) and (_annot["onset"] < offset):
+                bad_remove_idxs.append(i)
 
-annots_muscle.delete(bad_muscle_remove_idxs)
+    annots_bad_search.delete(bad_remove_idxs)
 
 
 # combine all automatically identified bad segments
