@@ -31,6 +31,23 @@ def get_daysback(data_dir):
     return data["daysback"]
 
 
+def get_first_task(sub, analysis_dir):
+    """Get the first task a subject performed."""
+    participants_tsv = analysis_dir / "derived_data" / "participants.tsv"
+    if not participants_tsv.exists():
+        msg = (
+            f"File does not exist:\n    > {participants_tsv}\n\n"
+            "Please run the 'beh_misc.py' script first"
+        )
+        raise RuntimeError(msg)
+    df_participants = pd.read_csv(participants_tsv, sep="\t")
+    first_task = df_participants.loc[
+        df_participants["participant_id"] == f"sub-{sub:02}", "first_task"
+    ].to_list()[0]
+
+    return first_task
+
+
 def prepare_raw_from_source(sub, data_dir, analysis_dir):
     """Prepare raw source data as MNE-Python object.
 
@@ -67,22 +84,12 @@ def prepare_raw_from_source(sub, data_dir, analysis_dir):
     """
     raws = []
     for stream in ["single", "dual"]:
-        vhdr, tsv = get_sourcedata(sub, stream, data_dir)
+        vhdr, _ = get_sourcedata(sub, stream, data_dir)
         raw_stream = mne.io.read_raw_brainvision(vhdr, preload=True)
         raws.append(raw_stream)
 
     # put in order as recorded
-    participants_tsv = analysis_dir / "derived_data" / "participants.tsv"
-    if not participants_tsv.exists():
-        msg = (
-            f"File does not exist:\n    > {participants_tsv}\n\n"
-            "Please run the 'beh_misc.py' script first"
-        )
-        raise RuntimeError(msg)
-    df_participants = pd.read_csv(participants_tsv, sep="\t")
-    first_task = df_participants.loc[
-        df_participants["participant_id"] == f"sub-{sub:02}", "first_task"
-    ].to_list()[0]
+    first_task = get_first_task(sub, analysis_dir)
     if first_task == "dual":
         raws = raws[::-1]
 
