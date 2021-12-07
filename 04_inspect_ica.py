@@ -144,7 +144,8 @@ raw = raw.resample(sfreq=100)
 
 # %%
 # Automatically find artifact components using the EOG and ECG data
-veog_idx, veog_scores = ica.find_bads_eog(raw, "VEOG")
+veog_ch_name = "Fp1" if sub == 4 else "VEOG"  # sub-04 has broken VEOG
+veog_idx, veog_scores = ica.find_bads_eog(raw, veog_ch_name)
 heog_idx, heog_scores = ica.find_bads_eog(raw, "HEOG")
 ecg_idx, ecg_scores = ica.find_bads_ecg(raw, "ECG")
 
@@ -154,7 +155,9 @@ fig = ica.plot_components(inst=raw)
 
 # %%
 # Create VEOG epochs and plot evoked
-epochs_veog = mne.preprocessing.create_eog_epochs(raw, ch_name="VEOG", picks="eeg")
+epochs_veog = mne.preprocessing.create_eog_epochs(
+    raw, ch_name=veog_ch_name, picks="eeg"
+)
 fig = epochs_veog.average().plot()
 
 # %%
