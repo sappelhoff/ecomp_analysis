@@ -197,10 +197,12 @@ fig.tight_layout()
 # %%
 # Set ica.exclude attribute
 ica.exclude = list(set(exclude_veog + exclude_heog + exclude_ecg))
-print(f"Excluding: {ica.exclude}")
+exclude = [int(i) for i in ica.exclude]  # convert numpy.int64 -> int
+assert exclude == ica.exclude
+print(f"Excluding: {exclude}")
 
 with open(fname_exclude, "w") as fout:
-    json.dump(dict(exclude=ica.exclude), fout, indent=4)
+    json.dump(dict(exclude=exclude), fout, indent=4)
     fout.write("\n")
 
 # %%
