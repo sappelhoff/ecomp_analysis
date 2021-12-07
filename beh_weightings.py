@@ -56,7 +56,7 @@ def calc_nonp_weights(df):
     isamples = [f"sample{i}" for i in range(1, nsamples + 1)]  # samples 1 to nsamples
     samples_signed = weights_df.loc[:, isamples].to_numpy().reshape(-1)
     samples = np.abs(samples_signed)
-    colors = (np.sign(samples_signed) + 1) / 2  # color1=0, color2=1
+    colors = (np.sign(samples_signed) + 1) / 2  # red=0, blue=1
     positions = np.tile(
         np.arange(len(isamples), dtype=int), len(weights_df["trial"])
     )  # sample positions
