@@ -77,7 +77,7 @@ from utils import parse_overwrite, prepare_raw_from_source
 # %%
 # Settings
 # Select the subject to work on here
-sub = 22
+sub = 1
 
 # Select the data source and analysis directory here
 data_dir = DATA_DIR_EXTERNAL
