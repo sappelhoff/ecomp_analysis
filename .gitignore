@@ -4,3 +4,5 @@ __pycache__
 
 figures/*.jpg
 figures/*.pdf
+
+nohup.out
