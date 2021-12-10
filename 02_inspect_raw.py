@@ -77,7 +77,7 @@ from utils import parse_overwrite, prepare_raw_from_source
 # %%
 # Settings
 # Select the subject to work on here
-sub = 1
+sub = 22
 
 # Select the data source and analysis directory here
 data_dir = DATA_DIR_EXTERNAL
@@ -88,6 +88,9 @@ overwrite = False
 
 # interactive mode: if False, expects the annotations to be loadable
 interactive = True
+
+if sub in BAD_SUBJS:
+    raise RuntimeError("No need to work on the bad subjs.")
 
 # %%
 # When not in an IPython session, get command line inputs
@@ -131,9 +134,6 @@ if (not overwrite) and interactive:
 
 # %%
 # Prepare data
-if sub in BAD_SUBJS:
-    raise RuntimeError("No need to work on the bad subjs.")
-
 raw = prepare_raw_from_source(sub, data_dir, analysis_dir)
 
 # %%
