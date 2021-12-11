@@ -119,8 +119,8 @@ if not interactive:
         raise RuntimeError(
             f"Did not find which components to exclude for sub-{sub:02}."
         )
-        with open(fname_exclude, "r") as fin:
-            exclude_dict = json.load(fin)
+    with open(fname_exclude, "r") as fin:
+        exclude_dict = json.load(fin)
 
     ica.exclude = exclude_dict["exclude"]
     raw_clean = ica.apply(inst=raw_copy.copy())
