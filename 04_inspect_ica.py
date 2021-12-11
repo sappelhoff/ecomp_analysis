@@ -30,10 +30,12 @@ python 04_inspect_ica.py --sub=1
 # %%
 # Imports
 import json
+import multiprocessing
 import sys
 
 import matplotlib.pyplot as plt
 import mne
+import psutil
 
 from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL, OVERWRITE_MSG
 from utils import parse_overwrite
@@ -56,6 +58,12 @@ interactive = True
 # filter settings
 low_cutoff = 0.1
 high_cutoff = 40.0
+
+# set number of jobs for parallel processing (only if enough cores + RAM)
+available_ram_gb = psutil.virtual_memory().total / 1e9
+n_jobs = 1
+if available_ram_gb > 16:
+    n_jobs = max(n_jobs, int(multiprocessing.cpu_count() / 2))
 
 if sub in BAD_SUBJS:
     raise RuntimeError("No need to work on the bad subjs.")
@@ -124,8 +132,8 @@ if not interactive:
 
     ica.exclude = exclude_dict["exclude"]
     raw_clean = ica.apply(inst=raw_copy.copy())
-    raw_clean = raw_clean.filter(l_freq=low_cutoff, h_freq=None)
-    raw_clean = raw_clean.filter(l_freq=None, h_freq=high_cutoff)
+    raw_clean = raw_clean.filter(l_freq=low_cutoff, h_freq=None, n_jobs=n_jobs)
+    raw_clean = raw_clean.filter(l_freq=None, h_freq=high_cutoff, n_jobs=n_jobs)
     raw_clean = raw_clean.interpolate_bads()
     raw_clean = raw_clean.set_eeg_reference(
         ref_channels="average", projection=False, ch_type="eeg"
@@ -218,10 +226,10 @@ raw_clean = ica.apply(inst=raw_copy.copy())
 # %%
 # Preprocess ica-cleaned data and save
 # Highpass filtering
-raw_clean = raw_clean.filter(l_freq=low_cutoff, h_freq=None)
+raw_clean = raw_clean.filter(l_freq=low_cutoff, h_freq=None, n_jobs=n_jobs)
 
 # Lowpass filtering
-raw_clean = raw_clean.filter(l_freq=None, h_freq=high_cutoff)
+raw_clean = raw_clean.filter(l_freq=None, h_freq=high_cutoff, n_jobs=n_jobs)
 
 # Interpolation
 raw_clean = raw_clean.interpolate_bads()

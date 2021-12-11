@@ -44,9 +44,11 @@ python 03_run_ica.py --sub=1
 """
 # %%
 # Imports
+import multiprocessing
 import sys
 
 import mne
+import psutil
 
 from config import BAD_SUBJS, DATA_DIR_EXTERNAL, DEFAULT_RNG_SEED, OVERWRITE_MSG
 from utils import parse_overwrite
@@ -64,6 +66,12 @@ overwrite = False
 
 # random number generator seed for the ICA
 ica_rng = DEFAULT_RNG_SEED
+
+# set number of jobs for parallel processing (only if enough cores + RAM)
+available_ram_gb = psutil.virtual_memory().total / 1e9
+n_jobs = 1
+if available_ram_gb > 16:
+    n_jobs = max(n_jobs, int(multiprocessing.cpu_count() / 2))
 
 # %%
 # When not in an IPython session, get command line inputs
@@ -105,10 +113,10 @@ raw = mne.io.read_raw_fif(fname_fif, preload=True)
 # %%
 # Preprocess raw data copy for ICA
 # highpass filter
-raw = raw.filter(l_freq=1, h_freq=None)
+raw = raw.filter(l_freq=1, h_freq=None, n_jobs=n_jobs)
 
 # downsample
-raw = raw.resample(sfreq=100)
+raw = raw.resample(sfreq=100, n_jobs=n_jobs)
 
 # %%
 # Initialize an ICA object, using extended infomax
