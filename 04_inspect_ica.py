@@ -56,6 +56,9 @@ interactive = True
 low_cutoff = 0.1
 high_cutoff = 40.0
 
+if sub in BAD_SUBJS:
+    raise RuntimeError("No need to work on the bad subjs.")
+
 # %%
 # When not in an IPython session, get command line inputs
 # https://docs.python.org/3/library/sys.html#sys.ps1
@@ -101,9 +104,6 @@ if (not overwrite) and interactive:
 
 # %%
 # Read data
-if sub in BAD_SUBJS:
-    raise RuntimeError("No need to work on the bad subjs.")
-
 raw = mne.io.read_raw_fif(fname_fif, preload=True)
 ica = mne.preprocessing.read_ica(fname_ica)
 

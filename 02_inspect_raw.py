@@ -191,6 +191,16 @@ annots_flat, bads = mne.preprocessing.annotate_flat(raw, picks="eeg", min_durati
 raw.info["bads"] += bads
 
 # Bad "break" segments, temporarily add original annotations back for the algorithm
+# NOTE: This may also mark some few cases where a participant did not respond for
+#       3 seconds: Then a marker is only sent at the response prompt, and 3 seconds
+#       later as an error message: "too late".
+#       (this is the case in subjs 22 and 28, but not subj 5, who also had timeouts;
+#        there, the code probably ran in 2.999999 seconds, rather than 3;
+#        subj 15 not screened, because excluded from dataset)
+#
+#       Furthermore, this may fail to mark a block break when participants just pressed
+#       a key to "skip the break", which was possible for every second block break.
+#       (this is the case in subjs 3 and 32)
 raw = raw.set_annotations(annots_orig)
 annots_break = mne.preprocessing.annotate_break(
     raw,
