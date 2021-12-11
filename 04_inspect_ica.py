@@ -32,6 +32,7 @@ python 04_inspect_ica.py --sub=1
 import json
 import sys
 
+import matplotlib.pyplot as plt
 import mne
 
 from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL, OVERWRITE_MSG
@@ -151,7 +152,8 @@ ecg_idx, ecg_scores = ica.find_bads_ecg(raw, "ECG")
 
 # %%
 # Plot ICA components
-fig = ica.plot_components(inst=raw)
+with plt.style.context("default"):
+    fig = ica.plot_components(inst=raw)
 
 # %%
 # Create VEOG epochs and plot evoked
