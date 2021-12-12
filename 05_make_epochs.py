@@ -251,7 +251,7 @@ event_id_responses = {
     **{f"Stimulus/S{i:>3}": i for i in range(131, 135)},
 }
 events_responses, event_id_responses = mne.events_from_annotations(
-    raw, event_id=event_id
+    raw, event_id=event_id_responses
 )
 assert events_responses.shape[0] == 600 - ntimeouts  # 2 stream, 300 trials, 1 choice
 
