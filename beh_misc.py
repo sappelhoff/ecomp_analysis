@@ -16,19 +16,34 @@ data_dir = DATA_DIR_LOCAL
 
 # %%
 # Check how often participants "timed out" on their choices
+timeout_data = dict(sub=[], ntimeouts=[])
 for sub in range(1, 33):
+    ntimeouts = 0
     for stream in ["single", "dual"]:
         _, tsv = get_sourcedata(sub, stream, data_dir)
         df = pd.read_csv(tsv, sep="\t")
         validity_sum = df["validity"].to_numpy().sum()
-        if validity_sum != df.shape[0]:
-            print(sub, stream, f" - n timeouts: {df.shape[0]-validity_sum}")
+        ntimeouts_stream = df.shape[0] - validity_sum
+        ntimeouts += ntimeouts_stream
+        if ntimeouts_stream > 0:
+            print(sub, stream, f" - n timeouts: {ntimeouts_stream}")
+    timeout_data["sub"] += [sub]
+    timeout_data["ntimeouts"] += [ntimeouts]
 
 # %%
 # Create a BIDS style participants.tsv file
-keys = ["participant_id", "age", "sex", "handedness", "first_task", "included"]
+keys = [
+    "participant_id",
+    "age",
+    "sex",
+    "handedness",
+    "first_task",
+    "included",
+    "ntimeouts",
+]
 data = {key: [] for key in keys}
 for sub in range(1, 33):
+
     infos = []
     for stream in ["single", "dual"]:
 
@@ -65,9 +80,10 @@ for sub in range(1, 33):
     sex = infos[0]["Sex"].lower()
     handedness = infos[0]["Handedness"].lower()
     included = sub not in BAD_SUBJS
+    ntimeouts = timeout_data["ntimeouts"][timeout_data["sub"].index(sub)]
 
     for key, val in zip(
-        keys, [f"sub-{sub:02}", age, sex, handedness, first_task, included]
+        keys, [f"sub-{sub:02}", age, sex, handedness, first_task, included, ntimeouts]
     ):
         data[key] += [val]
 
@@ -81,6 +97,5 @@ partici_df = participants_tsv[participants_tsv["included"]]
 print(partici_df["sex"].value_counts(), end="\n\n")
 print(partici_df["handedness"].value_counts(), end="\n\n")
 print(partici_df["age"].describe().round(2), end="\n\n")
-
 
 # %%

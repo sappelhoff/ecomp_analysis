@@ -1,33 +1,33 @@
-participant_id	age	sex	handedness	first_task	included
-sub-01	28	male	left	single	True
-sub-02	32	male	right	dual	True
-sub-03	18	male	right	single	True
-sub-04	25	male	right	dual	True
-sub-05	26	male	right	single	True
-sub-06	38	female	right	dual	True
-sub-07	30	female	right	single	True
-sub-08	33	female	right	dual	True
-sub-09	32	male	right	single	True
-sub-10	25	female	right	dual	True
-sub-11	27	male	right	single	True
-sub-12	39	male	right	dual	True
-sub-13	23	female	right	single	True
-sub-14	28	female	right	dual	True
-sub-15	22	female	right	single	False
-sub-16	23	female	right	dual	True
-sub-17	33	male	right	single	True
-sub-18	24	female	right	dual	True
-sub-19	24	female	right	single	True
-sub-20	26	female	right	single	True
-sub-21	25	female	right	dual	True
-sub-22	25	male	right	dual	True
-sub-23	25	male	right	single	False
-sub-24	34	male	right	dual	True
-sub-25	25	male	right	single	True
-sub-26	25	female	right	dual	True
-sub-27	24	male	right	single	True
-sub-28	22	male	right	dual	True
-sub-29	26	female	right	single	True
-sub-30	33	male	right	dual	True
-sub-31	24	female	right	single	True
-sub-32	24	female	right	dual	True
+participant_id	age	sex	handedness	first_task	included	ntimeouts
+sub-01	28	male	left	single	True	0
+sub-02	32	male	right	dual	True	0
+sub-03	18	male	right	single	True	0
+sub-04	25	male	right	dual	True	0
+sub-05	26	male	right	single	True	2
+sub-06	38	female	right	dual	True	0
+sub-07	30	female	right	single	True	0
+sub-08	33	female	right	dual	True	0
+sub-09	32	male	right	single	True	0
+sub-10	25	female	right	dual	True	0
+sub-11	27	male	right	single	True	0
+sub-12	39	male	right	dual	True	0
+sub-13	23	female	right	single	True	0
+sub-14	28	female	right	dual	True	0
+sub-15	22	female	right	single	False	1
+sub-16	23	female	right	dual	True	0
+sub-17	33	male	right	single	True	0
+sub-18	24	female	right	dual	True	0
+sub-19	24	female	right	single	True	0
+sub-20	26	female	right	single	True	0
+sub-21	25	female	right	dual	True	0
+sub-22	25	male	right	dual	True	2
+sub-23	25	male	right	single	False	0
+sub-24	34	male	right	dual	True	0
+sub-25	25	male	right	single	True	0
+sub-26	25	female	right	dual	True	0
+sub-27	24	male	right	single	True	0
+sub-28	22	male	right	dual	True	2
+sub-29	26	female	right	single	True	0
+sub-30	33	male	right	dual	True	0
+sub-31	24	female	right	single	True	0
+sub-32	24	female	right	dual	True	0
