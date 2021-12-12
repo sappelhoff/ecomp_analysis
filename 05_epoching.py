@@ -9,8 +9,6 @@ epoch types:
 
 TODO:
 - add epoching of response epochs (how long, what baseline)
-- collect stats on % epochs/chs retained for response and number epos
-
 
 """
 # %%
