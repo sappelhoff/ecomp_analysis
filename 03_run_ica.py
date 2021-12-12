@@ -91,6 +91,9 @@ if not hasattr(sys, "ps1"):
     overwrite = defaults["overwrite"]
     ica_rng = defaults["ica_rng"]
 
+if sub in BAD_SUBJS:
+    raise RuntimeError("No need to work on the bad subjs.")
+
 # %%
 # Prepare file paths
 derivatives = data_dir / "derivatives" / f"sub-{sub:02}"
@@ -102,9 +105,6 @@ fname_ica = derivatives / f"sub-{sub:02}_concat_ica.fif.gz"
 # Check overwrite
 if fname_ica.exists() and not overwrite:
     raise RuntimeError(OVERWRITE_MSG.format(fname_ica))
-
-if sub in BAD_SUBJS:
-    raise RuntimeError("No need to work on the bad subjs.")
 
 # %%
 # Load raw data

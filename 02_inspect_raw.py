@@ -89,9 +89,6 @@ overwrite = False
 # interactive mode: if False, expects the annotations to be loadable
 interactive = True
 
-if sub in BAD_SUBJS:
-    raise RuntimeError("No need to work on the bad subjs.")
-
 # %%
 # When not in an IPython session, get command line inputs
 # https://docs.python.org/3/library/sys.html#sys.ps1
@@ -111,6 +108,9 @@ if not hasattr(sys, "ps1"):
     analysis_dir = defaults["analysis_dir"]
     overwrite = defaults["overwrite"]
     interactive = defaults["interactive"]
+
+if sub in BAD_SUBJS:
+    raise RuntimeError("No need to work on the bad subjs.")
 
 # %%
 # Prepare file paths

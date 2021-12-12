@@ -72,6 +72,9 @@ if not hasattr(sys, "ps1"):
     overwrite = defaults["overwrite"]
     pyprep_rng = defaults["pyprep_rng"]
 
+if sub in BAD_SUBJS:
+    raise RuntimeError("No need to work on the bad subjs.")
+
 # %%
 # Prepare file paths
 savedir = analysis_dir / "derived_data" / "annotations"
@@ -86,9 +89,6 @@ if fname_pyprep.exists() and not overwrite:
 
 # %%
 # Prepare data
-if sub in BAD_SUBJS:
-    raise RuntimeError("No need to work on the bad subjs.")
-
 raw = prepare_raw_from_source(sub, data_dir, analysis_dir)
 
 # %%

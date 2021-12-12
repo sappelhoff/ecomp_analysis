@@ -65,9 +65,6 @@ n_jobs = 1
 if available_ram_gb > 16:
     n_jobs = max(n_jobs, int(multiprocessing.cpu_count() / 2))
 
-if sub in BAD_SUBJS:
-    raise RuntimeError("No need to work on the bad subjs.")
-
 # %%
 # When not in an IPython session, get command line inputs
 # https://docs.python.org/3/library/sys.html#sys.ps1
@@ -91,6 +88,9 @@ if not hasattr(sys, "ps1"):
     interactive = defaults["interactive"]
     low_cutoff = defaults["low_cutoff"]
     high_cutoff = defaults["high_cutoff"]
+
+if sub in BAD_SUBJS:
+    raise RuntimeError("No need to work on the bad subjs.")
 
 # %%
 # Prepare file paths

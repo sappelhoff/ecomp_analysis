@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 from mne_faster import find_bad_epochs
 
-from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL
 from utils import get_first_task, get_sourcedata, parse_overwrite
 
 # %%
@@ -72,6 +72,9 @@ if not hasattr(sys, "ps1"):
     overwrite = defaults["overwrite"]
     downsample_freq = defaults["downsample_freq"]
     t_min_max_epochs = defaults["t_min_max_epochs"]
+
+if sub in BAD_SUBJS:
+    raise RuntimeError("No need to work on the bad subjs.")
 
 # %%
 # Prepare file paths
