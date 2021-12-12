@@ -231,6 +231,7 @@ df_epochs = pd.DataFrame.from_dict(data)
 if dropped_epochs_data.exists():
     df_epochs_data = pd.read_csv(dropped_epochs_data, sep="\t")
     df_epochs = pd.concat([df_epochs_data, df_epochs]).reset_index(drop=True)
+    df_epochs = df_epochs.drop_duplicates(subset=["sub"])
     df_epochs = df_epochs.sort_values(by="sub")
     print(
         "Appending dropped_epochs data to existing file:\n"
