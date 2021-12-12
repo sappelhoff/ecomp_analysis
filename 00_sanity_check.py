@@ -40,8 +40,18 @@ for sub in range(1, 33):
             8: 6,  # block break stopped
         }
 
+        # adjust codes by stream (were offset by 100 in dual)
+        # also add some code that should have never occurred
+        # depending on the stream
         if stream == "dual":
             occur = {key + 100: val for key, val in occur.items()}
+            occur[131] = 0  # lower ... meaningless in "dual"
+            occur[132] = 0  # higher ... meaningless in "dual"
+
+        else:
+            assert stream == "single"
+            occur[33] = 0  # blue ... meaningless in "single"
+            occur[34] = 0  # red ... meaningless in "single"
 
         # for explanation of codes 10001 and 99999, see:
         # https://mne.tools/stable/generated/mne.events_from_annotations.html#mne.events_from_annotations
