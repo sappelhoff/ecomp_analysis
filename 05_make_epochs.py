@@ -35,14 +35,14 @@ import numpy as np
 import pandas as pd
 from mne_faster import find_bad_epochs
 
-from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, DATA_DIR_LOCAL
+from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL
 from utils import get_first_task, get_sourcedata, parse_overwrite
 
 # %%
 # Settings
 sub = 1
 
-data_dir = DATA_DIR_LOCAL
+data_dir = DATA_DIR_EXTERNAL
 analysis_dir = ANALYSIS_DIR_LOCAL
 
 downsample_freq = 250
@@ -75,7 +75,7 @@ if not hasattr(sys, "ps1"):
 
 # %%
 # Prepare file paths
-derivatives = DATA_DIR_EXTERNAL / "derivatives" / f"sub-{sub:02}"
+derivatives = data_dir / "derivatives" / f"sub-{sub:02}"
 fname_fif_clean = derivatives / f"sub-{sub:02}_clean_raw.fif.gz"
 
 fname_epochs_numbers = derivatives / f"sub-{sub:02}_numbers_epo.fif.gz"
