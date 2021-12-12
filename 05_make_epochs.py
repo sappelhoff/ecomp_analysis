@@ -1,14 +1,29 @@
 """Perform epoching.
 
-epoch types:
-- centered on number
-    - ERPs 1-9
-- centered on button press
-    - left/right contrast prior to press
-    - correct/wrong contrast after feedback
+Here we make epochs out of the cleaned raw data.
+Our main target are epochs centered on each sample number (6000 per subj)
+--> "number epochs".
 
-TODO:
-- add epoching of response epochs (how long, what baseline)
+However, for sanity checking the EEG data, we will also create epochs centered
+on the button press for each choice (600 per subj). We can then use these
+"response epochs" for two simple checks: contrasting left/right button presses,
+and (100ms after a button press) correct/wrong feedback.
+
+Note that all settings below are only for the "number epochs". We hardcode the
+settings for the "response epochs", because they are used for quick sanity checks
+only.
+
+How to use the script?
+----------------------
+Either run in an interactive IPython session and have code cells rendered ("# %%")
+by an editor such as VSCode, **or** run this from the command line, optionally
+specifying settings as command line arguments:
+
+```shell
+
+python 05_make_epochs.py --sub=1
+
+```
 
 """
 # %%
@@ -68,6 +83,8 @@ fname_epochs_numbers = derivatives / f"sub-{sub:02}_numbers_epo.fif.gz"
 fname_epochs_responses = derivatives / f"sub-{sub:02}_responses_epo.fif.gz"
 
 dropped_epochs_data = analysis_dir / "derived_data" / "dropped_epochs.tsv"
+
+participants_tsv = analysis_dir / "derived_data" / "participants.tsv"
 
 # %%
 # Read behavioral data to use as metadata
@@ -217,5 +234,67 @@ df_epochs.to_csv(dropped_epochs_data, sep="\t", na_rep="n/a", index=False)
 # %%
 # save the epochs
 epochs.save(fname_epochs_numbers, overwrite=overwrite)
+
+# %%
+# Make "response epochs" (see main docstring)
+# The code below is "hardcoded", settings above will have limited effect
+
+t_min_max_epochs_responses = (-0.7, 0.8)
+
+df_participants = pd.read_csv(participants_tsv, sep="\t")
+ntimeouts = df_participants.loc[
+    df_participants["participant_id"] == f"sub-{sub:02}", "ntimeouts"
+].to_list()[0]
+
+event_id_responses = {
+    **{f"Stimulus/S{i:>3}": i for i in range(31, 35)},
+    **{f"Stimulus/S{i:>3}": i for i in range(131, 135)},
+}
+events_responses, event_id_responses = mne.events_from_annotations(
+    raw, event_id=event_id
+)
+assert events_responses.shape[0] == 600 - ntimeouts  # 2 stream, 300 trials, 1 choice
+
+event_id_human_responses = {}
+for key, val in event_id_responses.items():
+    if val < 100:
+        if val == 31:
+            act = "lower"
+        else:
+            assert val == 32
+            act = "higher"
+        new_key = f"single/{act}"
+    else:
+        assert val > 100
+        if val == 133:
+            act = "blue"
+        else:
+            assert val == 134
+            act = "red"
+        new_key = f"dual/{act}"
+    event_id_human_responses[new_key] = val
+assert len(event_id_human_responses) == 2 * 2  # 2 streams, binary choices
+
+metadata_responses = df[df["validity"]]
+assert metadata_responses.shape[0] == 600 - ntimeouts
+
+epochs_responses = mne.Epochs(
+    raw=raw,
+    events=events_responses,
+    event_id=event_id_human_responses,
+    metadata=metadata_responses,
+    decim=decim,  # based on downsample_freq
+    preload=True,
+    tmin=t_min_max_epochs_responses[0],
+    tmax=t_min_max_epochs_responses[1],
+    baseline=None,  # baseline can be applied at later points
+    picks=["eeg"],  # we won't need the EOG and ECG channels from here on
+    reject_by_annotation=True,
+)
+
+bad_epos_responses = find_bad_epochs(epochs_responses)
+epochs_responses.drop(bad_epos_responses, reason="FASTER_AUTOMATIC")
+
+epochs_responses.save(fname_epochs_responses, overwrite=overwrite)
 
 # %%
