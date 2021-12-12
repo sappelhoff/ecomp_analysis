@@ -281,7 +281,8 @@ with open(fname_bad_channels, "w") as fout:
     lines = "\n".join(raw.info["bads"])
     fout.writelines(lines)
 
-# Save bad annotations
+# Save bad annotations (NOT stimulus events)
+assert not any([i.startswith("Stimulus/") for i in raw.annotations.description])
 raw.annotations.save(fname_annots, overwrite=overwrite)
 
 # Save data with all annots as FIF
