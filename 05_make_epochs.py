@@ -58,7 +58,7 @@ if not hasattr(sys, "ps1"):
     defaults = dict(
         sub=sub,
         data_dir=data_dir,
-        analysis_dir=data_dir,
+        analysis_dir=analysis_dir,
         overwrite=overwrite,
         downsample_freq=downsample_freq,
         t_min_max_epochs=t_min_max_epochs,
@@ -228,7 +228,16 @@ df_epochs = pd.DataFrame.from_dict(data)
 if dropped_epochs_data.exists():
     df_epochs_data = pd.read_csv(dropped_epochs_data, sep="\t")
     df_epochs = pd.concat([df_epochs_data, df_epochs]).reset_index(drop=True)
-    df_epochs = df_epochs_data.sort_values(by="sub")
+    df_epochs = df_epochs.sort_values(by="sub")
+    print(
+        "Appending dropped_epochs data to existing file:\n"
+        f"    > {dropped_epochs_data}\n"
+    )
+else:
+    print(
+        "dropped_epochs data file does not exist, "
+        f"writing a new one:\n    > {dropped_epochs_data}\n"
+    )
 
 df_epochs.to_csv(dropped_epochs_data, sep="\t", na_rep="n/a", index=False)
 # %%

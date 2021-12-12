@@ -99,7 +99,7 @@ if not hasattr(sys, "ps1"):
     defaults = dict(
         sub=sub,
         data_dir=data_dir,
-        analysis_dir=data_dir,
+        analysis_dir=analysis_dir,
         overwrite=overwrite,
         interactive=interactive,
     )
