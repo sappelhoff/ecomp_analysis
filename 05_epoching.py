@@ -8,24 +8,22 @@ epoch types:
     - correct/wrong contrast after feedback
 
 TODO:
-- make diagram of timings per trial
-- add CLI override options for settings
 - add epoching of response epochs (how long, what baseline)
 - collect stats on % epochs/chs retained for response and number epos
 
 
 """
+# %%
+# Imports
+import sys
 
 import mne
 import numpy as np
-
-# %%
-# Imports
 import pandas as pd
 from mne_faster import find_bad_epochs
 
 from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, DATA_DIR_LOCAL
-from utils import get_first_task, get_sourcedata
+from utils import get_first_task, get_sourcedata, parse_overwrite
 
 # %%
 # Settings
@@ -38,13 +36,32 @@ downsample_freq = 250
 
 overwrite = False
 
-tmin = -0.1
-tmax = 0.9
-baseline = (None, 0)
-
+t_min_max_epochs = (-0.1, 0.9)
 
 # %%
-# File paths
+# When not in an IPython session, get command line inputs
+# https://docs.python.org/3/library/sys.html#sys.ps1
+if not hasattr(sys, "ps1"):
+    defaults = dict(
+        sub=sub,
+        data_dir=data_dir,
+        analysis_dir=data_dir,
+        overwrite=overwrite,
+        downsample_freq=downsample_freq,
+        t_min_max_epochs=t_min_max_epochs,
+    )
+
+    defaults = parse_overwrite(defaults)
+
+    sub = defaults["sub"]
+    data_dir = defaults["data_dir"]
+    analysis_dir = defaults["analysis_dir"]
+    overwrite = defaults["overwrite"]
+    downsample_freq = defaults["downsample_freq"]
+    t_min_max_epochs = defaults["t_min_max_epochs"]
+
+# %%
+# Prepare file paths
 derivatives = DATA_DIR_EXTERNAL / "derivatives" / f"sub-{sub:02}"
 fname_fif_clean = derivatives / f"sub-{sub:02}_clean_raw.fif.gz"
 
@@ -155,9 +172,12 @@ assert len(event_id_human) == 2 * 2 * 9  # 2 streams, 2 colors, 9 digits
 # Decimate the data instead of resampling (i.e., taking every nth sample).
 # Data is already filtered at this point, so no aliasing artifacts occur
 assert raw.info["lowpass"] <= (downsample_freq / 3)
-assert raw.info["sfreq"] == 1000
+assert raw.info["sfreq"] == 1000  # as recorded
 assert raw.info["sfreq"] % downsample_freq == 0
 decim = int(raw.info["sfreq"] / downsample_freq)
+
+# unpack tmin tmax from tuple
+tmin, tmax = t_min_max_epochs
 
 # make epochs
 epochs = mne.Epochs(
@@ -165,17 +185,17 @@ epochs = mne.Epochs(
     events=events,
     event_id=event_id_human,
     metadata=metadata,
-    decim=decim,
+    decim=decim,  # based on downsample_freq
     preload=True,
     tmin=tmin,
     tmax=tmax,
-    baseline=baseline,
-    picks=["eeg"],
+    baseline=None,  # baseline can be applied at later points
+    picks=["eeg"],  # we won't need the EOG and ECG channels from here on
     reject_by_annotation=True,
 )
 
 # %%
-# drop epochs automatically according to FASTER
+# drop epochs automatically according to FASTER pipeline, step 2
 bad_epos = find_bad_epochs(epochs)
 epochs.drop(bad_epos, reason="FASTER_AUTOMATIC")
 

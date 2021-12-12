@@ -123,6 +123,8 @@ def prepare_raw_from_source(sub, data_dir, analysis_dir):
 @click.option("--ica_rng", default=DEFAULT_RNG_SEED, type=int, help="ICA seed")
 @click.option("--low_cutoff", type=float, help="low_cutoff")
 @click.option("--high_cutoff", type=float, help="high_cutoff")
+@click.option("--downsample_freq", type=int, help="downsample_freq")
+@click.option("--t_min_max_epochs", type=(float, float), help="t_min_max_epochs")
 def get_inputs(
     sub,
     data_dir,
@@ -133,6 +135,8 @@ def get_inputs(
     ica_rng,
     low_cutoff,
     high_cutoff,
+    downsample_freq,
+    t_min_max_epochs,
 ):
     """Parse inputs in case script is run from command line.
 
@@ -155,6 +159,8 @@ def get_inputs(
         ica_rng=ica_rng,
         low_cutoff=low_cutoff,
         high_cutoff=high_cutoff,
+        downsample_freq=downsample_freq,
+        t_min_max_epochs=t_min_max_epochs,
     )
 
     return inputs
