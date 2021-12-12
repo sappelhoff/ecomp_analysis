@@ -67,6 +67,8 @@ fname_epochs_numbers = derivatives / f"sub-{sub:02}_numbers_epo.fif.gz"
 
 fname_epochs_responses = derivatives / f"sub-{sub:02}_responses_epo.fif.gz"
 
+dropped_epochs_data = analysis_dir / "derived_data" / "dropped_epochs.tsv"
+
 # %%
 # Read behavioral data to use as metadata
 dfs = []
@@ -198,7 +200,22 @@ bad_epos = find_bad_epochs(epochs)
 epochs.drop(bad_epos, reason="FASTER_AUTOMATIC")
 
 # %%
+# Save amount of dropped epochs
+kept_epos = np.array([False if len(i) > 0 else True for i in epochs.drop_log])
+perc_rejected = 100 * (1 - (kept_epos.sum() / len(epochs.drop_log)))
+nkept_epos = kept_epos.sum()
+data = dict(sub=[sub], nkept_epos=[nkept_epos], perc_rejected=[perc_rejected])
+df_epochs = pd.DataFrame.from_dict(data)
+
+# attach to previous data (if it exists)
+if dropped_epochs_data.exists():
+    df_epochs_data = pd.read_csv(dropped_epochs_data, sep="\t")
+    df_epochs = pd.concat([df_epochs_data, df_epochs]).reset_index(drop=True)
+    df_epochs = df_epochs_data.sort_values(by="sub")
+
+df_epochs.to_csv(dropped_epochs_data, sep="\t", na_rep="n/a", index=False)
+# %%
 # save the epochs
-# epochs.save(fname_epochs_numbers, overwrite=overwrite)
+epochs.save(fname_epochs_numbers, overwrite=overwrite)
 
 # %%
