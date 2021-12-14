@@ -223,7 +223,12 @@ epochs.drop(bad_epos, reason="FASTER_AUTOMATIC")
 # Save amount of dropped epochs
 nkept_epos = len(epochs)
 perc_rejected = epochs.drop_log_stats()
-data = dict(sub=[sub], nkept_epos=[nkept_epos], perc_rejected=[perc_rejected])
+data = dict(
+    sub=[sub],
+    nkept_epos=[nkept_epos],
+    perc_rejected=[perc_rejected],
+    nbad_faster=[len(bad_epos)],
+)
 df_epochs = pd.DataFrame.from_dict(data)
 
 # attach to previous data (if it exists)
