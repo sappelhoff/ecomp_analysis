@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import numpy as np
+
 # Path definitions
 # -----------------------------------------------------------------------------
 
@@ -40,6 +42,8 @@ BAD_SUBJS = {
     15: "Consistently performed at chance level.",
     23: "Misunderstood response cues in one of the tasks.",
 }
+
+SUBJS = np.array(list(set(range(1, 33)) - set(BAD_SUBJS)))
 
 DEFAULT_RNG_SEED = 42
 
