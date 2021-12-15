@@ -1,4 +1,12 @@
-"""Compute and plot ERPs over subjects."""
+"""Compute and plot ERPs over subjects.
+
+TODO:
+- speed up
+- potentially save intermediate data (and track in git)
+- try with other P3 group (see NHB2017 instead of Appelhoff2021)
+- use timewindow based on some stats?
+
+"""
 # %%
 # Imports
 
@@ -118,15 +126,17 @@ cmap = sns.color_palette("crest_r", as_cmap=True)
 for stream in streams:
     fig, ax = plt.subplots()
     ax.axvspan(*mean_times, color="black", alpha=0.1)
-    mne.viz.plot_compare_evokeds(
-        dict_streams[stream],
-        picks=p3_group,
-        combine="mean",
-        show_sensors=True,
-        cmap=cmap,
-        ci=0.68,
-        axes=ax,
-    )
+    with mne.utils.use_log_level(False):
+        mne.viz.plot_compare_evokeds(
+            dict_streams[stream],
+            picks=p3_group,
+            combine="mean",
+            show_sensors=True,
+            cmap=cmap,
+            ci=0.68,
+            axes=ax,
+            title=stream,
+        )
 
 # %%
 # Gather mean amplitude data
