@@ -1,4 +1,7 @@
-"""Analyze accuracies."""
+"""Analyze accuracies.
+
+TODO: Ignore "ambiguous" trials for accuracy.
+"""
 # %%
 # Imports
 import matplotlib.pyplot as plt
