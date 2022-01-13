@@ -105,7 +105,7 @@ def prepare_raw_from_source(sub, data_dir, analysis_dir):
     raw = raw.set_channel_types({"ECG": "ecg", "HEOG": "eog", "VEOG": "eog"})
 
     # Set a standard montage for plotting later
-    montage = mne.channels.make_standard_montage("standard_1020")
+    montage = mne.channels.make_standard_montage("easycap-M1")
     raw = raw.set_montage(montage)
 
     # Add some recording info
