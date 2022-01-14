@@ -215,7 +215,7 @@ assert exclude == ica.exclude
 print(f"Excluding: {exclude}")
 
 with open(fname_exclude, "w") as fout:
-    json.dump(dict(exclude=exclude), fout, indent=4)
+    json.dump(dict(exclude=sorted(exclude)), fout, indent=4, sort_keys=True)
     fout.write("\n")
 
 # %%

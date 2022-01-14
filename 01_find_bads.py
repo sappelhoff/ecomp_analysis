@@ -101,8 +101,12 @@ bads_dict = nc.get_bads(as_dict=True)
 
 # %%
 # Save the outputs
+bads_dict_sorted = {}
+for key, val in bads_dict.items():
+    bads_dict[key] = sorted(val)
+
 with open(fname_pyprep, "w") as fout:
-    json.dump(bads_dict, fout, indent=4)
+    json.dump(bads_dict, fout, indent=4, sort_keys=True)
     fout.write("\n")
 
 # %%

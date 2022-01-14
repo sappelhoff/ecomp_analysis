@@ -278,7 +278,8 @@ with mne.viz.use_browser_backend("pyqtgraph"):
 # %%
 # Save results
 with open(fname_bad_channels, "w") as fout:
-    lines = "\n".join(raw.info["bads"])
+    bads = sorted(raw.info["bads"])
+    lines = "\n".join(bads)
     fout.writelines(lines)
 
 # Save bad annotations (NOT stimulus events)
