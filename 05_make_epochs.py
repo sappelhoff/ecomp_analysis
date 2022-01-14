@@ -214,6 +214,9 @@ epochs = mne.Epochs(
     reject_by_annotation=True,
 )
 
+# how many epochs were rejected by annotation
+nbad_annot = events.shape[0] - len(epochs)
+
 # %%
 # drop epochs automatically according to FASTER pipeline, step 2
 bad_epos = find_bad_epochs(epochs)
@@ -228,6 +231,7 @@ data = dict(
     nkept_epos=[nkept_epos],
     perc_rejected=[perc_rejected],
     nbad_faster=[len(bad_epos)],
+    nbad_annot=[nbad_annot],
 )
 df_epochs = pd.DataFrame.from_dict(data)
 

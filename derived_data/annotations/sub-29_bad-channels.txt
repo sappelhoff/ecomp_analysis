@@ -1,4 +1,4 @@
 FC1
-P4
-FT9
 FC3
+FT9
+P4

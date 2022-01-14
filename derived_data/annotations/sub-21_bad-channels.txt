@@ -1,5 +1,5 @@
-FC5
-Fz
-FC1
 F1
 F2
+FC1
+FC5
+Fz

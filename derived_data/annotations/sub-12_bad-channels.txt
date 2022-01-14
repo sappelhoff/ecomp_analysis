@@ -1,5 +1,5 @@
-C5
-Fp2
-AF7
 AF4
+AF7
+C5
 FC1
+Fp2
