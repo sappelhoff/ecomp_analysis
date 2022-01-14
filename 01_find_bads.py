@@ -61,6 +61,7 @@ if not hasattr(sys, "ps1"):
     defaults = dict(
         sub=sub,
         data_dir=data_dir,
+        analysis_dir=analysis_dir,
         overwrite=overwrite,
         pyprep_rng=pyprep_rng,
     )
@@ -69,6 +70,7 @@ if not hasattr(sys, "ps1"):
 
     sub = defaults["sub"]
     data_dir = defaults["data_dir"]
+    analysis_dir = defaults["analysis_dir"]
     overwrite = defaults["overwrite"]
     pyprep_rng = defaults["pyprep_rng"]
 
