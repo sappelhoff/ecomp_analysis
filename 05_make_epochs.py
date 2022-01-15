@@ -215,7 +215,7 @@ epochs = mne.Epochs(
 )
 
 # how many epochs were rejected by annotation
-nbad_annot = events.shape[0] - len(epochs)
+nbad_annot = int(events.shape[0]) - len(epochs)
 
 # %%
 # drop epochs automatically according to FASTER pipeline, step 2
