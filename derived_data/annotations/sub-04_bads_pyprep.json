@@ -1,15 +1,15 @@
 {
-    "bad_by_nan": [],
-    "bad_by_flat": [],
-    "bad_by_deviation": [],
-    "bad_by_hf_noise": [],
-    "bad_by_correlation": [
+    "bad_all": [
         "FC1"
     ],
     "bad_by_SNR": [],
-    "bad_by_dropout": [],
-    "bad_by_ransac": [],
-    "bad_all": [
+    "bad_by_correlation": [
         "FC1"
-    ]
+    ],
+    "bad_by_deviation": [],
+    "bad_by_dropout": [],
+    "bad_by_flat": [],
+    "bad_by_hf_noise": [],
+    "bad_by_nan": [],
+    "bad_by_ransac": []
 }

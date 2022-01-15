@@ -1,24 +1,24 @@
 {
-    "bad_by_nan": [],
-    "bad_by_flat": [],
-    "bad_by_deviation": [],
-    "bad_by_hf_noise": [
-        "Fz",
+    "bad_all": [
         "FC1",
         "FC2",
+        "Fz",
+        "P4",
         "TP9"
     ],
+    "bad_by_SNR": [],
     "bad_by_correlation": [
         "P4"
     ],
-    "bad_by_SNR": [],
+    "bad_by_deviation": [],
     "bad_by_dropout": [],
-    "bad_by_ransac": [],
-    "bad_all": [
+    "bad_by_flat": [],
+    "bad_by_hf_noise": [
         "FC1",
-        "Fz",
         "FC2",
-        "TP9",
-        "P4"
-    ]
+        "Fz",
+        "TP9"
+    ],
+    "bad_by_nan": [],
+    "bad_by_ransac": []
 }

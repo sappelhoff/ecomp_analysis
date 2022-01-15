@@ -1,25 +1,22 @@
 {
-    "bad_by_nan": [],
-    "bad_by_flat": [],
-    "bad_by_deviation": [
-        "Fp2",
-        "AF7"
-    ],
-    "bad_by_hf_noise": [],
-    "bad_by_correlation": [
+    "bad_all": [
+        "AF4",
+        "AF7",
         "FC1",
-        "AF4"
+        "Fp2"
     ],
     "bad_by_SNR": [],
-    "bad_by_dropout": [],
-    "bad_by_ransac": [
-        "C5"
-    ],
-    "bad_all": [
-        "C5",
-        "Fp2",
-        "AF7",
+    "bad_by_correlation": [
         "AF4",
         "FC1"
-    ]
+    ],
+    "bad_by_deviation": [
+        "AF7",
+        "Fp2"
+    ],
+    "bad_by_dropout": [],
+    "bad_by_flat": [],
+    "bad_by_hf_noise": [],
+    "bad_by_nan": [],
+    "bad_by_ransac": []
 }

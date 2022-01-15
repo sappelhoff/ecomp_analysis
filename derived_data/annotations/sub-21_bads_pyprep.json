@@ -1,27 +1,27 @@
 {
-    "bad_by_nan": [],
-    "bad_by_flat": [],
-    "bad_by_deviation": [],
-    "bad_by_hf_noise": [
-        "FC1"
-    ],
-    "bad_by_correlation": [
-        "Fz",
-        "FC5",
-        "FC1",
+    "bad_all": [
         "F1",
-        "F2"
+        "F2",
+        "FC1",
+        "FC5",
+        "Fz"
     ],
     "bad_by_SNR": [
         "FC1"
     ],
-    "bad_by_dropout": [],
-    "bad_by_ransac": [],
-    "bad_all": [
-        "FC5",
-        "Fz",
-        "FC1",
+    "bad_by_correlation": [
         "F1",
-        "F2"
-    ]
+        "F2",
+        "FC1",
+        "FC5",
+        "Fz"
+    ],
+    "bad_by_deviation": [],
+    "bad_by_dropout": [],
+    "bad_by_flat": [],
+    "bad_by_hf_noise": [
+        "FC1"
+    ],
+    "bad_by_nan": [],
+    "bad_by_ransac": []
 }
