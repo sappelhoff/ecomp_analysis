@@ -48,3 +48,7 @@ SUBJS = np.array(list(set(range(1, 33)) - set(BAD_SUBJS)))
 DEFAULT_RNG_SEED = 42
 
 OVERWRITE_MSG = "\nfile exists and overwrite is False:\n\n>>> {}\n"
+
+# Threshold for epochs rejection in FASTER pipeline, step 2
+# 3.29 corresponds to p < 0.001, two-tailed
+FASTER_THRESH = 3.29

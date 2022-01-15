@@ -28,6 +28,7 @@ python 05_make_epochs.py --sub=1
 """
 # %%
 # Imports
+import json
 import sys
 
 import mne
@@ -35,7 +36,7 @@ import numpy as np
 import pandas as pd
 from mne_faster import find_bad_epochs
 
-from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL, FASTER_THRESH
 from utils import get_first_task, get_sourcedata, parse_overwrite
 
 # %%
@@ -51,6 +52,8 @@ overwrite = False
 
 t_min_max_epochs = (-0.1, 0.9)
 
+recompute_faster = False
+
 # %%
 # When not in an IPython session, get command line inputs
 # https://docs.python.org/3/library/sys.html#sys.ps1
@@ -62,6 +65,7 @@ if not hasattr(sys, "ps1"):
         overwrite=overwrite,
         downsample_freq=downsample_freq,
         t_min_max_epochs=t_min_max_epochs,
+        recompute_faster=recompute_faster,
     )
 
     defaults = parse_overwrite(defaults)
@@ -72,6 +76,7 @@ if not hasattr(sys, "ps1"):
     overwrite = defaults["overwrite"]
     downsample_freq = defaults["downsample_freq"]
     t_min_max_epochs = defaults["t_min_max_epochs"]
+    recompute_faster = defaults["recompute_faster"]
 
 if sub in BAD_SUBJS:
     raise RuntimeError("No need to work on the bad subjs.")
@@ -88,6 +93,9 @@ fname_epochs_responses = derivatives / f"sub-{sub:02}_responses_epo.fif.gz"
 dropped_epochs_data = analysis_dir / "derived_data" / "dropped_epochs.tsv"
 
 participants_tsv = analysis_dir / "derived_data" / "participants.tsv"
+
+savedir = analysis_dir / "derived_data" / "annotations"
+fname_faster = savedir / f"sub-{sub:02}_faster_bad_epos.json"
 
 # %%
 # Read behavioral data to use as metadata
@@ -219,8 +227,15 @@ nbad_annot = int(events.shape[0]) - len(epochs)
 
 # %%
 # drop epochs automatically according to FASTER pipeline, step 2
-bad_epos = find_bad_epochs(epochs)
-epochs.drop(bad_epos, reason="FASTER_AUTOMATIC")
+if (not fname_faster.exists()) or recompute_faster:
+    faster_dict = {}
+    bad_epos = find_bad_epochs(epochs, thres=FASTER_THRESH)
+    faster_dict["bad_epos"] = sorted(bad_epos)
+else:
+    with open(fname_faster, "r") as fin:
+        faster_dict = json.load(fin)
+
+epochs.drop(faster_dict["bad_epos"], reason="FASTER_AUTOMATIC")
 
 # %%
 # Save amount of dropped epochs
@@ -313,9 +328,18 @@ epochs_responses = mne.Epochs(
     reject_by_annotation=True,
 )
 
-bad_epos_responses = find_bad_epochs(epochs_responses)
-epochs_responses.drop(bad_epos_responses, reason="FASTER_AUTOMATIC")
+if ("bad_epos_responses" not in faster_dict) or recompute_faster:
+    bad_epos_responses = find_bad_epochs(epochs_responses, thres=FASTER_THRESH)
+    faster_dict["bad_epos_responses"] = sorted(bad_epos_responses)
+
+epochs_responses.drop(faster_dict["bad_epos_responses"], reason="FASTER_AUTOMATIC")
 
 epochs_responses.save(fname_epochs_responses, overwrite=overwrite)
+
+# %%
+# Save epochs indices rejected through FASTER pipeline
+with open(fname_faster, "w") as fout:
+    json.dump(faster_dict, fout, indent=4, sort_keys=True)
+    fout.write("\n")
 
 # %%

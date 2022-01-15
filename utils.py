@@ -125,6 +125,7 @@ def prepare_raw_from_source(sub, data_dir, analysis_dir):
 @click.option("--high_cutoff", type=float, help="high_cutoff")
 @click.option("--downsample_freq", type=int, help="downsample_freq")
 @click.option("--t_min_max_epochs", type=(float, float), help="t_min_max_epochs")
+@click.option("--recompute_faster", default=False, type=bool, help="recompute_faster")
 def get_inputs(
     sub,
     data_dir,
@@ -137,6 +138,7 @@ def get_inputs(
     high_cutoff,
     downsample_freq,
     t_min_max_epochs,
+    recompute_faster,
 ):
     """Parse inputs in case script is run from command line.
 
@@ -161,6 +163,7 @@ def get_inputs(
         high_cutoff=high_cutoff,
         downsample_freq=downsample_freq,
         t_min_max_epochs=t_min_max_epochs,
+        recompute_faster=recompute_faster,
     )
 
     return inputs
