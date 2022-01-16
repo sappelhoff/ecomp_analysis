@@ -245,7 +245,7 @@ data = dict(
     sub=[sub],
     nkept_epos=[nkept_epos],
     perc_rejected=[perc_rejected],
-    nbad_faster=[len(bad_epos)],
+    nbad_faster=[len(faster_dict["bad_epos"])],
     nbad_annot=[nbad_annot],
 )
 df_epochs = pd.DataFrame.from_dict(data)
