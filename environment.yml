@@ -20,8 +20,9 @@ dependencies:
 - pytest-cov
 - pytest-sugar
 - pytest
+- git-annex
 - pip:
-  - mne
+  - mne<1.0.0
   - pooch
   - tqdm
   - python-picard
@@ -32,3 +33,5 @@ dependencies:
   - pyopengl
   - pingouin
   - statsmodels
+  - pyyaml
+  - datalad
