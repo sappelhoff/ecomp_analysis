@@ -52,3 +52,6 @@ OVERWRITE_MSG = "\nfile exists and overwrite is False:\n\n>>> {}\n"
 # Threshold for epochs rejection in FASTER pipeline, step 2
 # 3.29 corresponds to p < 0.001, two-tailed
 FASTER_THRESH = 3.29
+
+# Electrode groups
+P3_GROUP = ["Cz", "C1", "C2", "CPz", "CP1", "CP2", "CP3", "CP4", "Pz", "P1", "P2"]

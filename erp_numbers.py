@@ -16,7 +16,7 @@ import pandas as pd
 import seaborn as sns
 from tqdm.auto import tqdm
 
-from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, SUBJS
+from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, P3_GROUP, SUBJS
 
 # %%
 # Settings
@@ -77,11 +77,60 @@ for stream in streams:
 # non-preloaded epochs
 dict_epochs = get_dict_epochs(subjects, derivatives)
 
+# %%
+
+# load subj data (no preload)
+# apply baseline
+# get cocktailblank per stream
+# make stream/number ERPs (corrected)
+
+# Load data
+sub = 1
+fname_epo = derivatives / f"sub-{sub:02}" / f"sub-{sub:02}_numbers_epo.fif.gz"
+epochs = mne.read_epochs(fname_epo, preload=True, verbose=False)
+
+# apply baseline
+epochs.apply_baseline(baseline)
+
+# Calculate cocktail blanks per stream
+cocktail_blank = {stream: epochs[stream].average().get_data() for stream in streams}
+
+# Get cocktailblank corrected ERPs for each stream/number
+# also extract mean amplitudes
+mean_times = (0.3, 0.7)
+start, stop = epochs.time_as_index(mean_times)
+dict_streams = {j: {str(i): [] for i in numbers} for j in streams}
+dict_mean_amps = {j: {str(i): [] for i in numbers} for j in streams}
+for stream, dict_numbers in dict_streams.items():
+    for number in dict_numbers:
+
+        # form ERP and cocktailblank correct
+        sel = f"{stream}/{number}"
+        evoked = epochs[sel].average()
+        evoked.data = evoked.data - cocktail_blank[stream]
+        dict_streams[stream][number] += [epochs[sel]]
+
+        # add to evokeds
+        dict_numbers[number] += [evoked]
+
+        # extract mean amplitude and save
+        with mne.utils.use_log_level(False):
+            df_epo = (
+                evoked.to_data_frame(picks=P3_GROUP, long_format=True)
+                .groupby("time")
+                .mean()
+                .reset_index(drop=True)
+            )
+
+        mean_amp = df_epo.iloc[start : stop + 2]["value"].mean()
+        dict_mean_amps[stream][number] += [mean_amp]
+
+print(dict_mean_amps)
 
 # %%
 
 dict_streams = {j: {str(i): [] for i in numbers} for j in streams}
-p3_group = ["Cz", "C1", "C2", "CPz", "CP1", "CP2", "CP3", "CP4", "Pz", "P1", "P2"]
+
 mean_times = (0.3, 0.7)
 start, stop = list(dict_epochs.values())[0].time_as_index(mean_times)
 
@@ -107,7 +156,7 @@ for stream in tqdm(dict_streams):
             # extract mean amplitude
             with mne.utils.use_log_level(False):
                 df_epo = (
-                    evoked.to_data_frame(picks=p3_group, long_format=True)
+                    evoked.to_data_frame(picks=P3_GROUP, long_format=True)
                     .groupby("time")
                     .mean()
                     .reset_index(drop=True)
@@ -129,7 +178,7 @@ for stream in streams:
     with mne.utils.use_log_level(False):
         mne.viz.plot_compare_evokeds(
             dict_streams[stream],
-            picks=p3_group,
+            picks=P3_GROUP,
             combine="mean",
             show_sensors=True,
             cmap=cmap,
