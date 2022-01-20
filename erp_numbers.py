@@ -26,8 +26,6 @@ from config import (
 data_dir = DATA_DIR_EXTERNAL
 analysis_dir = ANALYSIS_DIR_LOCAL
 
-derivatives = data_dir / "derivatives"
-
 overwrite = False
 
 subjects = SUBJS
@@ -42,6 +40,9 @@ numbers = range(1, 10)
 
 # %%
 # Prepare file paths
+
+derivatives = data_dir / "derivatives"
+
 erp_dir = derivatives / "erps" / f"{baseline}-{mean_times}"
 erp_dir.mkdir(exist_ok=True, parents=True)
 fname_template_erp = "sub-{:02}_stream-{}_number-{}_ave.fif.gz"
