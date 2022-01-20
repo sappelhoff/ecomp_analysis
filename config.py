@@ -54,4 +54,17 @@ OVERWRITE_MSG = "\nfile exists and overwrite is False:\n\n>>> {}\n"
 FASTER_THRESH = 3.29
 
 # Electrode groups
-P3_GROUP = ["Cz", "C1", "C2", "CPz", "CP1", "CP2", "CP3", "CP4", "Pz", "P1", "P2"]
+P3_GROUP_CERCOR = [
+    "Cz",
+    "C1",
+    "C2",
+    "CPz",
+    "CP1",
+    "CP2",
+    "CP3",
+    "CP4",
+    "Pz",
+    "P1",
+    "P2",
+]
+P3_GROUP_NHB = ["CP1", "P1", "POz", "Pz", "CPz", "CP2", "P2"]
