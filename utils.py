@@ -6,7 +6,9 @@ import warnings
 
 import click
 import mne
+import numpy as np
 import pandas as pd
+from numba import njit
 
 from config import DEFAULT_RNG_SEED
 
@@ -185,3 +187,74 @@ def parse_overwrite(defaults):
         print("Nothing to overwrite, use defaults defined in script.\n")
 
     return defaults
+
+
+@njit
+def eq1(X, bias, kappa):
+    """See equation 1 from Spitzer et al. 2017, Nature Human Behavior."""
+    dv = np.sign(X + bias) * (np.abs(X + bias) ** kappa)
+    return dv
+
+
+def calc_rdm(vec, normalize):
+    """Calculate an RDM based on an input vector.
+
+    Parameters
+    ----------
+    vec : np.ndarray, shape(n,)
+        1-dimensional vector of length `n`, from which
+        to calculate an RDM.
+    normalize : bool
+        Whether or not to normalize the output `rdm` to
+        the range [0, 1] through ``rdm /= rdm.max()``.
+        Note that this only works work RDMs that already
+        have their minimum at 0. The function will raise
+        an AssertionError otherwise.
+
+    Returns
+    -------
+    rdm : np.ndarray, shape(n, n)
+        Each entry in the matrix is the pairwise (absolute)
+        difference between corresponding entries from the
+        input vector (increasing from top to bottom; and
+        from left to right).
+
+    """
+    arrs = []
+    for i in vec:
+        arrs.append(np.abs(vec - i))
+    rdm = np.stack(arrs, axis=0)
+    if normalize:
+        rdm = rdm / rdm.max()
+        assert np.isclose(rdm.min(), 0)
+        assert np.isclose(rdm.max(), 1)
+    return rdm
+
+
+def rdm2vec(rdm, lower_tri=True):
+    """Get an RDM as a vector.
+
+    Parameters
+    ----------
+    rdm : np.ndarray, shape(n, n)
+        The representational dissimilarity matrix.
+    lower_tri : bool
+        If ``True``, return only the lower triangle without the
+        diagonal as an output. If ``False``, return the full
+        RDM as an output.
+
+    Returns
+    -------
+    vector : np.ndarray, shape(n, )
+        Copy of either the full RDM as a vector or the
+        lower triangle without diagonal as a vector.
+    """
+    assert rdm.ndim == 2
+    assert rdm.shape[0] == rdm.shape[1]
+    rdm = np.asarray(rdm.copy(), dtype=float)
+    if lower_tri:
+        lower_triangle_idx = np.tril_indices(rdm.shape[0], k=-1)
+        vector = rdm[lower_triangle_idx].flatten()
+    else:
+        vector = rdm.flatten()
+    return vector

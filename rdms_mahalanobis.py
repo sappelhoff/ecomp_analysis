@@ -92,12 +92,21 @@ mahal_dir = data_dir / "derivatives" / "rsa" / "rdms_mahalanobis"
 mahal_dir.mkdir(exist_ok=True, parents=True)
 
 fname_rdm_template = mahal_dir / "sub-{:02}_stream-{}_rdm-mahal.npy"
+fname_times = mahal_dir / "times.npy"
 
 # %%
 # Calculate RDMs for each stream
 for stream in streams:
     # Read data
     epochs = mne.read_epochs(fname_epo, preload=False, verbose=False)
+
+    # Save times, just once
+    if not fname_times.exists():
+        np.save(fname_times, epochs.times)
+    else:
+        times = np.load(fname_times)
+        np.testing.assert_array_equal(times, epochs.times)
+
     epochs = epochs[stream]
     epochs.load_data()
     ntrials = len(epochs)
