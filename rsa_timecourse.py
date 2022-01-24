@@ -39,7 +39,6 @@ streams = ["single", "dual"]
 derivatives = data_dir / "derivatives"
 
 mahal_dir = data_dir / "derivatives" / "rsa" / "rdms_mahalanobis"
-mahal_dir.mkdir(exist_ok=True, parents=True)
 
 fname_rdm_template = str(mahal_dir / "sub-{:02}_stream-{}_rdm-mahal.npy")
 fname_times = mahal_dir / "times.npy"
