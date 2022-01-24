@@ -35,8 +35,8 @@ numbers = np.arange(1, 10, dtype=int)
 streams = ["single", "dual"]
 
 grid_res = 101
-kappas = np.linspace(0.4, 4, grid_res)
-biases = np.linspace(-1, 1, int(grid_res))
+kappas = np.linspace(0.4, 4.0, grid_res)
+biases = np.linspace(-1.0, 1.0, int(grid_res))
 bias_kappa_combis = list(itertools.product(biases, kappas))
 
 idx_bias_zero = (np.abs(biases - 0.0)).argmin()
@@ -160,7 +160,7 @@ for istream, stream in enumerate(streams):
     for isub, sub in enumerate(SUBJS):
         shape = grid_streams_subjs[..., istream, isub].shape
         argmax = np.argmax(grid_streams_subjs[..., istream, isub])
-        max_coords_xy[..., istream, isub] = np.unravel_index(argmax, shape)
+        max_coords_xy[..., istream, isub] = np.unravel_index(argmax, shape)[::-1]
 
     # plot mean grid
     grid_mean = np.mean(grid_streams_subjs[..., istream, :], axis=-1)
@@ -209,7 +209,7 @@ for istream, stream in enumerate(streams):
     ax.xaxis.set_major_locator(plt.MaxNLocator(5))
     ax.yaxis.set_major_locator(plt.MaxNLocator(6))
     xticklabels = (
-        [""] + [f"{i:.1f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]] + [""]
+        [""] + [f"{i:.2f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]] + [""]
     )
     yticklabels = (
         [""] + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]] + [""]
