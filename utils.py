@@ -258,3 +258,12 @@ def rdm2vec(rdm, lower_tri=True):
     else:
         vector = rdm.flatten()
     return vector
+
+
+def prep_to_plot(rdm):
+    """Remove upper triangle, including diagonal, from rdm."""
+    tri_idx = np.triu_indices(rdm.shape[0])
+    tmprdm = rdm.copy()
+    tmprdm = tmprdm.astype(float)
+    tmprdm[tri_idx] = np.nan
+    return tmprdm
