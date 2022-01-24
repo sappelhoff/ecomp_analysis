@@ -35,8 +35,12 @@ numbers = np.arange(1, 10, dtype=int)
 streams = ["single", "dual"]
 
 grid_res = 101
-kappas = np.linspace(0.4, 4.0, grid_res)
-biases = np.linspace(-1.0, 1.0, int(grid_res))
+if True:
+    kappas = np.linspace(0.4, 4.0, grid_res)
+    biases = np.linspace(-1.0, 1.0, int(grid_res))
+else:
+    kappas = np.linspace(0.5, 10.0, grid_res)
+    biases = np.linspace(-0.75, 0.75, int(grid_res))
 bias_kappa_combis = list(itertools.product(biases, kappas))
 
 idx_bias_zero = (np.abs(biases - 0.0)).argmin()
@@ -44,7 +48,7 @@ idx_kappa_one = (np.abs(kappas - 1.0)).argmin()
 
 window_sel = (0.2, 0.6)  # representative window, look at figure
 
-pthresh = 0.001
+pthresh = 0.05
 
 # %%
 # Prepare file paths
@@ -191,10 +195,12 @@ for istream, stream in enumerate(streams):
         zorder=10,
     )
 
-    # plot mean maxima
+    # plot mean maximum
+    mean_max_xy = np.unravel_index(np.argmax(grid_mean), grid_mean.shape)[::-1]
+
     ax.scatter(
-        np.mean(max_coords_xy[..., istream, :], axis=-1)[0],
-        np.mean(max_coords_xy[..., istream, :], axis=-1)[1],
+        mean_max_xy[0],
+        mean_max_xy[1],
         color="red",
         s=24,
         marker="d",
@@ -224,7 +230,7 @@ for istream, stream in enumerate(streams):
 
     title = (
         "Improved model correlation relative to linear model (b=0, k=1)\n"
-        f"Transparent mask shows significant values at p={pthresh}"
+        f"Transparent mask shows significant values at p={pthresh} (FDR corrected)"
     )
     fig.suptitle(title, y=1.15)
 # %%
