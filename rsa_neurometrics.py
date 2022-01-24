@@ -7,6 +7,9 @@
 - plot mean over grids for each stream
 - plot individual grid maxima
 - plot mean grid maximum
+- make maps relative to "linear" map: all models that lead to worse correlation
+  are coded "<= 0" (minimum color)
+- calculate t values over participant correlations: ttest or wilcoxon
 
 """
 # %%
@@ -16,6 +19,7 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats
+import statsmodels.stats.multitest
 from tqdm.auto import tqdm
 
 from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, SUBJS
@@ -35,7 +39,12 @@ kappas = np.linspace(0.4, 4, grid_res)
 biases = np.linspace(-1, 1, int(grid_res))
 bias_kappa_combis = list(itertools.product(biases, kappas))
 
+idx_bias_zero = (np.abs(biases - 0.0)).argmin()
+idx_kappa_one = (np.abs(kappas - 1.0)).argmin()
+
 window_sel = (0.2, 0.6)  # representative window, look at figure
+
+pthresh = 0.001
 
 # %%
 # Prepare file paths
@@ -98,9 +107,50 @@ for isub, sub in enumerate(tqdm(SUBJS)):
             grid_streams_subjs[idx_kappa, idx_bias, istream, isub] = corr
 
 # %%
+# Normalize maps to be relative to bias=0, kappa=1
+rng = np.random.default_rng(42)
+for isub, sub in enumerate(tqdm(SUBJS)):
+    for istream, stream in enumerate(streams):
+        corr_ref = grid_streams_subjs[idx_kappa_one, idx_bias_zero, istream, isub]
+        grid_streams_subjs[..., istream, isub] -= corr_ref
+
+        # don't make the b=0, k=1 cell zero for all subjs. Add tiny amount
+        # of random noise, so that down-the-line tests don't run into NaN problems
+        noise = rng.normal() * 1e-5
+        grid_streams_subjs[idx_kappa_one, idx_bias_zero, istream, isub] += noise
+
+# %%
+# Calculate 1 samp t-tests against 0 for each cell to test significance
+pval_maps_streams = np.full((len(kappas), len(biases), len(streams)), np.nan)
+for istream, stream in enumerate(streams):
+    data = grid_streams_subjs[..., istream, :]
+    _, pvals = scipy.stats.ttest_1samp(a=data, popmean=0, axis=-1, nan_policy="raise")
+    pval_maps_streams[..., istream] = pvals
+
+# %%
+# Create a mask for plotting the significant values in grid
+# use B/H FDR correction
+alpha_val_mask = 0.75
+sig_masks_streams = np.full_like(pval_maps_streams, np.nan)
+for istream, stream in enumerate(streams):
+    pvals = pval_maps_streams[..., istream]
+    sig, _ = statsmodels.stats.multitest.fdrcorrection(pvals.flatten(), alpha=pthresh)
+    sig = sig.reshape(pvals.shape)
+
+    # all non-significant values have a lower "alpha value" in the plot
+    mask_alpha_vals = sig.copy().astype(float)
+    mask_alpha_vals[mask_alpha_vals == 0] = alpha_val_mask
+    sig_masks_streams[..., istream] = mask_alpha_vals
+
+    # NOTE: Need to lower alpha values of cells with corr <= 0
+    #       that are still significant before plotting
+    #       E.g., a cell significantly worsens correlation -> adjust alpha
+
+
+# %%
 # Plot grid per stream
 max_coords_xy = np.full((2, len(streams), len(SUBJS)), np.nan)
-fig, axs = plt.subplots(1, 2)
+fig, axs = plt.subplots(1, 2, figsize=(8, 4))
 fig.tight_layout()
 for istream, stream in enumerate(streams):
 
@@ -114,7 +164,23 @@ for istream, stream in enumerate(streams):
 
     # plot mean grid
     grid_mean = np.mean(grid_streams_subjs[..., istream, :], axis=-1)
-    ax.imshow(grid_mean, origin="upper", interpolation="nearest")
+    mask = sig_masks_streams[..., istream]
+    mask[grid_mean <= 0] = alpha_val_mask
+    _ = ax.imshow(
+        grid_mean, origin="upper", interpolation="nearest", vmin=0, alpha=mask
+    )
+
+    # tweak to get colorbar without alpha mask
+    _, tweak_ax = plt.subplots()
+    im = tweak_ax.imshow(grid_mean, origin="upper", interpolation="nearest", vmin=0)
+
+    # plot colorbar
+    cbar = fig.colorbar(
+        im, ax=ax, orientation="horizontal", label="Δ Pearson's r", shrink=0.75
+    )
+    cbar_ticks = np.linspace(0, im.get_array().max(), 4)
+    cbar.set_ticks(cbar_ticks)
+    cbar.ax.set_xticklabels(["<=0"] + [f"{i:.2}" for i in cbar_ticks[1:]])
 
     # plot subj maxima
     ax.scatter(
@@ -136,14 +202,14 @@ for istream, stream in enumerate(streams):
     )
 
     # lines
-    idx_bias_zero = (np.abs(biases - 0.0)).argmin()
-    idx_kappa_one = (np.abs(kappas - 1.0)).argmin()
     ax.axvline(idx_bias_zero, color="white", ls="--")
     ax.axhline(idx_kappa_one, color="white", ls="--")
 
     # settings
+    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+    ax.yaxis.set_major_locator(plt.MaxNLocator(6))
     xticklabels = (
-        [""] + [str(i) for i in biases[(ax.get_xticks()[1:-1]).astype(int)]] + [""]
+        [""] + [f"{i:.1f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]] + [""]
     )
     yticklabels = (
         [""] + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]] + [""]
@@ -156,4 +222,9 @@ for istream, stream in enumerate(streams):
         ylabel="kappa (k)",
     )
 
+    title = (
+        "Improved model correlation relative to linear model (b=0, k=1)\n"
+        f"Transparent mask shows significant values at p={pthresh}"
+    )
+    fig.suptitle(title, y=1.15)
 # %%
