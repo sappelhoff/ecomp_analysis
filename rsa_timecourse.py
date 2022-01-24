@@ -1,4 +1,15 @@
-"""Calculate RSA timecourse."""
+"""Calculate RSA timecourse.
+
+- create numberline model RDM
+- For each subj and stream:
+    - load rdm_times array
+    - for each timepoint
+        - correlate ERP-RDM with model RDM
+- plot means over subjs for each stream
+- check which timewindow is has high correlation
+- plot mean ERP-RDMs for each stream over subjs and selected timewindow
+
+"""
 # %%
 # Imports
 import matplotlib.pyplot as plt
