@@ -8,7 +8,6 @@ import click
 import mne
 import numpy as np
 import pandas as pd
-from numba import njit
 
 from config import DEFAULT_RNG_SEED
 
@@ -189,11 +188,125 @@ def parse_overwrite(defaults):
     return defaults
 
 
-@njit
 def eq1(X, bias, kappa):
-    """See equation 1 from Spitzer et al. 2017, Nature Human Behavior."""
+    """Implement equation 1 from Spitzer et al. 2017 [1]_, [2]_.
+
+    Parameters
+    ----------
+    X : np.ndarray, shape(n,)
+        The input values, normalized to range [-1, 1].
+    bias : float
+        The bias parameter in the range [-1, 1].
+    kappa : float
+        The kappa parameter in the range [0, np.inf].
+
+    Returns
+    -------
+    dv : np.ndarray, shape(n,)
+        The subjective decision values, transformed from `X`
+
+    References
+    ----------
+    .. [1] Spitzer, B., Waschke, L. & Summerfield, C. Selective overweighting of larger
+           magnitudes during noisy numerical comparison. Nat Hum Behav 1, 0145 (2017).
+           https://doi.org/10.1038/s41562-017-0145
+    .. [2] https://github.com/summerfieldlab/spitzer_etal_2017/blob/master/psymodfun.m
+    """
     dv = np.sign(X + bias) * (np.abs(X + bias) ** kappa)
     return dv
+
+
+def eq2(feature_space, bias, kappa):
+    """Implement equation 2 from Spitzer et al. 2017 [1]_, [2]_.
+
+    Parameters
+    ----------
+    feature_space : np.ndarray, shape(n,)
+        The stimuli over which to compute `g`.
+    bias : float
+        The bias parameter in the range [-1, 1].
+    kappa : float
+        The kappa parameter in the range [0, np.inf].
+
+    Returns
+    -------
+    gain : float
+        The gain normalization factor.
+
+    References
+    ----------
+    .. [1] Spitzer, B., Waschke, L. & Summerfield, C. Selective overweighting of larger
+           magnitudes during noisy numerical comparison. Nat Hum Behav 1, 0145 (2017).
+           https://doi.org/10.1038/s41562-017-0145
+    .. [2] https://github.com/summerfieldlab/spitzer_etal_2017/blob/master/psymodfun.m
+    """
+    gain = np.sum(np.abs(feature_space + bias) ** kappa) / np.sum(np.abs(feature_space))
+    return gain
+
+
+def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
+    """Implement equation 3b from Spitzer et al. 2017 [1]_, [2]_.
+
+    Parameters
+    ----------
+    dv : np.ndarray, shape(n,)
+        The subjective decision values.
+    category : np.ndarray, shape(n,)
+        The category each entry in `dv` belonged to. Entried are
+        either -1 or 1.
+    gain : float
+        The gain normalization factor.
+    gnorm : bool
+        Whether or not to apply gain normalization.
+    leakage : float
+        The leakage parameter in the range [0, 1].
+    seq_length : int
+        The length of the sample sequence. Defaults to 10.
+
+    Returns
+    -------
+    DV : float
+        The decision value after gain normalization and leakage.
+
+    References
+    ----------
+    .. [1] Spitzer, B., Waschke, L. & Summerfield, C. Selective overweighting of larger
+           magnitudes during noisy numerical comparison. Nat Hum Behav 1, 0145 (2017).
+           https://doi.org/10.1038/s41562-017-0145
+    .. [2] https://github.com/summerfieldlab/spitzer_etal_2017/blob/master/psymodfun.m
+    """
+    if gnorm:
+        dv = dv / gain
+    dv_flipped = dv * category
+    leakage_term = (1 - leakage) ** (seq_length - np.arange(1, seq_length + 1))
+    DV = dv_flipped.dot(leakage_term)
+    return DV
+
+
+def eq4(DV, s):
+    """Implement equation 4 from Spitzer et al. 2017 [1]_, [2]_.
+
+    Parameters
+    ----------
+    DV : float
+        The decision value after gain normalization and leakage.
+    s : float
+        The noise parameter in the range [1e-10, np.inf].
+
+    Returns
+    -------
+    CP : float
+        The probability to choose 1 instead of 0.
+
+    References
+    ----------
+    .. [1] Spitzer, B., Waschke, L. & Summerfield, C. Selective overweighting of larger
+           magnitudes during noisy numerical comparison. Nat Hum Behav 1, 0145 (2017).
+           https://doi.org/10.1038/s41562-017-0145
+    .. [2] https://github.com/summerfieldlab/spitzer_etal_2017/blob/master/psymodfun.m
+    """
+    CP = 1.0 / (1.0 + np.exp(-DV / s))
+    return CP
 
 
 def calc_rdm(vec, normalize):
