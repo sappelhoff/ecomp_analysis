@@ -35,18 +35,19 @@ numbers = np.arange(1, 10, dtype=int)
 streams = ["single", "dual"]
 
 grid_res = 101
-if True:
+if False:
     kappas = np.linspace(0.4, 4.0, grid_res)
     biases = np.linspace(-1.0, 1.0, int(grid_res))
 else:
     kappas = np.linspace(0.5, 10.0, grid_res)
     biases = np.linspace(-0.75, 0.75, int(grid_res))
+
 bias_kappa_combis = list(itertools.product(biases, kappas))
 
 idx_bias_zero = (np.abs(biases - 0.0)).argmin()
 idx_kappa_one = (np.abs(kappas - 1.0)).argmin()
 
-window_sel = (0.2, 0.6)  # representative window, look at figure
+window_sel = (0.2, 0.6)  # representative window, look at RSA timecourse figure
 
 pthresh = 0.05
 
@@ -231,6 +232,72 @@ for istream, stream in enumerate(streams):
     title = (
         "Improved model correlation relative to linear model (b=0, k=1)\n"
         f"Transparent mask shows significant values at p={pthresh} (FDR corrected)"
+    )
+    fig.suptitle(title, y=1.15)
+# %%
+# Do the same on grand mean RDMs -- no stats possible
+fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+fig.tight_layout()
+grid_streams_grandmean = np.full((len(kappas), len(biases), len(streams)), np.nan)
+for istream, stream in enumerate(tqdm(streams)):
+    rdm_grandmean = np.mean(rdm_mean_streams_subjs[..., istream, :], axis=-1)
+    rdm_grandmean_model_vec = rdm2vec(rdm_grandmean, lower_tri=True)
+
+    for icombi, (bias, kappa) in enumerate(bias_kappa_combis):
+
+        # Model correlations
+        rdm_model = model_rdms[..., icombi]
+        rdm_model_vec = rdm2vec(rdm_model, lower_tri=True)
+        corr, _ = scipy.stats.pearsonr(rdm_grandmean_model_vec, rdm_model_vec)
+
+        idx_bias = np.nonzero(biases == bias)[0][0]
+        idx_kappa = np.nonzero(kappas == kappa)[0][0]
+        grid_streams_grandmean[idx_kappa, idx_bias, istream] = corr
+
+    # Make relative to b=0, k=1
+    corr_ref = grid_streams_grandmean[idx_kappa_one, idx_bias_zero, istream]
+    grid_streams_grandmean[..., istream] -= corr_ref
+
+    # plot
+    ax = axs.flat[istream]
+    im = ax.imshow(
+        grid_streams_grandmean[..., istream],
+        origin="upper",
+        interpolation="nearest",
+        vmin=0,
+    )
+    # plot colorbar
+    cbar = fig.colorbar(
+        im, ax=ax, orientation="horizontal", label="Δ Pearson's r", shrink=0.75
+    )
+    cbar_ticks = np.linspace(0, im.get_array().max(), 4)
+    cbar.set_ticks(cbar_ticks)
+    cbar.ax.set_xticklabels(["<=0"] + [f"{i:.2}" for i in cbar_ticks[1:]])
+
+    # lines
+    ax.axvline(idx_bias_zero, color="white", ls="--")
+    ax.axhline(idx_kappa_one, color="white", ls="--")
+
+    # settings
+    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+    ax.yaxis.set_major_locator(plt.MaxNLocator(6))
+    xticklabels = (
+        [""] + [f"{i:.2f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]] + [""]
+    )
+    yticklabels = (
+        [""] + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]] + [""]
+    )
+    ax.set(
+        title=stream,
+        xticklabels=xticklabels,
+        yticklabels=yticklabels,
+        xlabel="bias (b)",
+        ylabel="kappa (k)",
+    )
+
+    title = (
+        "Improved model correlation relative to linear model (b=0, k=1)\n"
+        "Based on grand mean RDMs"
     )
     fig.suptitle(title, y=1.15)
 # %%
