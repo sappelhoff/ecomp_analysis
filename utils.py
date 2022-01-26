@@ -252,16 +252,19 @@ def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
     dv : np.ndarray, shape(n,)
         The subjective decision values.
     category : np.ndarray, shape(n,)
-        The category each entry in `dv` belonged to. Entried are
-        either -1 or 1.
-    gain : float
-        The gain normalization factor.
+        The category each entry in `dv` belonged to. Entries are
+        either -1 or 1. For the "single" stream, this must be
+        a vector of 1.
+    gain : float | None
+        The gain normalization factor. Can be ``None`` if `gnorm`
+        is ``False``.
     gnorm : bool
         Whether or not to apply gain normalization.
     leakage : float
         The leakage parameter in the range [0, 1].
     seq_length : int
-        The length of the sample sequence. Defaults to 10.
+        The length of the sample sequence. Defaults to 10, which was
+        the sample sequence length in the eComp experiment.
 
     Returns
     -------
@@ -283,14 +286,14 @@ def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
     return DV
 
 
-def eq4(DV, s):
+def eq4(DV, noise):
     """Implement equation 4 from Spitzer et al. 2017 [1]_, [2]_.
 
     Parameters
     ----------
     DV : float
         The decision value after gain normalization and leakage.
-    s : float
+    noise : float
         The noise parameter in the range [1e-10, np.inf].
 
     Returns
@@ -305,7 +308,7 @@ def eq4(DV, s):
            https://doi.org/10.1038/s41562-017-0145
     .. [2] https://github.com/summerfieldlab/spitzer_etal_2017/blob/master/psymodfun.m
     """
-    CP = 1.0 / (1.0 + np.exp(-DV / s))
+    CP = 1.0 / (1.0 + np.exp(-DV / noise))
     return CP
 
 
