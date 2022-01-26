@@ -57,19 +57,29 @@ def psychometric_model(X, categories, y, bias, kappa, leakage, noise, return_val
 
     Parameters
     ----------
-    X : np.ndarray, shape(300, 10)
+    X : np.ndarray, shape(n, 10)
         The data per participant and stream. Each row is a trial, each column
         is an unsigned sample value in the range [1, 9] that has been rescaled
-        to the range [-1, 1].
-    categories : np.ndarray, shape(300, 10)
+        to the range [-1, 1]. In the eComp experiment, there were always
+        10 samples. The number of trials, `n` will be 300 in most cases but can
+        be lower when a participant failed to respond for some trials (these
+        trials are then dropped from analysis).
+    categories : np.ndarray, shape(n, 10)
         Signed array (-1, +1) of same shape as `X`. The sign represents each
         sample's color category (-1: red, +1: blue). For "single" stream data,
         this is an array of ones, in order to ignore the color category.
-    y : np.ndarray, shape(300, 1)
-        The information on which response was correct per trial. Can be ``0``
-        or ``1`` (0: red/higher, 1: blue/lower; depending on stream single/dual).
-    bias, kappa, leakage, noise : float
-        The parameters of the model.
+    y : np.ndarray, shape(n, 1)
+        The choices per participant and stream. Each entry is the choice on a
+        given trial. Can be ``0`` or ``1``. In single stream condition,
+        0: "lower", 1: "higher". In dual stream condition: 0: "red", 1: "blue".
+    bias : float
+        The bias parameter (`b`) in range [-1, 1].
+    kappa : float
+        The kappa parameter (`k`) in range [0, np.inf].
+    leakage : float
+        The leakage parameter (`l`) in range [0, 1].
+    noise : float
+        The noise parameter (`s`) in range [1e-10, np.inf].
     return_val : {"neglog", "sse"}
         Whether to return negative log likelihood or sum of squared errors.
 

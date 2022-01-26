@@ -6,15 +6,24 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_LOCAL
-from utils import get_sourcedata
+from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, SUBJS
+from utils import eq1, get_sourcedata
 
 # %%
 # Settings
+numbers = np.arange(1, 10, dtype=int)
+numbers_rescaled = np.interp(numbers, (numbers.min(), numbers.max()), (-1, +1))
 
+positions = np.arange(10)
+
+streams = ["single", "dual"]
+
+# %%
+# Prepare file paths
 analysis_dir = ANALYSIS_DIR_LOCAL
 
 # %%
+# Define function to calculate weights
 
 
 def calc_nonp_weights(df):
@@ -135,19 +144,11 @@ def calc_nonp_weights(df):
 
 
 # %%
-
 # calculate weights over subjects
-numbers = np.arange(1, 10, dtype=int)
-positions = np.arange(10)
 weight_dfs = []
 posweight_dfs = []
-for sub in range(1, 33):
-
-    # skip bad subjs
-    if sub in BAD_SUBJS:
-        continue
-
-    for stream in ["single", "dual"]:
+for sub in SUBJS:
+    for stream in streams:
 
         _, tsv = get_sourcedata(sub, stream, DATA_DIR_LOCAL)
         df = pd.read_csv(tsv, sep="\t")
@@ -213,7 +214,7 @@ fig.savefig(fname)
 # plot weights over positions: numbers as hue
 fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
 
-for stream, ax in zip(["single", "dual"], axs):
+for stream, ax in zip(streams, axs):
 
     sns.pointplot(
         x="position",
@@ -241,7 +242,7 @@ fig.savefig(fname)
 # %%
 # plot weights over positions: positions as hue
 fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
-for stream, ax in zip(["single", "dual"], axs):
+for stream, ax in zip(streams, axs):
 
     data = posweightdata[
         (posweightdata["stream"] == stream) & (posweightdata["position"].isin([0, 9]))
@@ -271,16 +272,6 @@ fname = analysis_dir / "figures" / "posweights_positionhue.jpg"
 fig.savefig(fname)
 # %%
 # Plotting over- and underweighting according to model
-numbers = np.arange(1, 10)
-numbers_rescaled = np.interp(numbers, (numbers.min(), numbers.max()), (-1, +1))
-
-
-def eq1(X, bias, kappa):
-    """See equation 1 from Spitzer et al. 2017, Nature Human Behavior."""
-    dv = np.sign(X + bias) * (np.abs(X + bias) ** kappa)
-    return dv
-
-
 # numberline
 cmap = sns.color_palette("crest_r", as_cmap=True)
 
