@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, SUBJS
+from config import ANALYSIS_DIR_LOCAL, CHOICE_MAP, DATA_DIR_LOCAL, SUBJS
 from utils import eq1, get_sourcedata
 
 # %%
@@ -79,7 +79,7 @@ def calc_nonp_weights(df):
 
         # map lower/higher to 0/1 ... and repeat choice for each sample
         choices = np.repeat(
-            weights_df["choice"].map({"lower": 0, "higher": 1}).to_numpy(),
+            weights_df["choice"].map(CHOICE_MAP).to_numpy(),
             len(isamples),
         )
         assert choices.shape == samples.shape
@@ -90,7 +90,7 @@ def calc_nonp_weights(df):
 
         # map red/blue to 0/1 ... and repeat choice for each sample
         choices = np.repeat(
-            weights_df["choice"].map({"red": 0, "blue": 1}).to_numpy(), len(isamples)
+            weights_df["choice"].map(CHOICE_MAP).to_numpy(), len(isamples)
         )
         assert choices.shape == samples.shape
 

@@ -68,3 +68,11 @@ P3_GROUP_CERCOR = [
     "P2",
 ]
 P3_GROUP_NHB = ["CP1", "P1", "POz", "Pz", "CPz", "CP2", "P2"]
+
+# Mapping choiced (lower/higher, red/blue) to 0 and 1
+CHOICE_MAP = {
+    "lower": 0,
+    "higher": 1,
+    "red": 0,
+    "blue": 1,
+}
