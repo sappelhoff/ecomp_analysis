@@ -8,6 +8,7 @@ import click
 import mne
 import numpy as np
 import pandas as pd
+import scipy.special
 
 from config import DEFAULT_RNG_SEED
 
@@ -198,7 +199,7 @@ def eq1(X, bias, kappa):
     bias : float
         The bias parameter in the range [-1, 1].
     kappa : float
-        The kappa parameter in the range [0, np.inf].
+        The kappa parameter in the range [0, 20].
 
     Returns
     -------
@@ -226,7 +227,7 @@ def eq2(feature_space, bias, kappa):
     bias : float
         The bias parameter in the range [-1, 1].
     kappa : float
-        The kappa parameter in the range [0, np.inf].
+        The kappa parameter in the range [0, 20].
 
     Returns
     -------
@@ -294,7 +295,7 @@ def eq4(DV, noise):
     DV : float
         The decision value after gain normalization and leakage.
     noise : float
-        The noise parameter in the range [1e-10, np.inf].
+        The noise parameter in the range [0.01, 8].
 
     Returns
     -------
@@ -308,7 +309,10 @@ def eq4(DV, noise):
            https://doi.org/10.1038/s41562-017-0145
     .. [2] https://github.com/summerfieldlab/spitzer_etal_2017/blob/master/psymodfun.m
     """
-    CP = 1.0 / (1.0 + np.exp(-DV / noise))
+    # numerically stable version of: CP = 1.0 / (1.0 + np.exp(-DV / noise))
+    x = -DV / noise
+    CP = scipy.special.expit(x)
+
     return CP
 
 
