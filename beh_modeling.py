@@ -56,17 +56,17 @@ def prep_model_inputs(df):
     # get categories
     sample_cols = [f"sample{i}" for i in range(1, 11)]
     X_signed = df.loc[idx_no_na, sample_cols].to_numpy()
-    X_abs = np.abs(X_signed)
     streams = df["stream"].unique()
     assert len(streams) == 1
     if streams[0] == "single":
-        categories = np.ones_like(X_abs, dtype=int)
+        categories = np.ones_like(X_signed, dtype=int)
     else:
         assert streams[0] == "dual"
-        categories = np.sign(X_abs)
+        categories = np.sign(X_signed)
 
     # Rescale sample values to range [-1, 1]
     # 1, 2, 3, 4, 5, 6, 7, 8, 9 --> -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1
+    X_abs = np.abs(X_signed)
     X = np.interp(X_abs, (X_abs.min(), X_abs.max()), (-1, +1))
     assert X_abs.min() == 1
     assert X_abs.max() == 9
@@ -112,17 +112,17 @@ def psychometric_model(X, categories, y, bias, kappa, leakage, noise, return_val
     bias : float
         The bias parameter (`b`) in range [-1, 1].
     kappa : float
-        The kappa parameter (`k`) in range [0, np.inf].
+        The kappa parameter (`k`) in range [0, 20].
     leakage : float
         The leakage parameter (`l`) in range [0, 1].
     noise : float
-        The noise parameter (`s`) in range [1e-10, np.inf].
+        The noise parameter (`s`) in range [0.01, 8].
     return_val : {"neglog", "sse"}
         Whether to return negative log likelihood or sum of squared errors.
 
     Returns
     -------
-    fit : float
+    loss : float
         Either the "negative log likelihood" or the "sum of squared errors"
         of the model, depending on `return_val`.
 
@@ -154,29 +154,84 @@ def psychometric_model(X, categories, y, bias, kappa, leakage, noise, return_val
         # fix floating point issues to avoid log(0) = inf
         CP[(y == 1) & (CP == 0)] = np.nextafter(0.0, np.inf)
         CP[(y == 0) & (CP == 1)] = np.nextafter(1.0, -np.inf)
-
-        fit = np.sum(-np.log(CP[y == 1])) + np.sum(-np.log(1.0 - CP[y == 0]))
+        loss = np.sum(-np.log(CP[y == 1])) + np.sum(-np.log(1.0 - CP[y == 0]))
     else:
         assert return_val == "sse"
-        fit = np.sum((y - CP) ** 2)
+        loss = np.sum((y - CP) ** 2)
 
-    return fit, CP, DV, dv
+    return loss, CP, DV, dv
 
 
 # %%
 # fit model
-bias = 0.2
+# 0=red, 1=blue
+y_true = np.sign(np.sum((X * categories), axis=1)) / 2 + 0.5
+ambiguous = y_true == 0.5
+y_true = y_true[~ambiguous]
+
+bias = 0
 kappa = 1
 leakage = 0
-noise = 0.4
+noise = 0.001
 return_val = "neglog"
-fit, CP, DV, dv = psychometric_model(
+loss, CP, DV, dv = psychometric_model(
     X, categories, y, bias, kappa, leakage, noise, return_val
 )
-fit
+
+acc = np.mean(np.abs(y_true - CP[~ambiguous]))
+print(loss, acc)
 # %%
-CP.min()
+print(CP.min(), np.log(CP.min()))
 # %%
-CP.max()
+print(CP.max(), np.log(CP.max()))
+
+# %%
+np.sort(DV)[0:20]
+# %%
+np.sort(CP)[0:20]
+# %%
+
+np.sort(DV)[::-1][0:60]
+
+# %%
+np.sort(CP)[::-1][0:60]
+
+# %%
+1.0 / (1.0 + np.exp(-2 / noise))
+# %%
+from scipy.special import expit
+
+expit(-2 / noise)
+
+# %%
+
+np.log(1 - expit(-7.25 / noise))
+# %%
+1 / (1 + np.exp(-2 / noise))
+
+# %%
+X.shape
+
+
+# %%
+categories.shape
+# %%
+import scipy.io
+
+f = "/home/stefanappelhoff/Downloads/dat.mat"
+# b,Y,X,ML,nk,f,gnorm
+dat = {
+    "b": [0, bias, kappa, noise, leakage],
+    "Y": y,
+    "X": np.hstack([X, categories]),
+    "ML": 1,
+    "nk": 10,
+    "f": np.arange(1, 11),
+    "gnorm": False,
+}
+scipy.io.savemat(f, dat)
+
+# %%
+
 
 # %%
