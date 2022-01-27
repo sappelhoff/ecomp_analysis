@@ -254,15 +254,19 @@ def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
         The subjective decision values.
     category : np.ndarray, shape(n,)
         The category each entry in `dv` belonged to. Entries are
-        either -1 or 1. For the "single" stream, this must be
-        a vector of 1.
+        either -1 or 1 (-1: red, +1: blue). For the "single" stream,
+        this must be a vector of 1.
     gain : float | None
         The gain normalization factor. Can be ``None`` if `gnorm`
         is ``False``.
     gnorm : bool
         Whether or not to apply gain normalization.
     leakage : float
-        The leakage parameter in the range [0, 1].
+        The leakage parameter in the range [0, 1], where ``0`` means
+        that each sample in the sequence of length `seq_length` receives
+        a weight of ``1`` (no recency); and ``1`` means that all samples
+        except the last in the sequence receive a weight of ``0``, and
+        the last receives a weight of ``1`` (strongest possible recency).
     seq_length : int
         The length of the sample sequence. Defaults to 10, which was
         the sample sequence length in the eComp experiment.
@@ -283,7 +287,7 @@ def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
         dv = dv / gain
     dv_flipped = dv * category
     leakage_term = (1 - leakage) ** (seq_length - np.arange(1, seq_length + 1))
-    DV = dv_flipped.dot(leakage_term)
+    DV = np.dot(dv_flipped, leakage_term)
     return DV
 
 

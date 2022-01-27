@@ -10,9 +10,6 @@ from utils import eq1, eq3, eq4, get_sourcedata
 # Settings
 streams = ["single", "dual"]
 
-numbers = np.arange(1, 10)
-numbers_rescaled = np.interp(numbers, (numbers.min(), numbers.max()), (-1, +1))
-
 
 # %%
 # Prepare file paths
@@ -151,7 +148,31 @@ def psychometric_model(X, categories, y, bias, kappa, leakage, noise, return_val
 
     # Compute "model fit"
     if return_val == "neglog":
-        # fix floating point issues to avoid log(0) = inf
+        # fix floating point issues to avoid log(0) = -inf
+        # NOTE: These issues happen mostly when `noise` is very
+        #       low (<0.1), and the subject chose an option opposite
+        #       to the evidence. For example, noise=0.01, DV=0.5, y=0.
+        #
+        #       --> In this case, CP would be expit(x), where x is
+        #           0.5/0.01 = 50, and expit(50) is 1.0, due to limitations
+        #           in floating point precision.
+        #       --> Next, when calculating the negative log likelihood
+        #           for y == 0, we must do -np.log(1 - CP) and thus arrive
+        #           at log(0), which evaluates to -inf.
+        #
+        #       The same can happen in the opposite case, where e.g.,
+        #       noise=0.001, DV=-1.0, y=1.
+        #
+        #       --> Here, the corresponding expit(-1/0.001) is expit(-1000)
+        #           and results in 0.
+        #       --> Then, when calculating neg. log. lik. for y == 1, we
+        #           must do -log(CP) and thus arrive at log(0) and
+        #           -inf again.
+        #
+        #       We solve this issue by picking the floating point value closest
+        #       to 1 (0.999999...) or 0 (0.00...01) instead of actually 1 or 0,
+        #       whenever we run into this problem.
+        #
         CP[(y == 1) & (CP == 0)] = np.nextafter(0.0, np.inf)
         CP[(y == 0) & (CP == 1)] = np.nextafter(1.0, -np.inf)
         loss = np.sum(-np.log(CP[y == 1])) + np.sum(-np.log(1.0 - CP[y == 0]))
@@ -159,64 +180,42 @@ def psychometric_model(X, categories, y, bias, kappa, leakage, noise, return_val
         assert return_val == "sse"
         loss = np.sum((y - CP) ** 2)
 
-    return loss, CP, DV, dv
+    return loss, CP, DV
 
 
 # %%
 # fit model
-# 0=red, 1=blue
-y_true = np.sign(np.sum((X * categories), axis=1)) / 2 + 0.5
-ambiguous = y_true == 0.5
-y_true = y_true[~ambiguous]
-
 bias = 0
 kappa = 1
 leakage = 0
-noise = 0.001
+noise = 0.01
 return_val = "neglog"
-loss, CP, DV, dv = psychometric_model(
-    X, categories, y, bias, kappa, leakage, noise, return_val
-)
 
-acc = np.mean(np.abs(y_true - CP[~ambiguous]))
-print(loss, acc)
-# %%
-print(CP.min(), np.log(CP.min()))
-# %%
-print(CP.max(), np.log(CP.max()))
+for sub in SUBJS[:2]:
+    for stream in streams:
 
-# %%
-np.sort(DV)[0:20]
-# %%
-np.sort(CP)[0:20]
-# %%
+        _, tsv = get_sourcedata(sub, stream, data_dir)
+        df = pd.read_csv(tsv, sep="\t")
+        df.insert(0, "subject", sub)
 
-np.sort(DV)[::-1][0:60]
+        X, categories, y = prep_model_inputs(df)
 
-# %%
-np.sort(CP)[::-1][0:60]
+        # 0=red, 1=blue
+        y_true = np.sign(np.sum((X * categories), axis=1)) / 2 + 0.5
+        ambiguous = y_true == 0.5
+        y_true = y_true[~ambiguous]
 
-# %%
-1.0 / (1.0 + np.exp(-2 / noise))
-# %%
-from scipy.special import expit
+        # Run model
+        loss, CP, DV = psychometric_model(
+            X, categories, y, bias, kappa, leakage, noise, return_val
+        )
 
-expit(-2 / noise)
+        acc = 1 - np.mean(np.abs(y_true - CP[~ambiguous]))
+        print(loss, acc)
 
 # %%
-
-np.log(1 - expit(-7.25 / noise))
-# %%
-1 / (1 + np.exp(-2 / noise))
-
-# %%
-X.shape
-
-
-# %%
-categories.shape
-# %%
-import scipy.io
+# Save to check in matlab/octave
+import scipy.io  # noqa: E402
 
 f = "/home/stefanappelhoff/Downloads/dat.mat"
 # b,Y,X,ML,nk,f,gnorm
@@ -228,10 +227,9 @@ dat = {
     "nk": 10,
     "f": np.arange(1, 11),
     "gnorm": False,
+    "ambiguous": ambiguous,
+    "y_true": y_true,
 }
 scipy.io.savemat(f, dat)
-
-# %%
-
 
 # %%
