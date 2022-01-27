@@ -309,8 +309,9 @@ def eq4(DV, noise):
            https://doi.org/10.1038/s41562-017-0145
     .. [2] https://github.com/summerfieldlab/spitzer_etal_2017/blob/master/psymodfun.m
     """
-    # numerically stable version of: CP = 1.0 / (1.0 + np.exp(-DV / noise))
-    x = -DV / noise
+    # numerically stable equivalent of: `CP = 1. / (1. + np.exp(-x))`,
+    # where `x = DV / noise`
+    x = DV / noise
     CP = scipy.special.expit(x)
 
     return CP
