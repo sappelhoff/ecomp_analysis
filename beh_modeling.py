@@ -1,7 +1,12 @@
 """Model the behavioral data."""
 # %%
+import json
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
+from tqdm.auto import tqdm
 
 from config import ANALYSIS_DIR_LOCAL, CHOICE_MAP, DATA_DIR_LOCAL, SUBJS
 from utils import eq1, eq3, eq4, get_sourcedata
@@ -201,24 +206,88 @@ leakage = 0
 noise = 0.01
 return_val = "neglog"
 
-for sub in SUBJS[:2]:
-    for stream in streams:
+simulation = {
+    param: ({"subject": [], "stream": [], "accuracy": [], param: []}, xs, kwargs)
+    for param, xs, kwargs in zip(
+        ("bias", "kappa", "leakage", "noise"),
+        (
+            [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1],
+            [0.1, 0.5, 1, 2, 4],
+            [0, 0.2, 0.4, 0.6, 0.8, 1],
+            [0.01, 0.1, 1, 2, 4, 8],
+        ),
+        (
+            {"kappa": kappa, "leakage": leakage, "noise": noise},
+            {"bias": bias, "leakage": leakage, "noise": noise},
+            {"bias": bias, "kappa": kappa, "noise": noise},
+            {"bias": bias, "kappa": kappa, "leakage": leakage},
+        ),
+    )
+}
 
-        _, tsv = get_sourcedata(sub, stream, data_dir)
-        df = pd.read_csv(tsv, sep="\t")
-        df.insert(0, "subject", sub)
+for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
+    for x in xs_key:
 
-        X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+        kwargs.update({param: x})
 
-        # Run model
-        loss, CP, DV = psychometric_model(
-            X, categories, y, bias, kappa, leakage, noise, return_val
+        for sub in SUBJS:
+            for stream in streams:
+
+                _, tsv = get_sourcedata(sub, stream, data_dir)
+                df = pd.read_csv(tsv, sep="\t")
+                df.insert(0, "subject", sub)
+
+                X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+
+                # Run model
+                loss, CP, DV = psychometric_model(
+                    X=X, categories=categories, y=y, return_val=return_val, **kwargs
+                )
+
+                # Calculate accuracy on non-ambiguous, objectively correct choices
+                acc = 1 - np.mean(np.abs(y_true[~ambiguous] - CP[~ambiguous]))
+                # print(loss, acc)
+
+                # Save data
+                data["subject"].append(sub)
+                data["stream"].append(stream)
+                data["accuracy"].append(acc)
+                data[param].append(x)
+# %%
+# Plot simulation results
+dfs = {}
+with sns.plotting_context("talk"):
+    fig, axs = plt.subplots(2, 2, figsize=(15, 10), sharey=True)
+    for i, param in enumerate(simulation):
+
+        ax = axs.flat[i]
+
+        # Get data and turn into df
+        data, _, kwargs = simulation[param]
+        kwargs.pop(param, None)
+        df = pd.DataFrame.from_dict(data)
+        dfs[param] = df
+
+        # plot
+        sns.pointplot(
+            x=param,
+            y="accuracy",
+            hue="stream",
+            data=df,
+            ci=68,
+            ax=ax,
+            scale=0.5,
+            dodge=True,
         )
+        ax.set_title(json.dumps(kwargs)[1:-1])
 
-        # Calculate accuracy on non-ambiguous, objectively correct choices
-        acc = 1 - np.mean(np.abs(y_true[~ambiguous] - CP[~ambiguous]))
-        print(loss, acc)
+        if i > 0:
+            ax.get_legend().remove()
 
+    fig.suptitle("Model run on participant data (N=30)", y=1.01)
+
+sns.despine(fig)
+fig.tight_layout()
 # %%
 # Save to check in matlab/octave
 import scipy.io  # noqa: E402
