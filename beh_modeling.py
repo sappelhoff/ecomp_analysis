@@ -18,7 +18,7 @@ analysis_dir = ANALYSIS_DIR_LOCAL
 data_dir = DATA_DIR_LOCAL
 
 # %%
-# Get behavior data
+# Function to get behavior data
 
 
 def prep_model_inputs(df):
@@ -27,25 +27,39 @@ def prep_model_inputs(df):
     Parameters
     ----------
     df : pd.DataFrame
-        The behavioral data.
+        The behavioral data for a specific participant and
+        task condition (stream).
 
     Returns
     -------
     X : np.ndarray, shape(n, 10)
-        The data per participant and stream. Each row is a trial, each column
-        is an unsigned sample value in the range [1, 9] that has been rescaled
-        to the range [-1, 1]. In the eComp experiment, there were always
-        10 samples. The number of trials, `n` will be 300 in most cases but can
-        be lower when a participant failed to respond for some trials (these
-        trials are then dropped from analysis).
+        The data. Each row is a trial, each column is an unsigned sample value
+        in the range [1, 9] that has been rescaled to the range [-1, 1]. In the
+        eComp experiment, there were always 10 samples. The number of trials,
+        `n` will be 300 in most cases but can be lower when a participant failed
+        to respond for some trials (these trials are then dropped from analysis).
     categories : np.ndarray, shape(n, 10)
-        Signed array (-1, +1) of same shape as `X`. The sign represents each
-        sample's color category (-1: red, +1: blue). For "single" stream data,
-        this is an array of ones, in order to ignore the color category.
+        Signed array (-1, +1) of same shape as `X`. For "dual" stream data, the
+        sign represents each sample's color category (-1: red, +1: blue).
+        For "single" stream data, this is an array of ones, in order to ignore
+        the color category.
     y : np.ndarray, shape(n, 1)
-        The choices per participant and stream. Each entry is the choice on a
-        given trial. Can be ``0`` or ``1``. In single stream condition,
-        0: "lower", 1: "higher". In dual stream condition: 0: "red", 1: "blue".
+        The participant's choices in this task condition (stream). Each entry
+        correspondons to a trial and can be ``0`` or ``1``. In single stream
+        condition, 0: "lower", 1: "higher". In dual stream condition:
+        0: "red", 1: "blue".
+    y_true : np.ndarray, shape(n, 1)
+        The "objectively correct" choices per per trial. These are in the same
+        format as `y`.
+    ambiguous : np.ndarray, shape(n, 1)
+        Boolean mask on which of the `n` valid trials contained samples that do
+        not result in an objectively correct choice. For example in single stream,
+        samples have a mean of exactly 5; or in dual stream, the red and blue
+        samples have an identical mean.
+
+    See Also
+    --------
+    config.CHOICE_MAP
     """
     # drop n/a trials (rows)
     idx_no_na = ~df["choice"].isna()
@@ -71,19 +85,15 @@ def prep_model_inputs(df):
     # map choices to 0 and 1
     y = df.loc[idx_no_na, "choice"].map(CHOICE_MAP).to_numpy()
 
-    return X, categories, y
+    # Get "correct" choices. Single: 0=lower, 1=higher ; Dual: 0=red, 1=blue
+    y_true = np.sign(np.sum((X * categories), axis=1)) / 2 + 0.5
+    ambiguous = y_true == 0.5
 
+    return X, categories, y, y_true, ambiguous
 
-for sub in SUBJS:
-    for stream in streams:
-
-        _, tsv = get_sourcedata(sub, stream, data_dir)
-        df = pd.read_csv(tsv, sep="\t")
-        df.insert(0, "subject", sub)
-
-        X, categories, y = prep_model_inputs(df)
 
 # %%
+# Define model
 
 
 def psychometric_model(X, categories, y, bias, kappa, leakage, noise, return_val):
@@ -198,19 +208,15 @@ for sub in SUBJS[:2]:
         df = pd.read_csv(tsv, sep="\t")
         df.insert(0, "subject", sub)
 
-        X, categories, y = prep_model_inputs(df)
-
-        # 0=red, 1=blue
-        y_true = np.sign(np.sum((X * categories), axis=1)) / 2 + 0.5
-        ambiguous = y_true == 0.5
-        y_true = y_true[~ambiguous]
+        X, categories, y, y_true, ambiguous = prep_model_inputs(df)
 
         # Run model
         loss, CP, DV = psychometric_model(
             X, categories, y, bias, kappa, leakage, noise, return_val
         )
 
-        acc = 1 - np.mean(np.abs(y_true - CP[~ambiguous]))
+        # Calculate accuracy on non-ambiguous, objectively correct choices
+        acc = 1 - np.mean(np.abs(y_true[~ambiguous] - CP[~ambiguous]))
         print(loss, acc)
 
 # %%
