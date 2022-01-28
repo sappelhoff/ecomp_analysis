@@ -222,8 +222,15 @@ def eq2(feature_space, bias, kappa):
 
     Parameters
     ----------
-    feature_space : np.ndarray, shape(n,)
-        The stimuli over which to compute `g`.
+    feature_space : np.ndarray, shape(n, m)
+        The stimuli over which to compute `gain`, rescaled to the
+        range [-1, 1]. This is typically either the full range of
+        `m` stimuli encountered over the experiment, in which case
+        `n` is ``1``; or the `m` stimuli encountered per trial,
+        in which case `n` is the number of trials. For a trial-wise
+        feature space in the dual stream task, individual features
+        must be sign flipped according to their color category
+        (-1: red, +1: blue).
     bias : float
         The bias parameter in the range [-1, 1].
     kappa : float
@@ -231,8 +238,11 @@ def eq2(feature_space, bias, kappa):
 
     Returns
     -------
-    gain : float
-        The gain normalization factor.
+    gain : np.ndarray, shape(n,)
+        The gain normalization factor(s). `n` is either ``1``, when
+        gain normalization was applied over the entire experiment
+        feature space, or the number of trials in the data, when
+        gain normalization was applied per trial.
 
     References
     ----------
@@ -241,7 +251,9 @@ def eq2(feature_space, bias, kappa):
            https://doi.org/10.1038/s41562-017-0145
     .. [2] https://github.com/summerfieldlab/spitzer_etal_2017/blob/master/psymodfun.m
     """
-    gain = np.sum(np.abs(feature_space + bias) ** kappa) / np.sum(np.abs(feature_space))
+    gain = np.sum(np.abs(feature_space + bias) ** kappa, axis=1) / np.sum(
+        np.abs(feature_space), axis=1
+    )
     return gain
 
 
@@ -256,9 +268,12 @@ def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
         The category each entry in `dv` belonged to. Entries are
         either -1 or 1 (-1: red, +1: blue). For the "single" stream,
         this must be a vector of 1.
-    gain : float | None
-        The gain normalization factor. Can be ``None`` if `gnorm`
-        is ``False``.
+    gain : np.ndarray, shape(n,) | None
+        The gain normalization factor, where `n` is ``1`` if gain
+        normalization is to be applied over the feature space of the
+        entire experiment; or `n` is the number of trials if gain
+        normalization is to be applied trial-wise. Can be ``None``
+        if `gnorm` is ``False``.
     gnorm : bool
         Whether or not to apply gain normalization.
     leakage : float
