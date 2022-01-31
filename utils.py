@@ -217,7 +217,7 @@ def eq1(X, bias, kappa):
     return dv
 
 
-def eq2(feature_space, bias, kappa):
+def eq2(feature_space, bias, kappa, seq_length=10):
     """Implement equation 2 from Spitzer et al. 2017 [1]_, [2]_.
 
     Parameters
@@ -235,14 +235,18 @@ def eq2(feature_space, bias, kappa):
         The bias parameter in the range [-1, 1].
     kappa : float
         The kappa parameter in the range [0, 20].
+    seq_length : int
+        The length of the sample sequence. Defaults to 10, which was
+        the sample sequence length in the eComp experiment.
 
     Returns
     -------
-    gain : np.ndarray, shape(n,)
-        The gain normalization factor(s). `n` is either ``1``, when
-        gain normalization was applied over the entire experiment
-        feature space, or the number of trials in the data, when
-        gain normalization was applied per trial.
+    gain : np.ndarray, shape(n, seq_length)
+        The gain normalization factor, where `n` is ``1`` if gain
+        normalization is to be applied over the feature space of the
+        entire experiment; or `n` is the number of trials if gain
+        normalization is to be applied trial-wise.
+        Can be ``None`` if `gnorm` is ``False``.
 
     References
     ----------
@@ -254,6 +258,10 @@ def eq2(feature_space, bias, kappa):
     gain = np.sum(np.abs(feature_space + bias) ** kappa, axis=1) / np.sum(
         np.abs(feature_space), axis=1
     )
+    # This is to conveniently compute dv / gain later on, where dv
+    # is of shape (ntrials, seq_length), and for each trial, all samples
+    # in that trial sequence need to be divided by gain.
+    gain = np.repeat(gain, seq_length).reshape(-1, seq_length)
     return gain
 
 
@@ -268,12 +276,12 @@ def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
         The category each entry in `dv` belonged to. Entries are
         either -1 or 1 (-1: red, +1: blue). For the "single" stream,
         this must be a vector of 1.
-    gain : np.ndarray, shape(n,) | None
+    gain : np.ndarray, shape(n, seq_length) | None
         The gain normalization factor, where `n` is ``1`` if gain
         normalization is to be applied over the feature space of the
         entire experiment; or `n` is the number of trials if gain
-        normalization is to be applied trial-wise. Can be ``None``
-        if `gnorm` is ``False``.
+        normalization is to be applied trial-wise.
+        Can be ``None`` if `gnorm` is ``False``.
     gnorm : bool
         Whether or not to apply gain normalization.
     leakage : float

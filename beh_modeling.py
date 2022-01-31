@@ -9,10 +9,13 @@ import seaborn as sns
 from tqdm.auto import tqdm
 
 from config import ANALYSIS_DIR_LOCAL, CHOICE_MAP, DATA_DIR_LOCAL, SUBJS
-from utils import eq1, eq3, eq4, get_sourcedata
+from utils import eq1, eq2, eq3, eq4, get_sourcedata
 
 # %%
 # Settings
+numbers = np.arange(1, 10)
+numbers_rescaled = np.interp(numbers, (numbers.min(), numbers.max()), (-1, +1))
+
 streams = ["single", "dual"]
 
 
@@ -101,7 +104,9 @@ def prep_model_inputs(df):
 # Define model
 
 
-def psychometric_model(X, categories, y, bias, kappa, leakage, noise, return_val):
+def psychometric_model(
+    X, categories, y, bias, kappa, leakage, noise, return_val, gain=None, gnorm=False
+):
     """Model the behavioral data as in Spitzer 2017, NHB [1]_.
 
     Parameters
@@ -131,6 +136,14 @@ def psychometric_model(X, categories, y, bias, kappa, leakage, noise, return_val
         The noise parameter (`s`) in range [0.01, 8].
     return_val : {"neglog", "sse"}
         Whether to return negative log likelihood or sum of squared errors.
+    gain : np.ndarray, shape(n, 10) | None
+        The gain normalization factor, where `n` is ``1`` if gain
+        normalization is to be applied over the feature space of the
+        entire experiment; or `n` is the number of trials if gain
+        normalization is to be applied trial-wise.
+        Can be ``None`` if `gnorm` is ``False``.
+    gnorm : bool
+        Whether to gain-normalize or not. Defaults to ``False``.
 
     Returns
     -------
@@ -156,7 +169,7 @@ def psychometric_model(X, categories, y, bias, kappa, leakage, noise, return_val
     dv = eq1(X=X, bias=bias, kappa=kappa)
 
     # Obtain trial level decision variables
-    DV = eq3(dv=dv, category=categories, gain=None, gnorm=False, leakage=leakage)
+    DV = eq3(dv=dv, category=categories, gain=gain, gnorm=gnorm, leakage=leakage)
 
     # Convert decision variables to choice probabilities
     CP = eq4(DV, noise=noise)
@@ -288,6 +301,99 @@ with sns.plotting_context("talk"):
 
 sns.despine(fig)
 fig.tight_layout()
+
+# %%
+# Run accuracy performance simulations
+
+# We can take data from any subj or stream, results will be nearly the same
+sub = 32
+stream = "dual"
+_, tsv = get_sourcedata(sub, stream, data_dir)
+df = pd.read_csv(tsv, sep="\t")
+df.insert(0, "subject", sub)
+X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+
+# Leave bias and leakage at standard values
+bias = 0
+leakage = 0
+return_val = "neglog"
+
+# Vary kappa and noise
+n = 101
+kappas = np.linspace(0, 2.5, n)
+noises = np.linspace(0.01, 2, n)[::-1]
+gnorm_types = ["none", "experiment-wise", "trial-wise"]
+
+idx_kappa_one = (np.abs(kappas - 1.0)).argmin()
+
+# Collect data for different types of gain normalization
+acc_grid = np.full((n, n, len(gnorm_types)), np.nan)
+for ignorm_type, gnorm_type in enumerate(tqdm(gnorm_types)):
+    for ikappa, kappa in enumerate(kappas):
+
+        # Setup gain normalization for this kappa parameterization
+        if gnorm_type == "experiment-wise":
+            gain = eq2(
+                feature_space=np.atleast_2d(numbers_rescaled), kappa=kappa, bias=bias
+            )
+            gnorm = True
+        elif gnorm_type == "trial-wise":
+            gain = eq2(feature_space=X * categories, kappa=kappa, bias=bias)
+            gnorm = True
+        else:
+            assert gnorm_type == "none"
+            gain = None
+            gnorm = False
+
+        # Calculate accuracy for each noise level
+        for inoise, noise in enumerate(noises):
+            _, CP, _ = psychometric_model(
+                X, categories, y, bias, kappa, leakage, noise, return_val, gain, gnorm
+            )
+
+            acc = 1 - np.mean(np.abs(y_true[~ambiguous] - CP[~ambiguous]))
+
+            acc_grid[inoise, ikappa, ignorm_type] = acc
+
+# %%
+# Plot performance simulations
+fig, axs = plt.subplots(3, 1, figsize=(5, 10))
+
+for ignorm_type, gnorm_type in enumerate(gnorm_types):
+    ax = axs.flat[ignorm_type]
+
+    grid_norm = (
+        acc_grid[..., ignorm_type].T - acc_grid[..., idx_kappa_one, ignorm_type]
+    ).T
+
+    # Trace maximum values using np.nan
+    grid_norm[np.arange(n), np.argmax(grid_norm, axis=1)] = np.nan
+
+    im = ax.imshow(grid_norm, origin="upper", interpolation="nearest")
+
+    ax.axvline(idx_kappa_one, ls="--", c="w")
+    fig.colorbar(im, ax=ax, label="Δ accuracy")
+
+    # Set ticklabels
+    ax.xaxis.set_major_locator(plt.MaxNLocator(6))
+    ax.yaxis.set_major_locator(plt.MaxNLocator(6))
+    xticklabels = (
+        [""] + [f"{i:.2f}" for i in kappas[(ax.get_xticks()[1:-1]).astype(int)]] + [""]
+    )
+    yticklabels = (
+        [""] + [f"{i:.1f}" for i in noises[(ax.get_yticks()[1:-1]).astype(int)]] + [""]
+    )
+
+    ax.set(
+        xlabel="curvature (k)",
+        ylabel="noise (s)",
+        xticklabels=xticklabels,
+        yticklabels=yticklabels,
+        title=f"Gain normalization:\n{gnorm_type}",
+    )
+
+fig.tight_layout()
+
 # %%
 # Save to check in matlab/octave
 import scipy.io  # noqa: E402
