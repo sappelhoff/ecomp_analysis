@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from scipy.optimize import minimize
+from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
 
 from config import ANALYSIS_DIR_LOCAL, CHOICE_MAP, DATA_DIR_LOCAL, SUBJS
@@ -436,28 +436,63 @@ noise0 = 0.1
 x0 = np.array([bias0, kappa0, leakage0, noise0])
 
 # boundaries for params (in order)
-bounds = [
-    (-1, 1),  # bias
-    (0, 10),  # kappa
-    (0, 1),  # leakage
-    (0.01, 8),  # noise
-]
+lower = np.array([-1, 0, 0, 0.01], dtype=float)
+upper = np.array([1, 5, 1, 5], dtype=float)
+bounds = Bounds(lower, upper)
 
-# Add non-changing arguments to function
-kwargs = dict(
-    X=X,
-    categories=categories,
-    y=y,
-    return_val="neglog_noCP",
-    gain=None,
-    gnorm=False,
-)
-fun = partial(psychometric_model, **kwargs)
+data = {
+    "subject": [],
+    "stream": [],
+    "success": [],
+    "loss": [],
+    "bias": [],
+    "kappa": [],
+    "leakage": [],
+    "noise": [],
+}
+for sub in SUBJS:
+    for stream in streams:
 
-# bias, kappa, leakage, noise, X, categories, y, return_val, gain=None, gnorm=False
-res = minimize(fun=fun, x0=x0, method="Nelder-Mead", bounds=bounds)
-res
+        _, tsv = get_sourcedata(sub, stream, data_dir)
+        df = pd.read_csv(tsv, sep="\t")
+        df.insert(0, "subject", sub)
 
+        X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+
+        # Add non-changing arguments to function
+        kwargs = dict(
+            X=X,
+            categories=categories,
+            y=y,
+            return_val="neglog_noCP",
+            gain=None,
+            gnorm=False,
+        )
+        fun = partial(psychometric_model, **kwargs)
+
+        # estimate
+        res = minimize(fun=fun, x0=x0, method="Nelder-Mead", bounds=bounds)
+
+        data["subject"].append(sub)
+        data["stream"].append(stream)
+        data["success"].append(res.success)
+        data["loss"].append(res.fun)
+        data["bias"].append(res.x[0])
+        data["kappa"].append(res.x[1])
+        data["leakage"].append(res.x[2])
+        data["noise"].append(res.x[3])
+
+_df = pd.DataFrame.from_dict(data)
+_df
+# %%
+
+fig, axs = plt.subplots(1, 4)
+for iparam, param in enumerate(["bias", "kappa", "leakage", "noise"]):
+    ax = axs.flat[iparam]
+
+    sns.pointplot(data=_df, x="stream", y=param, ax=ax, ci=68)
+
+fig.tight_layout()
 # %%
 # Save to check in matlab/octave
 import scipy.io  # noqa: E402
