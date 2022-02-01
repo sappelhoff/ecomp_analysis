@@ -1,11 +1,13 @@
 """Model the behavioral data."""
 # %%
 import json
+from functools import partial
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from scipy.optimize import minimize
 from tqdm.auto import tqdm
 
 from config import ANALYSIS_DIR_LOCAL, CHOICE_MAP, DATA_DIR_LOCAL, SUBJS
@@ -105,12 +107,22 @@ def prep_model_inputs(df):
 
 
 def psychometric_model(
-    X, categories, y, bias, kappa, leakage, noise, return_val, gain=None, gnorm=False
+    parameters, X, categories, y, return_val, gain=None, gnorm=False
 ):
     """Model the behavioral data as in Spitzer 2017, NHB [1]_.
 
     Parameters
     ----------
+    parameters : np.ndarray, shape(4,)
+        An array containing the 4 parameters of the model::
+            - bias : float
+                The bias parameter (`b`) in range [-1, 1].
+            - kappa : float
+                The kappa parameter (`k`) in range [0, 20].
+            -leakage : float
+                The leakage parameter (`l`) in range [0, 1].
+            - noise : float
+                The noise parameter (`s`) in range [0.01, 8].
     X : np.ndarray, shape(n, 10)
         The data per participant and stream. Each row is a trial, each column
         is an unsigned sample value in the range [1, 9] that has been rescaled
@@ -126,16 +138,10 @@ def psychometric_model(
         The choices per participant and stream. Each entry is the choice on a
         given trial. Can be ``0`` or ``1``. In single stream condition,
         0: "lower", 1: "higher". In dual stream condition: 0: "red", 1: "blue".
-    bias : float
-        The bias parameter (`b`) in range [-1, 1].
-    kappa : float
-        The kappa parameter (`k`) in range [0, 20].
-    leakage : float
-        The leakage parameter (`l`) in range [0, 1].
-    noise : float
-        The noise parameter (`s`) in range [0.01, 8].
-    return_val : {"neglog", "sse"}
+    return_val : {"neglog", "neglog_noCP", "sse"}
         Whether to return negative log likelihood or sum of squared errors.
+        ``"neglog_noCP"`` returns the negative log likelihood *without*
+        the additional `CP` return value.
     gain : np.ndarray, shape(n, 10) | None
         The gain normalization factor, where `n` is ``1`` if gain
         normalization is to be applied over the feature space of the
@@ -150,6 +156,10 @@ def psychometric_model(
     loss : float
         Either the "negative log likelihood" or the "sum of squared errors"
         of the model, depending on `return_val`.
+    CP : np.ndarray, shape(n,)
+        The probability to choose 1 instead of 0. One value per trial (`n` trials).
+        Not returned if `return_val` is ``"neglog_noCP"``.
+
 
     References
     ----------
@@ -165,6 +175,9 @@ def psychometric_model(
     utils.eq4
     config.CHOICE_MAP
     """
+    # unpack parameters
+    bias, kappa, leakage, noise = parameters
+
     # Transform sample values to subjective decision weights
     dv = eq1(X=X, bias=bias, kappa=kappa)
 
@@ -175,7 +188,7 @@ def psychometric_model(
     CP = eq4(DV, noise=noise)
 
     # Compute "model fit"
-    if return_val == "neglog":
+    if return_val in ["neglog", "neglog_noCP"]:
         # fix floating point issues to avoid log(0) = -inf
         # NOTE: These issues happen mostly when `noise` is very
         #       low (<0.1), and the subject chose an option opposite
@@ -204,11 +217,14 @@ def psychometric_model(
         CP[(y == 1) & (CP == 0)] = np.nextafter(0.0, np.inf)
         CP[(y == 0) & (CP == 1)] = np.nextafter(1.0, -np.inf)
         loss = np.sum(-np.log(CP[y == 1])) + np.sum(-np.log(1.0 - CP[y == 0]))
+        if return_val == "neglog_noCP":
+            # for scipy.optimize.minimize, we must return a single float
+            return loss
     else:
         assert return_val == "sse"
         loss = np.sum((y - CP) ** 2)
 
-    return loss, CP, DV
+    return loss, CP
 
 
 # %%
@@ -242,6 +258,9 @@ for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
     for x in xs_key:
 
         kwargs.update({param: x})
+        parameters = np.array(
+            [kwargs["bias"], kwargs["kappa"], kwargs["leakage"], kwargs["noise"]]
+        )
 
         for sub in SUBJS:
             for stream in streams:
@@ -253,8 +272,12 @@ for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
                 X, categories, y, y_true, ambiguous = prep_model_inputs(df)
 
                 # Run model
-                loss, CP, DV = psychometric_model(
-                    X=X, categories=categories, y=y, return_val=return_val, **kwargs
+                loss, CP = psychometric_model(
+                    parameters=parameters,
+                    X=X,
+                    categories=categories,
+                    y=y,
+                    return_val=return_val,
                 )
 
                 # Calculate accuracy on non-ambiguous, objectively correct choices
@@ -346,10 +369,17 @@ for ignorm_type, gnorm_type in enumerate(tqdm(gnorm_types)):
             gnorm = False
 
         # Calculate accuracy for each noise level
+        kwargs = dict(
+            X=X,
+            categories=categories,
+            y=y,
+            return_val=return_val,
+            gain=gain,
+            gnorm=gnorm,
+        )
         for inoise, noise in enumerate(noises):
-            _, CP, _ = psychometric_model(
-                X, categories, y, bias, kappa, leakage, noise, return_val, gain, gnorm
-            )
+            parameters = np.array([bias, kappa, leakage, noise])
+            _, CP = psychometric_model(parameters=parameters, **kwargs)
 
             acc = 1 - np.mean(np.abs(y_true[~ambiguous] - CP[~ambiguous]))
 
@@ -393,6 +423,40 @@ for ignorm_type, gnorm_type in enumerate(gnorm_types):
     )
 
 fig.tight_layout()
+
+# %%
+# Try fitting parameters
+
+# Initial parameter values
+bias0 = 0
+kappa0 = 1
+leakage0 = 0
+noise0 = 0.1
+
+x0 = np.array([bias0, kappa0, leakage0, noise0])
+
+# boundaries for params (in order)
+bounds = [
+    (-1, 1),  # bias
+    (0, 10),  # kappa
+    (0, 1),  # leakage
+    (0.01, 8),  # noise
+]
+
+# Add non-changing arguments to function
+kwargs = dict(
+    X=X,
+    categories=categories,
+    y=y,
+    return_val="neglog_noCP",
+    gain=None,
+    gnorm=False,
+)
+fun = partial(psychometric_model, **kwargs)
+
+# bias, kappa, leakage, noise, X, categories, y, return_val, gain=None, gnorm=False
+res = minimize(fun=fun, x0=x0, method="Nelder-Mead", bounds=bounds)
+res
 
 # %%
 # Save to check in matlab/octave

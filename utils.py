@@ -319,15 +319,17 @@ def eq4(DV, noise):
 
     Parameters
     ----------
-    DV : float
+    DV : np.ndarray, shape(n,)
         The decision value after gain normalization and leakage.
+        One value per trial (`n` trials).
     noise : float
         The noise parameter in the range [0.01, 8].
 
     Returns
     -------
-    CP : float
+    CP : np.ndarray, shape(n,)
         The probability to choose 1 instead of 0.
+        One value per trial (`n` trials).
 
     References
     ----------
