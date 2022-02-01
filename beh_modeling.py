@@ -471,7 +471,13 @@ for sub in SUBJS:
         fun = partial(psychometric_model, **kwargs)
 
         # estimate
-        res = minimize(fun=fun, x0=x0, method="Nelder-Mead", bounds=bounds)
+        res = minimize(
+            fun=fun,
+            x0=x0,
+            method="Nelder-Mead",
+            bounds=bounds,
+            options=dict(maxiter=1000),
+        )
 
         data["subject"].append(sub)
         data["stream"].append(stream)
@@ -483,15 +489,28 @@ for sub in SUBJS:
         data["noise"].append(res.x[3])
 
 _df = pd.DataFrame.from_dict(data)
-_df
+assert not np.any(~_df["success"])  # no failures
+
 # %%
+with sns.plotting_context("talk"):
+    fig, axs = plt.subplots(1, 5, figsize=(10, 5))
+    for iparam, param in enumerate(["bias", "kappa", "leakage", "noise", "loss"]):
+        ax = axs.flat[iparam]
 
-fig, axs = plt.subplots(1, 4)
-for iparam, param in enumerate(["bias", "kappa", "leakage", "noise"]):
-    ax = axs.flat[iparam]
+        sns.pointplot(x="stream", y=param, data=_df, ci=68, ax=ax)
 
-    sns.pointplot(data=_df, x="stream", y=param, ax=ax, ci=68)
+        if param == "bias":
+            ax.axhline(0, c="black", ls="--", lw=0.5)
+        elif param == "kappa":
+            ax.axhline(1, c="black", ls="--", lw=0.5)
+        elif param == "leakage":
+            ax.axhline(0, c="black", ls="--", lw=0.5)
+        else:
+            pass
 
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
+
+sns.despine(fig)
 fig.tight_layout()
 # %%
 # Save to check in matlab/octave
