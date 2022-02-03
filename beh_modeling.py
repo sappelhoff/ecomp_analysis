@@ -1,5 +1,6 @@
 """Model the behavioral data."""
 # %%
+import itertools
 import json
 from functools import partial
 
@@ -512,23 +513,88 @@ with sns.plotting_context("talk"):
 
 sns.despine(fig)
 fig.tight_layout()
+
 # %%
-# Save to check in matlab/octave
-import scipy.io  # noqa: E402
+# Fit all data as if from single subject
+bias0s = (0, -0.1, 0.1)
+kappa0s = (0.5, 1, 2)
+leakage0s = (0, 0.2)
+noise0s = (0.01, 0.1, 0.2)
 
-f = "/home/stefanappelhoff/Downloads/dat.mat"
-# b,Y,X,ML,nk,f,gnorm
-dat = {
-    "b": [0, bias, kappa, noise, leakage],
-    "Y": y,
-    "X": np.hstack([X, categories]),
-    "ML": 1,
-    "nk": 10,
-    "f": np.arange(1, 11),
-    "gnorm": False,
-    "ambiguous": ambiguous,
-    "y_true": y_true,
-}
-scipy.io.savemat(f, dat)
+param_names = ["bias", "kappa", "leakage", "noise"]
+x0s = []
+for bias0, kappa0, leakage0, noise0 in itertools.product(
+    bias0s, kappa0s, leakage0s, noise0s
+):
+    x0s.append(np.array([bias0, kappa0, leakage0, noise0]))
 
+# boundaries for params (in order)
+lower = np.array([-1, 0, 0, 0.01], dtype=float)
+upper = np.array([1, 5, 1, 5], dtype=float)
+bounds = Bounds(lower, upper)
+
+# Collect all data as if from "single subject" (fixed effects)
+results = np.full((len(x0s), 2, 4), np.nan)  # init_vals X stream X params
+for ix0, x0 in enumerate(tqdm(x0s)):
+
+    for istream, stream in enumerate(streams):
+
+        df_single_sub = []
+        for sub in SUBJS:
+            _, tsv = get_sourcedata(sub, stream, data_dir)
+            df = pd.read_csv(tsv, sep="\t")
+            df.insert(0, "subject", sub)
+            df_single_sub.append(df)
+
+        df_single_sub = pd.concat(df_single_sub)
+
+        X, categories, y, y_true, ambiguous = prep_model_inputs(
+            df_single_sub[df_single_sub["stream"] == stream]
+        )
+        kwargs = dict(
+            X=X,
+            categories=categories,
+            y=y,
+            return_val="neglog_noCP",
+            gain=None,
+            gnorm=False,
+        )
+        fun = partial(psychometric_model, **kwargs)
+
+        res = minimize(
+            fun=fun,
+            x0=x0,
+            method="Nelder-Mead",
+            bounds=bounds,
+            options=dict(maxiter=1000),
+        )
+
+        assert res.success
+        results[ix0, istream, ...] = res.x
+
+# %%
+# Turn results into DataFrame
+_dfs = []
+for ires in range(len(x0s)):
+    _df = pd.DataFrame(results[ires, ...], columns=param_names)
+    _df["stream"] = streams
+    _df["ix0s"] = ires
+    _dfs.append(_df)
+_df = pd.concat(_dfs)
+_df = _df.melt(id_vars=["ix0s", "stream"], var_name="parameter")
+
+# %%
+# Plot results from single subj
+with sns.plotting_context("talk"):
+    fig, ax = plt.subplots(figsize=(5, 6))
+    sns.stripplot(x="parameter", y="value", hue="stream", data=_df, ax=ax, alpha=0.5)
+    ax.axhline(1, ls="--", c="black", lw=0.5)
+    ax.axhline(0, ls="--", c="black", lw=0.5)
+    ax.legend(frameon=False)
+    ax.set_title(
+        "Estimation results\ndata combined over subjects ('fixed effects')\n"
+        f"over {len(x0s)} different start parameters"
+    )
+sns.despine(fig)
+fig.tight_layout()
 # %%
