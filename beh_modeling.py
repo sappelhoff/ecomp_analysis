@@ -11,16 +11,21 @@ import seaborn as sns
 from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
 
-from config import ANALYSIS_DIR_LOCAL, CHOICE_MAP, DATA_DIR_LOCAL, SUBJS
-from utils import eq1, eq2, eq3, eq4, get_sourcedata
+from config import (
+    ANALYSIS_DIR_LOCAL,
+    CHOICE_MAP,
+    DATA_DIR_LOCAL,
+    NUMBERS,
+    STREAMS,
+    SUBJS,
+)
+from utils import eq1, eq2, eq3, eq4, get_estim_params, get_sourcedata, prep_weight_calc
 
 # %%
 # Settings
-numbers = np.arange(1, 10)
-numbers_rescaled = np.interp(numbers, (numbers.min(), numbers.max()), (-1, +1))
+numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1, +1))
 
-streams = ["single", "dual"]
-
+param_names = ["bias", "kappa", "leakage", "noise"]
 
 # %%
 # Prepare file paths
@@ -268,7 +273,7 @@ for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
         )
 
         for sub in SUBJS:
-            for stream in streams:
+            for stream in STREAMS:
 
                 _, tsv = get_sourcedata(sub, stream, data_dir)
                 df = pd.read_csv(tsv, sep="\t")
@@ -471,7 +476,7 @@ data = {
 }
 
 for sub in tqdm(SUBJS):
-    for stream in streams:
+    for stream in STREAMS:
 
         _, tsv = get_sourcedata(sub, stream, data_dir)
         df = pd.read_csv(tsv, sep="\t")
@@ -535,13 +540,82 @@ sns.despine(fig)
 fig.tight_layout()
 
 # %%
+# Plot weighting curves based on fit data
+
+# Get data
+sub = 1
+stream = "single"
+
+
+def calc_CP_weights(sub, stream, data_dir, minimize_method):
+    """Calculate decision weights based on model output `CP`.
+
+    Each weight is the mean of its associated CP values.
+
+    Parameters
+    ----------
+    sub :
+    stream :
+    data_dir :
+    minimize_method :
+
+    Returns
+    -------
+    weights : np.ndarray, shape(9,)
+        The weight for each of the 9 numbers in ascending
+        order (1 to 9).
+    position_weights : np.ndarray, shape(10, 9)
+        The weight for each of the 9 numbers in ascending
+        order, calculated for each of the 10 sample positions.
+
+    See Also
+    --------
+    calc_nonp_weights
+    """
+    # Get data for modeling
+    _, tsv = get_sourcedata(sub, stream, data_dir)
+    df = pd.read_csv(tsv, sep="\t")
+    df.insert(0, "subject", sub)
+
+    X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+
+    # Get estimated parameters and predicted choices
+    parameters = get_estim_params(sub, stream, minimize_method, data_dir)
+
+    _, CP = psychometric_model(
+        parameters, X, categories, y, return_val="G", gain=None, gnorm=False
+    )
+
+    # prepare weighting data
+    nsamples = 10
+    weights_df, _, samples, _, positions = prep_weight_calc(df, nsamples)
+
+    # repeat CP for each sample
+    CPs = np.repeat(CP, nsamples)
+
+    # Calculate weights
+    numbers = np.arange(1, 10, dtype=int)
+    weights = np.zeros(len(numbers))
+    position_weights = np.zeros((nsamples, len(numbers)))
+    for inumber, number in enumerate(numbers):
+
+        # overall weights
+        weights[inumber] = np.mean(CPs[samples == number])
+
+        # weights for each sample position
+        for pos in np.unique(positions):
+            position_weights[pos, inumber] = np.mean(
+                CPs[(samples == number) & (positions == pos)]
+            )
+
+
+# %%
 # Fit all data as if from single subject
 bias0s = (0, -0.1, 0.1)
 kappa0s = (0.5, 1, 2)
 leakage0s = (0, 0.2)
 noise0s = (0.01, 0.1, 0.2)
 
-param_names = ["bias", "kappa", "leakage", "noise"]
 x0s = []
 for bias0, kappa0, leakage0, noise0 in itertools.product(
     bias0s, kappa0s, leakage0s, noise0s
@@ -556,7 +630,7 @@ bounds = Bounds(lower, upper)
 # Collect all data as if from "single subject" (fixed effects)
 df_single_sub = []
 for sub in SUBJS:
-    for istream, stream in enumerate(streams):
+    for istream, stream in enumerate(STREAMS):
         _, tsv = get_sourcedata(sub, stream, data_dir)
         df = pd.read_csv(tsv, sep="\t")
         df.insert(0, "subject", sub)
@@ -566,7 +640,7 @@ df_single_sub = pd.concat(df_single_sub)
 
 # go through different initial values per stream
 results = np.full((len(x0s), 2, 4), np.nan)  # init_vals X stream X params
-for istream, stream in enumerate(streams):
+for istream, stream in enumerate(STREAMS):
 
     X, categories, y, y_true, ambiguous = prep_model_inputs(
         df_single_sub[df_single_sub["stream"] == stream]
@@ -601,7 +675,7 @@ for istream, stream in enumerate(streams):
 _dfs = []
 for ires in range(len(x0s)):
     _df = pd.DataFrame(results[ires, ...], columns=param_names)
-    _df["stream"] = streams
+    _df["stream"] = STREAMS
     _df["ix0s"] = ires
     _dfs.append(_df)
 _df = pd.concat(_dfs)

@@ -19,7 +19,7 @@ import scipy.stats
 import seaborn as sns
 from tqdm.auto import tqdm
 
-from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, SUBJS
+from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, NUMBERS, STREAMS, SUBJS
 from utils import calc_rdm, prep_to_plot, rdm2vec
 
 # %%
@@ -30,9 +30,6 @@ analysis_dir = ANALYSIS_DIR_LOCAL
 
 rsa_method = "pearson"
 distance_measure = "mahalanobis"
-
-numbers = np.arange(1, 10, dtype=int)
-streams = ["single", "dual"]
 
 # %%
 # Prepare file paths
@@ -49,16 +46,16 @@ times = np.load(fname_times)
 
 # %%
 # Calculate model RDM
-numberline = calc_rdm(numbers, normalize=True)
+numberline = calc_rdm(NUMBERS, normalize=True)
 
 # %%
 # Calculate RSA per subj and stream
 df_rsa_list = []
 rdm_times_streams_subjs = np.full(
-    (len(numbers), len(numbers), len(times), len(streams), len(SUBJS)), np.nan
+    (len(NUMBERS), len(NUMBERS), len(times), len(STREAMS), len(SUBJS)), np.nan
 )
 for isub, sub in enumerate(tqdm(SUBJS)):
-    for istream, stream in enumerate(streams):
+    for istream, stream in enumerate(STREAMS):
         rdm_times = np.load(fname_rdm_template.format(sub, stream))
         rdm_times_streams_subjs[..., istream, isub] = rdm_times
 
@@ -89,7 +86,7 @@ for isub, sub in enumerate(tqdm(SUBJS)):
 
 df_rsa = pd.concat(df_rsa_list)
 df_rsa = df_rsa.reset_index(drop=True)
-assert len(df_rsa) == ntimes * len(SUBJS) * len(streams)
+assert len(df_rsa) == ntimes * len(SUBJS) * len(STREAMS)
 assert not np.isnan(rdm_times_streams_subjs).any()
 df_rsa
 
@@ -115,7 +112,7 @@ idx_start, idx_stop = np.unique(df_rsa[df_rsa["time"].isin(window_sel)]["itime"]
 rdm_times_streams_subjs.shape
 
 mean_rdms = {}
-for istream, stream in enumerate(streams):
+for istream, stream in enumerate(STREAMS):
     # mean over subjects
     rdm_submean = np.mean(rdm_times_streams_subjs[..., istream, :], axis=-1)
 
@@ -133,7 +130,7 @@ with sns.plotting_context("talk"):
         sharey=True,
     )
 
-    for i, stream in enumerate(streams):
+    for i, stream in enumerate(STREAMS):
         ax = axs.flat[i]
         plotrdm = prep_to_plot(mean_rdms[stream])
 
@@ -147,10 +144,10 @@ with sns.plotting_context("talk"):
         )
 
         ax.set_title(stream)
-        ax.xaxis.set_major_locator(plt.MaxNLocator(len(numbers)))
-        ax.set_xticklabels([""] + [str(j) for j in numbers])
-        ax.yaxis.set_major_locator(plt.MaxNLocator(len(numbers)))
-        ax.set_yticklabels([""] + [str(j) for j in numbers])
+        ax.xaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS)))
+        ax.set_xticklabels([""] + [str(j) for j in NUMBERS])
+        ax.yaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS)))
+        ax.set_yticklabels([""] + [str(j) for j in NUMBERS])
 
     fig.suptitle(
         f"RDMs, mean over subjects and time\n({window_sel[0]}s - {window_sel[1]}s)",

@@ -16,8 +16,10 @@ from tqdm.auto import tqdm
 from config import (
     ANALYSIS_DIR_LOCAL,
     DATA_DIR_EXTERNAL,
+    NUMBERS,
     P3_GROUP_CERCOR,
     P3_GROUP_NHB,
+    STREAMS,
     SUBJS,
 )
 
@@ -35,9 +37,6 @@ mean_times = (0.3, 0.7)
 
 p3_group = [P3_GROUP_CERCOR, P3_GROUP_NHB][0]  # 0 or 1
 
-streams = ["single", "dual"]
-numbers = range(1, 10)
-
 # %%
 # Prepare file paths
 
@@ -51,7 +50,7 @@ fname_template_erp = "sub-{:02}_stream-{}_number-{}_ave.fif.gz"
 # %%
 # Helper functions to get data
 def _get_mean_amps(dict_streams, mean_times, p3_group):
-    dict_mean_amps = {j: {str(i): [] for i in numbers} for j in streams}
+    dict_mean_amps = {j: {str(i): [] for i in NUMBERS} for j in STREAMS}
     for stream, dict_numbers in dict_streams.items():
         for number, evoked_list in dict_numbers.items():
             for i, evoked in enumerate(evoked_list):
@@ -82,11 +81,11 @@ def _get_erps(sub, baseline):
     epochs.apply_baseline(baseline)
 
     # Calculate cocktail blanks per stream
-    cocktail_blank = {stream: epochs[stream].average().get_data() for stream in streams}
+    cocktail_blank = {stream: epochs[stream].average().get_data() for stream in STREAMS}
 
     # Get cocktailblank corrected ERPs for each stream/number
     # also extract mean amplitudes
-    dict_streams = {j: {str(i): [] for i in numbers} for j in streams}
+    dict_streams = {j: {str(i): [] for i in NUMBERS} for j in STREAMS}
     for stream, dict_numbers in dict_streams.items():
         for number in dict_numbers:
 
@@ -103,7 +102,7 @@ def _get_erps(sub, baseline):
 
 # %%
 # Get subject data
-dict_streams = {j: {str(i): [] for i in numbers} for j in streams}
+dict_streams = {j: {str(i): [] for i in NUMBERS} for j in STREAMS}
 if erp_dir.exists():
     # Try load ERPs from disk directly (faster)
     for stream, dict_numbers in tqdm(dict_streams.items()):
@@ -131,7 +130,7 @@ dict_mean_amps = _get_mean_amps(dict_streams, mean_times, p3_group)
 # %%
 # Plot
 cmap = sns.color_palette("crest_r", as_cmap=True)
-for stream in streams:
+for stream in STREAMS:
     fig, ax = plt.subplots()
     ax.axvspan(*mean_times, color="black", alpha=0.1)
     with mne.utils.use_log_level(False):
@@ -149,7 +148,7 @@ for stream in streams:
 # %%
 # Gather mean amplitude data into DataFrame
 all_dfs = []
-for stream in streams:
+for stream in STREAMS:
     df_mean_amps = pd.DataFrame.from_dict(dict_mean_amps[stream])
     assert df_mean_amps.shape[0] == len(subjects)
     df_mean_amps["subject"] = subjects
@@ -163,7 +162,7 @@ for stream in streams:
     all_dfs.append(df_mean_amps)
 
 df_mean_amps = pd.concat(all_dfs)
-assert df_mean_amps.shape[0] == len(subjects) * len(numbers) * len(streams)
+assert df_mean_amps.shape[0] == len(subjects) * len(NUMBERS) * len(STREAMS)
 df_mean_amps
 
 # %%

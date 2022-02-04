@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from config import ANALYSIS_DIR_LOCAL
+from config import ANALYSIS_DIR_LOCAL, NUMBERS
 
 # %%
 # Settings
@@ -23,8 +23,7 @@ fname = analysis_dir / "derived_data" / "accuracies.tsv"
 accdata = pd.read_csv(fname, sep="\t")
 
 # calc model weights
-numbers = np.arange(1, 10)
-numbers_rescaled = np.interp(numbers, (numbers.min(), numbers.max()), (-1, +1))
+numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1, +1))
 
 
 def eq1_rescale(X, bias, kappa):

@@ -6,17 +6,21 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from config import ANALYSIS_DIR_LOCAL, CHOICE_MAP, DATA_DIR_LOCAL, SUBJS
+from config import (
+    ANALYSIS_DIR_LOCAL,
+    CHOICE_MAP,
+    DATA_DIR_LOCAL,
+    NUMBERS,
+    STREAMS,
+    SUBJS,
+)
 from utils import eq1, get_sourcedata, prep_weight_calc
 
 # %%
 # Settings
-numbers = np.arange(1, 10, dtype=int)
-numbers_rescaled = np.interp(numbers, (numbers.min(), numbers.max()), (-1, +1))
+numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1, +1))
 
 positions = np.arange(10)
-
-streams = ["single", "dual"]
 
 # %%
 # Prepare file paths
@@ -51,6 +55,10 @@ def calc_nonp_weights(df, nsamples=10):
     position_weights : np.ndarray, shape(10, 9)
         The weight for each of the 9 numbers in ascending
         order, calculated for each of the 10 sample positions.
+
+    See Also
+    --------
+    calc_CP_weights
     """
     weights_df, stream, samples, colors, positions = prep_weight_calc(df, nsamples)
 
@@ -129,7 +137,7 @@ def calc_nonp_weights(df, nsamples=10):
 weight_dfs = []
 posweight_dfs = []
 for sub in SUBJS:
-    for stream in streams:
+    for stream in STREAMS:
 
         _, tsv = get_sourcedata(sub, stream, DATA_DIR_LOCAL)
         df = pd.read_csv(tsv, sep="\t")
@@ -138,14 +146,14 @@ for sub in SUBJS:
 
         # save in DF
         wdf = pd.DataFrame.from_dict(
-            dict(sub=sub, stream=stream, number=numbers, weight=weights)
+            dict(sub=sub, stream=stream, number=NUMBERS, weight=weights)
         )
         pwdf = pd.DataFrame.from_dict(
             dict(
-                sub=[sub] * len(positions) * len(numbers),
-                stream=[stream] * len(positions) * len(numbers),
-                number=np.tile(numbers, len(positions)),
-                position=np.tile(positions, len(numbers)),
+                sub=[sub] * len(positions) * len(NUMBERS),
+                stream=[stream] * len(positions) * len(NUMBERS),
+                number=np.tile(NUMBERS, len(positions)),
+                position=np.tile(positions, len(NUMBERS)),
                 weight=position_weights.reshape(-1),
             )
         )
@@ -195,7 +203,7 @@ fig.savefig(fname)
 # plot weights over positions: numbers as hue
 fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
 
-for stream, ax in zip(streams, axs):
+for stream, ax in zip(STREAMS, axs):
 
     sns.pointplot(
         x="position",
@@ -223,7 +231,7 @@ fig.savefig(fname)
 # %%
 # plot weights over positions: positions as hue
 fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
-for stream, ax in zip(streams, axs):
+for stream, ax in zip(STREAMS, axs):
 
     data = posweightdata[
         (posweightdata["stream"] == stream) & (posweightdata["position"].isin([0, 9]))

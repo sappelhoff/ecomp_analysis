@@ -39,7 +39,7 @@ from scipy.spatial.distance import pdist, squareform
 from sklearn.covariance import LedoitWolf
 from tqdm.auto import tqdm
 
-from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL, NUMBERS, STREAMS
 from utils import parse_overwrite
 
 # %%
@@ -56,10 +56,6 @@ overwrite = False
 
 # which baseline to apply
 baseline = (None, 0)
-
-# other settings
-numbers = range(1, 10)
-streams = ["single", "dual"]
 
 # %%
 # When not in an IPython session, get command line inputs
@@ -96,7 +92,7 @@ fname_times = mahal_dir / "times.npy"
 
 # %%
 # Calculate RDMs for each stream
-for stream in streams:
+for stream in STREAMS:
     # Read data
     epochs = mne.read_epochs(fname_epo, preload=False, verbose=False)
 
@@ -169,7 +165,7 @@ for stream in streams:
     # need to zscore epochs first
     epochs._data = scipy.stats.zscore(epochs._data, axis=0)
     erps = np.zeros_like(coefs)
-    for inumber, number in enumerate(numbers):
+    for inumber, number in enumerate(NUMBERS):
         erps[inumber, ...] = epochs[f"{number}"].average().data
 
     np.testing.assert_allclose(coefs, erps)

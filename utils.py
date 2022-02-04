@@ -23,6 +23,16 @@ def get_sourcedata(sub, stream, data_dir):
     return vhdr, tsv
 
 
+def get_estim_params(sub, stream, minimize_method, analysis_dir):
+    """Get the estimated model parameters."""
+    fpath = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
+    df = pd.read_csv(fpath, sep="\t")
+    datasel = df[(df["subject"] == sub) & (df["stream"] == stream)]
+    param_names = ["bias", "kappa", "leakage", "noise"]
+    parameters = datasel[param_names].to_numpy().flatten()
+    return parameters
+
+
 def get_daysback(data_dir):
     """Get the 'daysback' for anonymizing this dataset."""
     try:
@@ -434,11 +444,18 @@ def prep_weight_calc(df, nsamples=10):
 
     Returns
     -------
-    weights_df
-    stream
-    samples
-    colors
-    positions
+    weights_df : pd.DataFrame
+    stream : {"single", "dual"}
+        The stream that this data is on.
+    samples : np.ndarray, shape(n,)
+        The samples over trials. This array contains values from 1 to 9,
+        `nsamples` per trial, so unless trials had to be dropped due to
+        no response, `n` is 3000.
+    colors : np.ndarray, shape(n,)
+        The corresponding category of each sample, coded as 0 (red) or
+        1 (blue).
+    positions : np.ndarray, shape(n,)
+        The position of each sample in its trial from 0 to 9.
     """
     # work on a copy of the data
     weights_df = df.copy()

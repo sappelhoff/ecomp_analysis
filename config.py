@@ -45,6 +45,10 @@ BAD_SUBJS = {
 
 SUBJS = np.array(list(set(range(1, 33)) - set(BAD_SUBJS)))
 
+STREAMS = ["single", "dual"]
+
+NUMBERS = np.arange(1, 10, dtype=int)
+
 DEFAULT_RNG_SEED = 42
 
 OVERWRITE_MSG = "\nfile exists and overwrite is False:\n\n>>> {}\n"

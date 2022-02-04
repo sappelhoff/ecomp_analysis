@@ -22,7 +22,7 @@ import scipy.stats
 import statsmodels.stats.multitest
 from tqdm.auto import tqdm
 
-from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, SUBJS
+from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, NUMBERS, STREAMS, SUBJS
 from utils import calc_rdm, eq1, rdm2vec
 
 # %%
@@ -30,9 +30,6 @@ from utils import calc_rdm, eq1, rdm2vec
 # Select the data source and analysis directory here
 data_dir = DATA_DIR_EXTERNAL
 analysis_dir = ANALYSIS_DIR_LOCAL
-
-numbers = np.arange(1, 10, dtype=int)
-streams = ["single", "dual"]
 
 grid_res = 101
 if False:
@@ -69,19 +66,19 @@ idx_stop = np.nonzero(times == window_sel[1])[0][0]
 # %%
 # Load all rdm_times and form mean
 rdm_mean_streams_subjs = np.full(
-    (len(numbers), len(numbers), len(streams), len(SUBJS)), np.nan
+    (len(NUMBERS), len(NUMBERS), len(STREAMS), len(SUBJS)), np.nan
 )
 for isub, sub in enumerate(tqdm(SUBJS)):
-    for istream, stream in enumerate(streams):
+    for istream, stream in enumerate(STREAMS):
         rdm_times = np.load(fname_rdm_template.format(sub, stream))
         rdm_mean = np.mean(rdm_times[..., idx_start:idx_stop], axis=-1)
         rdm_mean_streams_subjs[..., istream, isub] = rdm_mean
 
 # %%
 # Calculate model RDMs
-numbers_rescaled = np.interp(numbers, (numbers.min(), numbers.max()), (-1.0, +1.0))
+numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1.0, +1.0))
 
-model_rdms = np.full((len(numbers), len(numbers), len(bias_kappa_combis)), np.nan)
+model_rdms = np.full((len(NUMBERS), len(NUMBERS), len(bias_kappa_combis)), np.nan)
 for i, (bias, kappa) in enumerate(tqdm(bias_kappa_combis)):
     dv_vector = eq1(numbers_rescaled, bias=bias, kappa=kappa)
     dv_rdm = calc_rdm(dv_vector, normalize=True)
@@ -92,10 +89,10 @@ assert not np.isnan(model_rdms).any()
 # %%
 # Correlate ERP-RDMs and models --> one grid per subj/stream
 grid_streams_subjs = np.full(
-    (len(kappas), len(biases), len(streams), len(SUBJS)), np.nan
+    (len(kappas), len(biases), len(STREAMS), len(SUBJS)), np.nan
 )
 for isub, sub in enumerate(tqdm(SUBJS)):
-    for istream, stream in enumerate(streams):
+    for istream, stream in enumerate(STREAMS):
 
         # Get ERP ERM
         rdm_mean = rdm_mean_streams_subjs[..., istream, isub]
@@ -115,7 +112,7 @@ for isub, sub in enumerate(tqdm(SUBJS)):
 # Normalize maps to be relative to bias=0, kappa=1
 rng = np.random.default_rng(42)
 for isub, sub in enumerate(tqdm(SUBJS)):
-    for istream, stream in enumerate(streams):
+    for istream, stream in enumerate(STREAMS):
         corr_ref = grid_streams_subjs[idx_kappa_one, idx_bias_zero, istream, isub]
         grid_streams_subjs[..., istream, isub] -= corr_ref
 
@@ -126,8 +123,8 @@ for isub, sub in enumerate(tqdm(SUBJS)):
 
 # %%
 # Calculate 1 samp t-tests against 0 for each cell to test significance
-pval_maps_streams = np.full((len(kappas), len(biases), len(streams)), np.nan)
-for istream, stream in enumerate(streams):
+pval_maps_streams = np.full((len(kappas), len(biases), len(STREAMS)), np.nan)
+for istream, stream in enumerate(STREAMS):
     data = grid_streams_subjs[..., istream, :]
     _, pvals = scipy.stats.ttest_1samp(a=data, popmean=0, axis=-1, nan_policy="raise")
     pval_maps_streams[..., istream] = pvals
@@ -137,7 +134,7 @@ for istream, stream in enumerate(streams):
 # use B/H FDR correction
 alpha_val_mask = 0.75
 sig_masks_streams = np.full_like(pval_maps_streams, np.nan)
-for istream, stream in enumerate(streams):
+for istream, stream in enumerate(STREAMS):
     pvals = pval_maps_streams[..., istream]
     sig, _ = statsmodels.stats.multitest.fdrcorrection(pvals.flatten(), alpha=pthresh)
     sig = sig.reshape(pvals.shape)
@@ -154,10 +151,10 @@ for istream, stream in enumerate(streams):
 
 # %%
 # Plot grid per stream
-max_coords_xy = np.full((2, len(streams), len(SUBJS)), np.nan)
+max_coords_xy = np.full((2, len(STREAMS), len(SUBJS)), np.nan)
 fig, axs = plt.subplots(1, 2, figsize=(8, 4))
 fig.tight_layout()
-for istream, stream in enumerate(streams):
+for istream, stream in enumerate(STREAMS):
 
     ax = axs.flat[istream]
 
@@ -238,8 +235,8 @@ for istream, stream in enumerate(streams):
 # Do the same on grand mean RDMs -- no stats possible
 fig, axs = plt.subplots(1, 2, figsize=(8, 4))
 fig.tight_layout()
-grid_streams_grandmean = np.full((len(kappas), len(biases), len(streams)), np.nan)
-for istream, stream in enumerate(tqdm(streams)):
+grid_streams_grandmean = np.full((len(kappas), len(biases), len(STREAMS)), np.nan)
+for istream, stream in enumerate(tqdm(STREAMS)):
     rdm_grandmean = np.mean(rdm_mean_streams_subjs[..., istream, :], axis=-1)
     rdm_grandmean_model_vec = rdm2vec(rdm_grandmean, lower_tri=True)
 
