@@ -7,7 +7,7 @@ import pandas as pd
 import seaborn as sns
 
 from config import ANALYSIS_DIR_LOCAL, CHOICE_MAP, DATA_DIR_LOCAL, SUBJS
-from utils import eq1, get_sourcedata
+from utils import eq1, get_sourcedata, prep_weight_calc
 
 # %%
 # Settings
@@ -26,7 +26,7 @@ analysis_dir = ANALYSIS_DIR_LOCAL
 # Define function to calculate weights
 
 
-def calc_nonp_weights(df):
+def calc_nonp_weights(df, nsamples=10):
     """Calculate non-parametric weights.
 
     In the "single stream" task, the weight of a number is its
@@ -39,6 +39,9 @@ def calc_nonp_weights(df):
     ----------
     df : pandas.DataFrame
         The behavioral data of a subject.
+    nsamples : int
+        Number of samples in each trial. Defaults to 10,
+        as in the eComp experiment.
 
     Returns
     -------
@@ -49,27 +52,7 @@ def calc_nonp_weights(df):
         The weight for each of the 9 numbers in ascending
         order, calculated for each of the 10 sample positions.
     """
-    # work on a copy of the data
-    weights_df = df.copy()
-
-    stream = np.unique(weights_df["stream"])[0]
-
-    # remove NaN rows
-    nan_row_idxs = np.nonzero(~weights_df["validity"].to_numpy())[0]
-    for idx in nan_row_idxs:
-        assert pd.isna(weights_df.loc[idx, "direction"])
-    weights_df = weights_df.drop(nan_row_idxs)
-
-    # prepare data
-    nsamples = 10
-    isamples = [f"sample{i}" for i in range(1, nsamples + 1)]  # samples 1 to nsamples
-    samples_signed = weights_df.loc[:, isamples].to_numpy().reshape(-1)
-    samples = np.abs(samples_signed)
-    colors = (np.sign(samples_signed) + 1) / 2  # red=0, blue=1
-    positions = np.tile(
-        np.arange(len(isamples), dtype=int), len(weights_df["trial"])
-    )  # sample positions
-    assert positions.shape == samples.shape
+    weights_df, stream, samples, colors, positions = prep_weight_calc(df, nsamples)
 
     if stream == "single":
         # sanity check
@@ -80,7 +63,7 @@ def calc_nonp_weights(df):
         # map lower/higher to 0/1 ... and repeat choice for each sample
         choices = np.repeat(
             weights_df["choice"].map(CHOICE_MAP).to_numpy(),
-            len(isamples),
+            nsamples,
         )
         assert choices.shape == samples.shape
     else:
@@ -89,15 +72,13 @@ def calc_nonp_weights(df):
         np.testing.assert_array_equal(np.unique(weights_df["choice"]), ["blue", "red"])
 
         # map red/blue to 0/1 ... and repeat choice for each sample
-        choices = np.repeat(
-            weights_df["choice"].map(CHOICE_MAP).to_numpy(), len(isamples)
-        )
+        choices = np.repeat(weights_df["choice"].map(CHOICE_MAP).to_numpy(), nsamples)
         assert choices.shape == samples.shape
 
     # Calculate overall weights and for each sample position
     numbers = np.arange(1, 10, dtype=int)  # numbers 1 to 9 were shown
     weights = np.zeros(len(numbers))
-    position_weights = np.zeros((len(isamples), len(numbers)))
+    position_weights = np.zeros((nsamples, len(numbers)))
     for inumber, number in enumerate(numbers):
 
         if stream == "single":

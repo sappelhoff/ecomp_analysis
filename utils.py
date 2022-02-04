@@ -419,3 +419,46 @@ def prep_to_plot(rdm):
     tmprdm = tmprdm.astype(float)
     tmprdm[tri_idx] = np.nan
     return tmprdm
+
+
+def prep_weight_calc(df, nsamples=10):
+    """Prepare data for weights calculation.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The stream-specific participant data.
+    nsamples : int
+        Number of samples in each trial. Defaults to 10,
+        as in the eComp experiment.
+
+    Returns
+    -------
+    weights_df
+    stream
+    samples
+    colors
+    positions
+    """
+    # work on a copy of the data
+    weights_df = df.copy()
+
+    stream = np.unique(weights_df["stream"])[0]
+
+    # remove NaN rows
+    nan_row_idxs = np.nonzero(~weights_df["validity"].to_numpy())[0]
+    for idx in nan_row_idxs:
+        assert pd.isna(weights_df.loc[idx, "direction"])
+    weights_df = weights_df.drop(nan_row_idxs)
+
+    # prepare data
+    isamples = [f"sample{i}" for i in range(1, nsamples + 1)]  # samples 1 to nsamples
+    samples_signed = weights_df.loc[:, isamples].to_numpy().reshape(-1)
+    samples = np.abs(samples_signed)
+    colors = (np.sign(samples_signed) + 1) / 2  # red=0, blue=1
+    positions = np.tile(
+        np.arange(nsamples, dtype=int), len(weights_df["trial"])
+    )  # sample positions
+    assert positions.shape == samples.shape
+
+    return weights_df, stream, samples, colors, positions
