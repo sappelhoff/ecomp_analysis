@@ -7,3 +7,5 @@ figures/*.jpg
 figures/*.pdf
 
 nohup.out
+
+derived_data/estim_params*

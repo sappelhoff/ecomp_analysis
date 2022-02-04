@@ -11,15 +11,8 @@ import seaborn as sns
 from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
 
-from config import (
-    ANALYSIS_DIR_LOCAL,
-    CHOICE_MAP,
-    DATA_DIR_LOCAL,
-    NUMBERS,
-    STREAMS,
-    SUBJS,
-)
-from utils import eq1, eq2, eq3, eq4, get_estim_params, get_sourcedata, prep_weight_calc
+from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, NUMBERS, STREAMS, SUBJS
+from utils import eq2, get_sourcedata, prep_model_inputs, psychometric_model
 
 # %%
 # Settings
@@ -32,209 +25,6 @@ param_names = ["bias", "kappa", "leakage", "noise"]
 
 analysis_dir = ANALYSIS_DIR_LOCAL
 data_dir = DATA_DIR_LOCAL
-
-# %%
-# Function to get behavior data
-
-
-def prep_model_inputs(df):
-    """Extract variables from behavioral data for modeling.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The behavioral data for a specific participant and
-        task condition (stream).
-
-    Returns
-    -------
-    X : np.ndarray, shape(n, 10)
-        The data. Each row is a trial, each column is an unsigned sample value
-        in the range [1, 9] that has been rescaled to the range [-1, 1]. In the
-        eComp experiment, there were always 10 samples. The number of trials,
-        `n` will be 300 in most cases but can be lower when a participant failed
-        to respond for some trials (these trials are then dropped from analysis).
-    categories : np.ndarray, shape(n, 10)
-        Signed array (-1, +1) of same shape as `X`. For "dual" stream data, the
-        sign represents each sample's color category (-1: red, +1: blue).
-        For "single" stream data, this is an array of ones, in order to ignore
-        the color category.
-    y : np.ndarray, shape(n, 1)
-        The participant's choices in this task condition (stream). Each entry
-        correspondons to a trial and can be ``0`` or ``1``. In single stream
-        condition, 0: "lower", 1: "higher". In dual stream condition:
-        0: "red", 1: "blue".
-    y_true : np.ndarray, shape(n, 1)
-        The "objectively correct" choices per per trial. These are in the same
-        format as `y`.
-    ambiguous : np.ndarray, shape(n, 1)
-        Boolean mask on which of the `n` valid trials contained samples that do
-        not result in an objectively correct choice. For example in single stream,
-        samples have a mean of exactly 5; or in dual stream, the red and blue
-        samples have an identical mean.
-
-    See Also
-    --------
-    config.CHOICE_MAP
-    """
-    # drop n/a trials (rows)
-    idx_no_na = ~df["choice"].isna()
-
-    # get categories
-    sample_cols = [f"sample{i}" for i in range(1, 11)]
-    X_signed = df.loc[idx_no_na, sample_cols].to_numpy()
-    streams = df["stream"].unique()
-    assert len(streams) == 1
-    if streams[0] == "single":
-        categories = np.ones_like(X_signed, dtype=int)
-    else:
-        assert streams[0] == "dual"
-        categories = np.sign(X_signed)
-
-    # Rescale sample values to range [-1, 1]
-    # 1, 2, 3, 4, 5, 6, 7, 8, 9 --> -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1
-    X_abs = np.abs(X_signed)
-    X = np.interp(X_abs, (X_abs.min(), X_abs.max()), (-1, +1))
-    assert X_abs.min() == 1
-    assert X_abs.max() == 9
-
-    # map choices to 0 and 1
-    y = df.loc[idx_no_na, "choice"].map(CHOICE_MAP).to_numpy()
-
-    # Get "correct" choices. Single: 0=lower, 1=higher ; Dual: 0=red, 1=blue
-    y_true = np.sign(np.sum((X * categories), axis=1)) / 2 + 0.5
-    ambiguous = y_true == 0.5
-
-    return X, categories, y, y_true, ambiguous
-
-
-# %%
-# Define model
-
-
-def psychometric_model(
-    parameters, X, categories, y, return_val, gain=None, gnorm=False
-):
-    """Model the behavioral data as in Spitzer 2017, NHB [1]_.
-
-    Parameters
-    ----------
-    parameters : np.ndarray, shape(4,)
-        An array containing the 4 parameters of the model::
-            - bias : float
-                The bias parameter (`b`) in range [-1, 1].
-            - kappa : float
-                The kappa parameter (`k`) in range [0, 20].
-            -leakage : float
-                The leakage parameter (`l`) in range [0, 1].
-            - noise : float
-                The noise parameter (`s`) in range [0.01, 8].
-    X : np.ndarray, shape(n, 10)
-        The data per participant and stream. Each row is a trial, each column
-        is an unsigned sample value in the range [1, 9] that has been rescaled
-        to the range [-1, 1]. In the eComp experiment, there were always
-        10 samples. The number of trials, `n` will be 300 in most cases but can
-        be lower when a participant failed to respond for some trials (these
-        trials are then dropped from analysis).
-    categories : np.ndarray, shape(n, 10)
-        Signed array (-1, +1) of same shape as `X`. The sign represents each
-        sample's color category (-1: red, +1: blue). For "single" stream data,
-        this is an array of ones, in order to ignore the color category.
-    y : np.ndarray, shape(n, 1)
-        The choices per participant and stream. Each entry is the choice on a
-        given trial. Can be ``0`` or ``1``. In single stream condition,
-        0: "lower", 1: "higher". In dual stream condition: 0: "red", 1: "blue".
-    return_val : {"G", "G_noCP", "sse"}
-        Whether to return G-statistic based loss or sum of squared errors.
-        ``"G_noCP"`` returns the G-statistic based loss *without*
-        the additional `CP` return value.
-    gain : np.ndarray, shape(n, 10) | None
-        The gain normalization factor, where `n` is ``1`` if gain
-        normalization is to be applied over the feature space of the
-        entire experiment; or `n` is the number of trials if gain
-        normalization is to be applied trial-wise.
-        Can be ``None`` if `gnorm` is ``False``.
-    gnorm : bool
-        Whether to gain-normalize or not. Defaults to ``False``.
-
-    Returns
-    -------
-    loss : float
-        To be minimized for parameter estimated. Either based on the G statistic or
-        the "sum of squared errors" of the model, depending on `return_val`.
-    CP : np.ndarray, shape(n,)
-        The probability to choose 1 instead of 0. One value per trial (`n` trials).
-        Not returned if `return_val` is ``"G_noCP"``.
-
-
-    References
-    ----------
-    .. [1] Spitzer, B., Waschke, L. & Summerfield, C. Selective overweighting of larger
-           magnitudes during noisy numerical comparison. Nat Hum Behav 1, 0145 (2017).
-           https://doi.org/10.1038/s41562-017-0145
-
-    See Also
-    --------
-    utils.eq1
-    utils.eq2
-    utils.eq3
-    utils.eq4
-    config.CHOICE_MAP
-    """
-    # unpack parameters
-    bias, kappa, leakage, noise = parameters
-
-    # Transform sample values to subjective decision weights
-    dv = eq1(X=X, bias=bias, kappa=kappa)
-
-    # Obtain trial level decision variables
-    DV = eq3(dv=dv, category=categories, gain=gain, gnorm=gnorm, leakage=leakage)
-
-    # Convert decision variables to choice probabilities
-    CP = eq4(DV, noise=noise)
-
-    # Compute "model fit"
-    if return_val in ["G", "G_noCP"]:
-        # fix floating point issues to avoid log(0) = -inf
-        # NOTE: These issues happen mostly when `noise` is very
-        #       low (<0.1), and the subject chose an option opposite
-        #       to the evidence. For example, noise=0.01, DV=0.5, y=0.
-        #
-        #       --> In this case, CP would be expit(x), where x is
-        #           0.5/0.01 = 50, and expit(50) is 1.0, due to limitations
-        #           in floating point precision.
-        #       --> Next, when calculating the negative log likelihood
-        #           for y == 0, we must do -np.log(1 - CP) and thus arrive
-        #           at log(0), which evaluates to -inf.
-        #
-        #       The same can happen in the opposite case, where e.g.,
-        #       noise=0.001, DV=-1.0, y=1.
-        #
-        #       --> Here, the corresponding expit(-1/0.001) is expit(-1000)
-        #           and results in 0.
-        #       --> Then, when calculating neg. log. lik. for y == 1, we
-        #           must do -log(CP) and thus arrive at log(0) and
-        #           -inf again.
-        #
-        #       We solve this issue by picking the floating point value closest
-        #       to 1 (0.999999...) or 0 (0.00...01) instead of actually 1 or 0,
-        #       whenever we run into this problem.
-        #
-        CP[(y == 1) & (CP == 0)] = np.nextafter(0.0, np.inf)
-        CP[(y == 0) & (CP == 1)] = np.nextafter(1.0, -np.inf)
-        # based on the G statistic (https://en.wikipedia.org/wiki/G-test)
-        loss = np.sum(2 * np.log(1.0 / CP[y == 1])) + np.sum(
-            2 * np.log(1.0 / (1 - CP[y == 0]))
-        )
-
-        if return_val == "G_noCP":
-            # for scipy.optimize.minimize, we must return a single float
-            return loss
-    else:
-        assert return_val == "sse"
-        loss = np.sum((y - CP) ** 2)
-
-    return loss, CP
 
 
 # %%
@@ -516,6 +306,10 @@ for sub in tqdm(SUBJS):
 _df = pd.DataFrame.from_dict(data)
 assert not np.any(~_df["success"])  # no failures
 
+# Save the data
+fname = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
+_df.to_csv(fname, sep="\t", na_rep="n/a", index=False)
+
 # %%
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(1, 5, figsize=(10, 5))
@@ -538,75 +332,6 @@ with sns.plotting_context("talk"):
 
 sns.despine(fig)
 fig.tight_layout()
-
-# %%
-# Plot weighting curves based on fit data
-
-# Get data
-sub = 1
-stream = "single"
-
-
-def calc_CP_weights(sub, stream, data_dir, minimize_method):
-    """Calculate decision weights based on model output `CP`.
-
-    Each weight is the mean of its associated CP values.
-
-    Parameters
-    ----------
-    sub :
-    stream :
-    data_dir :
-    minimize_method :
-
-    Returns
-    -------
-    weights : np.ndarray, shape(9,)
-        The weight for each of the 9 numbers in ascending
-        order (1 to 9).
-    position_weights : np.ndarray, shape(10, 9)
-        The weight for each of the 9 numbers in ascending
-        order, calculated for each of the 10 sample positions.
-
-    See Also
-    --------
-    calc_nonp_weights
-    """
-    # Get data for modeling
-    _, tsv = get_sourcedata(sub, stream, data_dir)
-    df = pd.read_csv(tsv, sep="\t")
-    df.insert(0, "subject", sub)
-
-    X, categories, y, y_true, ambiguous = prep_model_inputs(df)
-
-    # Get estimated parameters and predicted choices
-    parameters = get_estim_params(sub, stream, minimize_method, data_dir)
-
-    _, CP = psychometric_model(
-        parameters, X, categories, y, return_val="G", gain=None, gnorm=False
-    )
-
-    # prepare weighting data
-    nsamples = 10
-    weights_df, _, samples, _, positions = prep_weight_calc(df, nsamples)
-
-    # repeat CP for each sample
-    CPs = np.repeat(CP, nsamples)
-
-    # Calculate weights
-    numbers = np.arange(1, 10, dtype=int)
-    weights = np.zeros(len(numbers))
-    position_weights = np.zeros((nsamples, len(numbers)))
-    for inumber, number in enumerate(numbers):
-
-        # overall weights
-        weights[inumber] = np.mean(CPs[samples == number])
-
-        # weights for each sample position
-        for pos in np.unique(positions):
-            position_weights[pos, inumber] = np.mean(
-                CPs[(samples == number) & (positions == pos)]
-            )
 
 
 # %%

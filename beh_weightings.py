@@ -14,7 +14,14 @@ from config import (
     STREAMS,
     SUBJS,
 )
-from utils import eq1, get_sourcedata, prep_weight_calc
+from utils import (
+    eq1,
+    get_estim_params,
+    get_sourcedata,
+    prep_model_inputs,
+    prep_weight_calc,
+    psychometric_model,
+)
 
 # %%
 # Settings
@@ -22,9 +29,12 @@ numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1, +1))
 
 positions = np.arange(10)
 
+minimize_method = "Nelder-Mead"
+
 # %%
 # Prepare file paths
 analysis_dir = ANALYSIS_DIR_LOCAL
+data_dir = DATA_DIR_LOCAL
 
 # %%
 # Define function to calculate weights
@@ -132,133 +142,257 @@ def calc_nonp_weights(df, nsamples=10):
     return weights, position_weights
 
 
+def calc_CP_weights(sub, stream, data_dir, analysis_dir, minimize_method):
+    """Calculate decision weights based on model output `CP`.
+
+    Each weight is the mean of its associated CP values.
+
+    Parameters
+    ----------
+    sub : int
+        Which subject the data should be based on.
+    stream : {"single", "dual"}
+        The stream this data should be based on.
+    data_dir : pathlib.Path
+        The path to the data directory.
+    analysis_dir : pathlib.Path
+        The path to the analysis directory.
+    minimize_method : {"Neldar-Mead", "L-BFGS-B", "Powell"}
+        The method with which the parameters were estimated.
+
+    Returns
+    -------
+    weights : np.ndarray, shape(9,)
+        The weight for each of the 9 numbers in ascending
+        order (1 to 9).
+    position_weights : np.ndarray, shape(10, 9)
+        The weight for each of the 9 numbers in ascending
+        order, calculated for each of the 10 sample positions.
+
+    See Also
+    --------
+    calc_nonp_weights
+    """
+    # Get data for modeling
+    _, tsv = get_sourcedata(sub, stream, data_dir)
+    df = pd.read_csv(tsv, sep="\t")
+    df.insert(0, "subject", sub)
+
+    X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+
+    # Get estimated parameters and predicted choices
+    parameters = get_estim_params(sub, stream, minimize_method, analysis_dir)
+
+    _, CP = psychometric_model(
+        parameters, X, categories, y, return_val="G", gain=None, gnorm=False
+    )
+
+    # prepare weighting data
+    nsamples = 10
+    weights_df, _, samples, colors, positions = prep_weight_calc(df, nsamples)
+
+    # repeat CP for each sample
+    CPs = np.repeat(CP, nsamples)
+
+    # Calculate weights
+    numbers = np.arange(1, 10, dtype=int)
+    weights = np.zeros(len(numbers))
+    position_weights = np.zeros((nsamples, len(numbers)))
+    for inumber, number in enumerate(numbers):
+
+        # overall weights
+        if stream == "single":
+            weights[inumber] = np.mean(CPs[samples == number])
+        else:
+            assert stream == "dual"
+            weights[inumber] = np.mean(
+                np.hstack(
+                    [
+                        CPs[(samples == number) & (colors == 1)],
+                        (1 - CPs[(samples == number) & (colors == 0)]),
+                    ]
+                )
+            )
+
+        # weights for each sample position
+        for pos in np.unique(positions):
+
+            if stream == "single":
+                position_weights[pos, inumber] = np.mean(
+                    CPs[(samples == number) & (positions == pos)]
+                )
+            else:
+                assert stream == "dual"
+                position_weights[pos, inumber] = np.mean(
+                    np.hstack(
+                        [
+                            CPs[
+                                (samples == number) & (colors == 1) & (positions == pos)
+                            ],
+                            (
+                                1
+                                - CPs[
+                                    (samples == number)
+                                    & (colors == 0)
+                                    & (positions == pos)
+                                ]
+                            ),
+                        ]
+                    )
+                )
+
+    return weights, position_weights
+
+
 # %%
 # calculate weights over subjects
+wtypes = ["data", "model"]
 weight_dfs = []
 posweight_dfs = []
 for sub in SUBJS:
     for stream in STREAMS:
 
-        _, tsv = get_sourcedata(sub, stream, DATA_DIR_LOCAL)
+        _, tsv = get_sourcedata(sub, stream, data_dir)
         df = pd.read_csv(tsv, sep="\t")
 
-        weights, position_weights = calc_nonp_weights(df)
+        for wtype in wtypes:
+            if wtype == "data":
+                weights, position_weights = calc_nonp_weights(df)
+            elif wtype == "model":
+                weights, position_weights = calc_CP_weights(
+                    sub, stream, data_dir, analysis_dir, minimize_method
+                )
+            else:
+                raise RuntimeError("unrecognized `wtype`")
 
-        # save in DF
-        wdf = pd.DataFrame.from_dict(
-            dict(sub=sub, stream=stream, number=NUMBERS, weight=weights)
-        )
-        pwdf = pd.DataFrame.from_dict(
-            dict(
-                sub=[sub] * len(positions) * len(NUMBERS),
-                stream=[stream] * len(positions) * len(NUMBERS),
-                number=np.tile(NUMBERS, len(positions)),
-                position=np.tile(positions, len(NUMBERS)),
-                weight=position_weights.reshape(-1),
+            # save in DF
+            wdf = pd.DataFrame.from_dict(
+                dict(
+                    sub=sub,
+                    stream=stream,
+                    number=NUMBERS,
+                    weight=weights,
+                    weight_type=wtype,
+                )
             )
-        )
+            pwdf = pd.DataFrame.from_dict(
+                dict(
+                    sub=[sub] * len(positions) * len(NUMBERS),
+                    stream=[stream] * len(positions) * len(NUMBERS),
+                    number=np.tile(NUMBERS, len(positions)),
+                    position=np.tile(positions, len(NUMBERS)),
+                    weight=position_weights.reshape(-1),
+                    weight_type=wtype,
+                )
+            )
 
-        weight_dfs.append(wdf)
-        posweight_dfs.append(pwdf)
+            weight_dfs.append(wdf)
+            posweight_dfs.append(pwdf)
 
-# save to files
 weightdata = pd.concat(weight_dfs)
-fname = analysis_dir / "derived_data" / "weights.tsv"
-weightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
-
 posweightdata = pd.concat(posweight_dfs)
-fname = analysis_dir / "derived_data" / "posweights.tsv"
-posweightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
+# %%
+# save to files
+# (save only nonp weights for now)
 
-# plot weights
-fig, ax = plt.subplots()
-sns.pointplot(
-    x="number", y="weight", hue="stream", data=weightdata, ax=ax, dodge=False, ci=68
+
+fname = analysis_dir / "derived_data" / "weights.tsv"
+weightdata[weightdata["weight_type"] == "data"].to_csv(
+    fname, columns=weightdata.columns[:-1], sep="\t", na_rep="n/a", index=False
 )
-ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
 
-fname = analysis_dir / "figures" / "weights.jpg"
+fname = analysis_dir / "derived_data" / "posweights.tsv"
+posweightdata[posweightdata["weight_type"] == "data"].to_csv(
+    fname, columns=posweightdata.columns[:-1], sep="\t", na_rep="n/a", index=False
+)
 
+# %%
+# plot weights
+plotkwargs = dict(
+    x="number",
+    y="weight",
+    data=weightdata,
+    dodge=False,
+    ci=68,
+)
+plotgrid = True
+if plotgrid:
+    grid = sns.catplot(
+        hue="weight_type",
+        col="stream",
+        kind="point",
+        **plotkwargs,
+    )
+else:
+    fig, ax = plt.subplots()
+    sns.pointplot(
+        hue="stream",
+        **plotkwargs,
+    )
+    ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
 
 # plot regression lines per task
-_tmp = weightdata.groupby(["stream", "number"])["weight"].mean().reset_index()
-for _stream, _color in zip(["single", "dual"], ["C0", "C1"]):
-    xy = _tmp[_tmp["stream"] == _stream][["number", "weight"]].to_numpy()
-    m, b = np.polyfit(xy[:, 0], xy[:, 1], 1)
-    plt.plot(np.arange(9), m * xy[:, 0] + b, color=_color)
+plot_reg_lines = True
+if plot_reg_lines and not plotgrid:
+    _tmp = weightdata.groupby(["stream", "number"])["weight"].mean().reset_index()
+    for _stream, _color in zip(["single", "dual"], ["C0", "C1"]):
+        xy = _tmp[_tmp["stream"] == _stream][["number", "weight"]].to_numpy()
+        m, b = np.polyfit(xy[:, 0], xy[:, 1], 1)
+        ax.plot(np.arange(9), m * xy[:, 0] + b, color=_color)
 
 # optional horizontal, vertical, and diagonal (=linear weights) reference lines
 plot_ref_lines = False
-if plot_ref_lines:
+if plot_ref_lines and not plotgrid:
     ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
     ax.axvline(4, linestyle="--", color="black", lw=0.5)
     ax.plot(np.arange(9), np.linspace(0, 1, 9), linestyle="--", color="black", lw=0.5)
     fname = str(fname).replace(".jpg", "_reflines.jpg")
 
-sns.despine(fig)
-fig.savefig(fname)
-
+fname = analysis_dir / "figures" / "weights.jpg"
+if plotgrid:
+    sns.despine(grid.fig)
+    grid.fig.savefig(fname)
+else:
+    sns.despine(fig)
+    fig.savefig(fname)
 
 # %%
 # plot weights over positions: numbers as hue
-fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
+g = sns.catplot(
+    x="position",
+    y="weight",
+    hue="number",
+    data=posweightdata,
+    dodge=False,
+    ci=68,
+    palette="crest_r",
+    col="stream",
+    row="weight_type",
+    kind="point",
+)
 
-for stream, ax in zip(STREAMS, axs):
-
-    sns.pointplot(
-        x="position",
-        y="weight",
-        hue="number",
-        data=posweightdata[posweightdata["stream"] == stream],
-        ax=ax,
-        dodge=False,
-        ci=68,
-        palette="crest_r",
-    )
-    ax.set_title(stream)
-    ax.set_ylim(None, 0.85)
-    ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
-    if stream == "single":
-        ax.get_legend().remove()
-    else:
-        ax.legend(ncol=5, title="number")
-
-fig.tight_layout()
-sns.despine(fig)
 fname = analysis_dir / "figures" / "posweights_numberhue.jpg"
-fig.savefig(fname)
+g.fig.savefig(fname)
 
 # %%
 # plot weights over positions: positions as hue
-fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
-for stream, ax in zip(STREAMS, axs):
+data = posweightdata[posweightdata["position"].isin([0, 9])]
+g = sns.catplot(
+    x="number",
+    y="weight",
+    hue="position",
+    data=data,
+    col="stream",
+    row="weight_type",
+    kind="point",
+    dodge=False,
+    ci=68,
+    palette="crest_r",
+)
 
-    data = posweightdata[
-        (posweightdata["stream"] == stream) & (posweightdata["position"].isin([0, 9]))
-    ]
-    # data = posweightdata[posweightdata["stream"] == stream]  # this is too crowded
-
-    sns.pointplot(
-        x="number",
-        y="weight",
-        hue="position",
-        data=data,
-        ax=ax,
-        dodge=False,
-        ci=68,
-        palette="crest_r",
-    )
-    ax.set_title(stream)
-    ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
-    if stream == "single":
-        ax.get_legend().remove()
-    else:
-        ax.legend(ncol=5, title="position")
-
-fig.tight_layout()
-sns.despine(fig)
 fname = analysis_dir / "figures" / "posweights_positionhue.jpg"
-fig.savefig(fname)
+g.fig.savefig(fname)
+
 # %%
 # Plotting over- and underweighting according to model
 # numberline
