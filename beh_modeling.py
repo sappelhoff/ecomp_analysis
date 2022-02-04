@@ -2,6 +2,7 @@
 # %%
 import itertools
 import json
+import sys
 from functools import partial
 
 import matplotlib.pyplot as plt
@@ -12,7 +13,13 @@ from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
 
 from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, NUMBERS, STREAMS, SUBJS
-from utils import eq2, get_sourcedata, prep_model_inputs, psychometric_model
+from utils import (
+    eq2,
+    get_sourcedata,
+    parse_overwrite,
+    prep_model_inputs,
+    psychometric_model,
+)
 
 # %%
 # Settings
@@ -29,6 +36,20 @@ analysis_dir = ANALYSIS_DIR_LOCAL
 data_dir = DATA_DIR_LOCAL
 
 fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
+
+# %%
+# When not in an IPython session, get command line inputs
+# https://docs.python.org/3/library/sys.html#sys.ps1
+if not hasattr(sys, "ps1"):
+    defaults = dict(
+        analysis_dir=analysis_dir,
+        data_dir=data_dir,
+    )
+
+    defaults = parse_overwrite(defaults)
+
+    analysis_dir = defaults["analysis_dir"]
+    data_dir = defaults["data_dir"]
 
 # %%
 # fit model
