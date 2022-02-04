@@ -20,12 +20,15 @@ numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1, +1))
 
 param_names = ["bias", "kappa", "leakage", "noise"]
 
+minimize_method = "Nelder-Mead"
+
 # %%
 # Prepare file paths
 
 analysis_dir = ANALYSIS_DIR_LOCAL
 data_dir = DATA_DIR_LOCAL
 
+fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
 
 # %%
 # fit model
@@ -227,10 +230,7 @@ fig.tight_layout()
 # %%
 # Try fitting parameters
 # Use a method that can work with bounds. "L-BFGS-B" is scipy default.
-minimize_method = "Nelder-Mead"  # "Nelder-Mead", "L-BFGS-B", "Powell"
-# minimize_method = "L-BFGS-B"  # "Nelder-Mead", "L-BFGS-B", "Powell"
-# minimize_method = "Powell"  # "Nelder-Mead", "L-BFGS-B", "Powell"
-
+# "Nelder-Mead", "L-BFGS-B", "Powell" work
 minimize_method_opts = {
     "Nelder-Mead": dict(maxiter=1000),
     "L-BFGS-B": dict(
@@ -248,6 +248,9 @@ leakage0 = 0
 noise0 = 0.1
 
 x0 = np.array([bias0, kappa0, leakage0, noise0])
+
+if fname_estimates.exists():
+    _df_prev = pd.read_csv(fname_estimates, sep="\t")
 
 # boundaries for params (in order)
 lower = np.array([-1, 0, 0, 0.01], dtype=float)
@@ -307,8 +310,9 @@ _df = pd.DataFrame.from_dict(data)
 assert not np.any(~_df["success"])  # no failures
 
 # Save the data
-fname = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
-_df.to_csv(fname, sep="\t", na_rep="n/a", index=False)
+if fname_estimates.exists():
+    pd.testing.assert_frame_equal(_df, _df_prev)
+_df.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 
 # %%
 with sns.plotting_context("talk"):
@@ -333,6 +337,87 @@ with sns.plotting_context("talk"):
 sns.despine(fig)
 fig.tight_layout()
 
+# %%
+# Run large set of (reasonable) initial start values per subj to find best ones
+
+# Set reasonable bounds for the parameters (in param_names order)
+lower = np.array([-1, 0, 0, 0.01], dtype=float)
+upper = np.array([1, 5, 1, 5], dtype=float)
+bounds = Bounds(lower, upper)
+
+# Draw random initial values for the parameters
+bias0s = np.arange(-5, 6) / 10
+kappa0s = np.arange(0.2, 2.2, 0.2)
+leakage0s = np.arange(0, 1.25, 0.25)
+noise0s = np.arange(0.1, 1.1, 0.1)
+
+x0s = list(itertools.product(bias0s, kappa0s, leakage0s, noise0s))
+
+# Estimate parameters based on initial values for each dataset
+# we save columns: sub-stream_idx-ix0-res.success-res.fun-x0-res.x
+# = sub*streams*x0s rows
+# takes about 125ms per fit, so (125*nrows)/1000 seconds overall
+nrows = len(SUBJS) * len(STREAMS) * len(x0s)
+secs = (125 * nrows) / 1000
+print(f"Will run for about {secs} seconds ({secs/60/60:.2f}) hours.")
+estimates = np.full(
+    (len(x0s) * len(SUBJS) * len(STREAMS), 5 + len(param_names) * 2), np.nan
+)
+rowcount = 0
+for sub in tqdm(SUBJS):
+    for stream in STREAMS:
+        for ix0, x0 in enumerate(x0s):
+            _, tsv = get_sourcedata(sub, stream, data_dir)
+            df = pd.read_csv(tsv, sep="\t")
+            df.insert(0, "subject", sub)
+
+            X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+
+            # Add non-changing arguments to function
+            kwargs = dict(
+                X=X,
+                categories=categories,
+                y=y,
+                return_val="G_noCP",
+                gain=None,
+                gnorm=False,
+            )
+            fun = partial(psychometric_model, **kwargs)
+
+            # estimate
+            res = minimize(
+                fun=fun,
+                x0=x0,
+                method=minimize_method,
+                bounds=bounds,
+                options=minimize_method_opts,
+            )
+
+            estimates[rowcount, ...] = np.array(
+                [sub, STREAMS.index(stream), ix0, res.success, res.fun, *x0, *res.x]
+            )
+            rowcount += 1
+
+# Save as npy
+fname = str(fname_estimates).replace(".tsv", ".npy")
+np.save(fname, estimates)
+
+# turn into DataFrame
+df_estimates = pd.DataFrame(
+    estimates,
+    columns=[
+        "subject",
+        "stream_idx",
+        "ix0",
+        "success",
+        "loss",
+        *[i + "0" for i in param_names],
+        *param_names,
+    ],
+)
+
+# got any failures?
+not ~df_estimates["success"].to_numpy(dtype=bool).any()
 
 # %%
 # Fit all data as if from single subject
