@@ -179,7 +179,7 @@ weightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
 posweightdata = pd.concat(posweight_dfs)
 fname = analysis_dir / "derived_data" / "posweights.tsv"
-weightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
+posweightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
 # plot weights
 fig, ax = plt.subplots()
