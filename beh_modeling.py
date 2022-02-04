@@ -36,6 +36,7 @@ analysis_dir = ANALYSIS_DIR_LOCAL
 data_dir = DATA_DIR_LOCAL
 
 fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
+fname_estimates.parent.mkdir(parents=True, exist_ok=True)
 
 # %%
 # When not in an IPython session, get command line inputs
