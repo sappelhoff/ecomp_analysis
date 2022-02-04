@@ -9,6 +9,7 @@ import mne
 import numpy as np
 import pandas as pd
 import scipy.special
+from numba import njit
 
 from config import DEFAULT_RNG_SEED
 
@@ -189,6 +190,7 @@ def parse_overwrite(defaults):
     return defaults
 
 
+@njit
 def eq1(X, bias, kappa):
     """Implement equation 1 from Spitzer et al. 2017 [1]_, [2]_.
 

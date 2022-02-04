@@ -139,9 +139,9 @@ def psychometric_model(
         The choices per participant and stream. Each entry is the choice on a
         given trial. Can be ``0`` or ``1``. In single stream condition,
         0: "lower", 1: "higher". In dual stream condition: 0: "red", 1: "blue".
-    return_val : {"neglog", "neglog_noCP", "sse"}
-        Whether to return negative log likelihood or sum of squared errors.
-        ``"neglog_noCP"`` returns the negative log likelihood *without*
+    return_val : {"G", "G_noCP", "sse"}
+        Whether to return G-statistic based loss or sum of squared errors.
+        ``"G_noCP"`` returns the G-statistic based loss *without*
         the additional `CP` return value.
     gain : np.ndarray, shape(n, 10) | None
         The gain normalization factor, where `n` is ``1`` if gain
@@ -155,11 +155,11 @@ def psychometric_model(
     Returns
     -------
     loss : float
-        Either the "negative log likelihood" or the "sum of squared errors"
-        of the model, depending on `return_val`.
+        To be minimized for parameter estimated. Either based on the G statistic or
+        the "sum of squared errors" of the model, depending on `return_val`.
     CP : np.ndarray, shape(n,)
         The probability to choose 1 instead of 0. One value per trial (`n` trials).
-        Not returned if `return_val` is ``"neglog_noCP"``.
+        Not returned if `return_val` is ``"G_noCP"``.
 
 
     References
@@ -189,7 +189,7 @@ def psychometric_model(
     CP = eq4(DV, noise=noise)
 
     # Compute "model fit"
-    if return_val in ["neglog", "neglog_noCP"]:
+    if return_val in ["G", "G_noCP"]:
         # fix floating point issues to avoid log(0) = -inf
         # NOTE: These issues happen mostly when `noise` is very
         #       low (<0.1), and the subject chose an option opposite
@@ -217,8 +217,12 @@ def psychometric_model(
         #
         CP[(y == 1) & (CP == 0)] = np.nextafter(0.0, np.inf)
         CP[(y == 0) & (CP == 1)] = np.nextafter(1.0, -np.inf)
-        loss = np.sum(-np.log(CP[y == 1])) + np.sum(-np.log(1.0 - CP[y == 0]))
-        if return_val == "neglog_noCP":
+        # based on the G statistic (https://en.wikipedia.org/wiki/G-test)
+        loss = np.sum(2 * np.log(1.0 / CP[y == 1])) + np.sum(
+            2 * np.log(1.0 / (1 - CP[y == 0]))
+        )
+
+        if return_val == "G_noCP":
             # for scipy.optimize.minimize, we must return a single float
             return loss
     else:
@@ -234,7 +238,7 @@ bias = 0
 kappa = 1
 leakage = 0
 noise = 0.01
-return_val = "neglog"
+return_val = "G"
 
 simulation = {
     param: ({"subject": [], "stream": [], "accuracy": [], param: []}, xs, kwargs)
@@ -340,7 +344,7 @@ X, categories, y, y_true, ambiguous = prep_model_inputs(df)
 # Leave bias and leakage at standard values
 bias = 0
 leakage = 0
-return_val = "neglog"
+return_val = "G"
 
 # Vary kappa and noise
 n = 101
@@ -427,6 +431,20 @@ fig.tight_layout()
 
 # %%
 # Try fitting parameters
+# Use a method that can work with bounds. "L-BFGS-B" is scipy default.
+minimize_method = "Nelder-Mead"  # "Nelder-Mead", "L-BFGS-B", "Powell"
+# minimize_method = "L-BFGS-B"  # "Nelder-Mead", "L-BFGS-B", "Powell"
+# minimize_method = "Powell"  # "Nelder-Mead", "L-BFGS-B", "Powell"
+
+minimize_method_opts = {
+    "Nelder-Mead": dict(maxiter=1000),
+    "L-BFGS-B": dict(
+        maxiter=1000, eps=1e-3
+    ),  # https://stats.stackexchange.com/a/167199/148275
+    "Powell": dict(
+        maxiter=1000,
+    ),
+}[minimize_method]
 
 # Initial parameter values
 bias0 = 0
@@ -451,7 +469,8 @@ data = {
     "leakage": [],
     "noise": [],
 }
-for sub in SUBJS:
+
+for sub in tqdm(SUBJS):
     for stream in streams:
 
         _, tsv = get_sourcedata(sub, stream, data_dir)
@@ -465,7 +484,7 @@ for sub in SUBJS:
             X=X,
             categories=categories,
             y=y,
-            return_val="neglog_noCP",
+            return_val="G_noCP",
             gain=None,
             gnorm=False,
         )
@@ -475,9 +494,9 @@ for sub in SUBJS:
         res = minimize(
             fun=fun,
             x0=x0,
-            method="Nelder-Mead",
+            method=minimize_method,
             bounds=bounds,
-            options=dict(maxiter=1000),
+            options=minimize_method_opts,
         )
 
         data["subject"].append(sub)
@@ -498,7 +517,8 @@ with sns.plotting_context("talk"):
     for iparam, param in enumerate(["bias", "kappa", "leakage", "noise", "loss"]):
         ax = axs.flat[iparam]
 
-        sns.pointplot(x="stream", y=param, data=_df, ci=68, ax=ax)
+        sns.stripplot(x="stream", y=param, data=_df, ax=ax)
+        sns.pointplot(x="stream", y=param, data=_df, ci=68, ax=ax, color="black")
 
         if param == "bias":
             ax.axhline(0, c="black", ls="--", lw=0.5)
@@ -534,39 +554,43 @@ upper = np.array([1, 5, 1, 5], dtype=float)
 bounds = Bounds(lower, upper)
 
 # Collect all data as if from "single subject" (fixed effects)
-results = np.full((len(x0s), 2, 4), np.nan)  # init_vals X stream X params
-for ix0, x0 in enumerate(tqdm(x0s)):
-
+df_single_sub = []
+for sub in SUBJS:
     for istream, stream in enumerate(streams):
+        _, tsv = get_sourcedata(sub, stream, data_dir)
+        df = pd.read_csv(tsv, sep="\t")
+        df.insert(0, "subject", sub)
+        df_single_sub.append(df)
 
-        df_single_sub = []
-        for sub in SUBJS:
-            _, tsv = get_sourcedata(sub, stream, data_dir)
-            df = pd.read_csv(tsv, sep="\t")
-            df.insert(0, "subject", sub)
-            df_single_sub.append(df)
+df_single_sub = pd.concat(df_single_sub)
 
-        df_single_sub = pd.concat(df_single_sub)
+# go through different initial values per stream
+results = np.full((len(x0s), 2, 4), np.nan)  # init_vals X stream X params
+for istream, stream in enumerate(streams):
 
-        X, categories, y, y_true, ambiguous = prep_model_inputs(
-            df_single_sub[df_single_sub["stream"] == stream]
-        )
-        kwargs = dict(
-            X=X,
-            categories=categories,
-            y=y,
-            return_val="neglog_noCP",
-            gain=None,
-            gnorm=False,
-        )
-        fun = partial(psychometric_model, **kwargs)
+    X, categories, y, y_true, ambiguous = prep_model_inputs(
+        df_single_sub[df_single_sub["stream"] == stream]
+    )
+
+    kwargs = dict(
+        X=X,
+        categories=categories,
+        y=y,
+        return_val="G_noCP",
+        gain=None,
+        gnorm=False,
+    )
+
+    fun = partial(psychometric_model, **kwargs)
+
+    for ix0, x0 in enumerate(tqdm(x0s)):
 
         res = minimize(
             fun=fun,
             x0=x0,
-            method="Nelder-Mead",
+            method=minimize_method,
             bounds=bounds,
-            options=dict(maxiter=1000),
+            options=minimize_method_opts,
         )
 
         assert res.success
