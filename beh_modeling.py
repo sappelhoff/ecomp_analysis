@@ -4,6 +4,7 @@ import itertools
 import json
 import sys
 from functools import partial
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,6 +33,8 @@ minimize_method = "Nelder-Mead"
 analysis_dir = ANALYSIS_DIR_LOCAL
 data_dir = DATA_DIR_LOCAL
 
+overwrite = False
+
 # %%
 # When not in an IPython session, get command line inputs
 # https://docs.python.org/3/library/sys.html#sys.ps1
@@ -39,12 +42,14 @@ if not hasattr(sys, "ps1"):
     defaults = dict(
         analysis_dir=analysis_dir,
         data_dir=data_dir,
+        overwrite=overwrite,
     )
 
     defaults = parse_overwrite(defaults)
 
     analysis_dir = defaults["analysis_dir"]
     data_dir = defaults["data_dir"]
+    overwrite = defaults["overwrite"]
 
 # %%
 # Prepare file paths
@@ -56,7 +61,7 @@ fname_estimates.parent.mkdir(parents=True, exist_ok=True)
 bias = 0
 kappa = 1
 leakage = 0
-noise = 0.01
+noise = 0.1
 return_val = "G"
 
 simulation = {
@@ -361,67 +366,75 @@ fig.tight_layout()
 # %%
 # Run large set of (reasonable) initial start values per subj to find best ones
 
-# Set reasonable bounds for the parameters (in param_names order)
-lower = np.array([-1, 0, 0, 0.01], dtype=float)
-upper = np.array([1, 5, 1, 5], dtype=float)
-bounds = Bounds(lower, upper)
-
 # Draw random initial values for the parameters
 bias0s = np.arange(-5, 6) / 10
 kappa0s = np.arange(0.2, 2.2, 0.2)
 leakage0s = np.arange(0, 1.25, 0.25)
 noise0s = np.arange(0.1, 1.1, 0.1)
 
-x0s = list(itertools.product(bias0s, kappa0s, leakage0s, noise0s))
 
-# Estimate parameters based on initial values for each dataset
-# we save columns: sub-stream_idx-ix0-res.success-res.fun-x0-res.x
-# = sub*streams*x0s rows
-# takes about 125ms per fit, so (125*nrows)/1000 seconds overall
-nrows = len(SUBJS) * len(STREAMS) * len(x0s)
-secs = (125 * nrows) / 1000
-print(f"Will run for about {secs} seconds ({secs/60/60:.2f}) hours.")
-estimates = np.full(
-    (len(x0s) * len(SUBJS) * len(STREAMS), 5 + len(param_names) * 2), np.nan
-)
-rowcount = 0
-for sub in tqdm(SUBJS):
-    for stream in STREAMS:
-        for ix0, x0 in enumerate(x0s):
-            _, tsv = get_sourcedata(sub, stream, data_dir)
-            df = pd.read_csv(tsv, sep="\t")
-            df.insert(0, "subject", sub)
+fname = Path(str(fname_estimates).replace(".tsv", ".npy"))
+if not fname.exists() or overwrite:
+    # Set reasonable bounds for the parameters (in param_names order)
+    lower = np.array([-1, 0, 0, 0.01], dtype=float)
+    upper = np.array([1, 5, 1, 5], dtype=float)
+    bounds = Bounds(lower, upper)
 
-            X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+    x0s = list(itertools.product(bias0s, kappa0s, leakage0s, noise0s))
 
-            # Add non-changing arguments to function
-            kwargs = dict(
-                X=X,
-                categories=categories,
-                y=y,
-                return_val="G_noCP",
-                gain=None,
-                gnorm=False,
-            )
-            fun = partial(psychometric_model, **kwargs)
+    # Estimate parameters based on initial values for each dataset
+    # we save columns: sub-stream_idx-ix0-res.success-res.fun-x0-res.x
+    # = sub*streams*x0s rows
+    # takes about 125ms per fit, so (125*nrows)/1000 seconds overall
+    nrows = len(SUBJS) * len(STREAMS) * len(x0s)
+    secs = (125 * nrows) / 1000
+    print(f"Will run for about {secs} seconds ({secs/60/60:.2f}) hours.")
+    estimates = np.full(
+        (len(x0s) * len(SUBJS) * len(STREAMS), 5 + len(param_names) * 2), np.nan
+    )
+    rowcount = 0
+    for sub in tqdm(SUBJS):
+        for stream in STREAMS:
+            for ix0, x0 in enumerate(x0s):
+                _, tsv = get_sourcedata(sub, stream, data_dir)
+                df = pd.read_csv(tsv, sep="\t")
+                df.insert(0, "subject", sub)
 
-            # estimate
-            res = minimize(
-                fun=fun,
-                x0=x0,
-                method=minimize_method,
-                bounds=bounds,
-                options=minimize_method_opts,
-            )
+                X, categories, y, y_true, ambiguous = prep_model_inputs(df)
 
-            estimates[rowcount, ...] = np.array(
-                [sub, STREAMS.index(stream), ix0, res.success, res.fun, *x0, *res.x]
-            )
-            rowcount += 1
+                # Add non-changing arguments to function
+                kwargs = dict(
+                    X=X,
+                    categories=categories,
+                    y=y,
+                    return_val="G_noCP",
+                    gain=None,
+                    gnorm=False,
+                )
+                fun = partial(psychometric_model, **kwargs)
 
-# Save as npy
-fname = str(fname_estimates).replace(".tsv", ".npy")
-np.save(fname, estimates)
+                # estimate
+                res = minimize(
+                    fun=fun,
+                    x0=x0,
+                    method=minimize_method,
+                    bounds=bounds,
+                    options=minimize_method_opts,
+                )
+
+                estimates[rowcount, ...] = np.array(
+                    [sub, STREAMS.index(stream), ix0, res.success, res.fun, *x0, *res.x]
+                )
+                rowcount += 1
+
+    # Save as npy
+    assert not fname.exists() or overwrite
+    np.save(fname, estimates)
+
+else:
+    # load if already saved
+    print(f"Start value npy file already exists: {fname}\n\nLoading ...")
+    estimates = np.load(fname)
 
 # turn into DataFrame
 df_estimates = pd.DataFrame(
@@ -437,8 +450,95 @@ df_estimates = pd.DataFrame(
     ],
 )
 
-# got any failures?
-not ~df_estimates["success"].to_numpy(dtype=bool).any()
+# sanitize columns
+df_estimates = df_estimates.astype(
+    {"subject": int, "stream_idx": int, "ix0": int, "success": bool}
+)
+df_estimates["stream"] = df_estimates["stream_idx"].map(dict(zip(range(2), STREAMS)))
+
+# drop failed estimations
+nfail = np.sum(~df_estimates["success"].to_numpy())
+print(f"{(nfail/len(df_estimates)*100):.2f}% of fitting procedures failed.")
+print("...selecting only successful fits")
+df_estimates = df_estimates[df_estimates["success"].to_numpy()]
+
+# Get the best fitting start values and estimates per subj and stream
+df_bestfits = df_estimates.loc[
+    df_estimates.groupby(["subject", "stream"])["loss"].idxmin()
+]
+assert len(df_bestfits) == len(SUBJS) * len(STREAMS)
+
+# %%
+# Plot info on initial start values
+
+# plot distribution of "losses" per stream and subject,
+# depending on start values
+with sns.plotting_context("talk"):
+    g = sns.catplot(
+        kind="violin",
+        data=df_estimates,
+        x="stream",
+        y="loss",
+        col="subject",
+        col_wrap=5,
+    )
+
+# plot distribution of best fitting initial start values
+df_startval = df_bestfits[["subject", "stream", *[i + "0" for i in param_names]]].melt(
+    id_vars=["subject", "stream"], var_name="parameter", value_name="initial value"
+)
+
+kwargs = dict(
+    x="parameter",
+    y="initial value",
+    hue="stream",
+    data=df_startval,
+    dodge=True,
+)
+with sns.plotting_context("talk"):
+    fig, ax = plt.subplots()
+    sns.pointplot(
+        **kwargs,
+        ci=68,
+        ax=ax,
+        join=False,
+    )
+    sns.stripplot(
+        **kwargs,
+        ax=ax,
+    )
+    sns.despine(fig)
+    title = (
+        "Best fitting initial values over subjects\n"
+        "thin black lines indicate ranges from which\n"
+        "initial values were tried out"
+    )
+    ax.set_title(title)
+    handles, labels = ax.get_legend_handles_labels()
+    sns.move_legend(
+        obj=ax,
+        loc="upper left",
+        bbox_to_anchor=(1, 1),
+        frameon=False,
+        handles=handles[:2],
+        labels=labels[:2],
+    )
+
+    x0_bounds = [
+        bias0s.min(),
+        bias0s.max(),
+        kappa0s.min(),
+        kappa0s.max(),
+        leakage0s.min(),
+        leakage0s.max(),
+        noise0s.min(),
+        noise0s.max(),
+    ]
+    xmins = np.repeat(np.arange(-0.5, 3.5, 1), 2)
+    xmaxs = np.repeat(np.arange(0.5, 4.5, 1), 2)
+    ax.hlines(y=x0_bounds, xmin=xmins, xmax=xmaxs, color="black", ls="--", lw=0.5)
+
+# %%
 
 # %%
 # Fit all data as if from single subject
