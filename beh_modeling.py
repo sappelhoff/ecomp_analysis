@@ -341,13 +341,15 @@ if fname_estimates.exists():
 _df.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 
 # %%
+plot_single_subj = False
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(1, 5, figsize=(10, 5))
     for iparam, param in enumerate(["bias", "kappa", "leakage", "noise", "loss"]):
         ax = axs.flat[iparam]
 
-        sns.stripplot(x="stream", y=param, data=_df, ax=ax)
         sns.pointplot(x="stream", y=param, data=_df, ci=68, ax=ax, color="black")
+        if plot_single_subj:
+            sns.stripplot(x="stream", y=param, data=_df, ax=ax)
 
         if param == "bias":
             ax.axhline(0, c="black", ls="--", lw=0.5)
@@ -539,6 +541,39 @@ with sns.plotting_context("talk"):
     ax.hlines(y=x0_bounds, xmin=xmins, xmax=xmaxs, color="black", ls="--", lw=0.5)
 
 # %%
+# plot distribution of estimated params based on best fitting initial start values
+df_best_estims = df_bestfits[["subject", "stream", *param_names]].melt(
+    id_vars=["subject", "stream"], var_name="parameter", value_name="estimated value"
+)
+
+plot_single_subj = True
+with sns.plotting_context("talk"):
+    g = sns.catplot(
+        x="stream",
+        y="estimated value",
+        data=df_best_estims,
+        col="parameter",
+        sharey=False,
+        kind="point",
+        order=STREAMS,
+        ci=68,
+        color="black",
+    )
+
+    for param, ax in g.axes_dict.items():
+        ax.axhline(
+            dict(zip(param_names, [0, 1, 0, 0]))[param], c="black", ls="--", lw=0.5
+        )
+        if plot_single_subj:
+            sns.stripplot(
+                x="stream",
+                y="estimated value",
+                data=df_best_estims[df_best_estims["parameter"] == param],
+                order=STREAMS,
+                ax=ax,
+                zorder=0,
+            )
+
 
 # %%
 # Fit all data as if from single subject
