@@ -341,7 +341,8 @@ if fname_estimates.exists():
 _df.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 
 # %%
-plot_single_subj = False
+# Plot estimation results
+plot_single_subj = True
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(1, 5, figsize=(10, 5))
     for iparam, param in enumerate(["bias", "kappa", "leakage", "noise", "loss"]):
@@ -349,7 +350,7 @@ with sns.plotting_context("talk"):
 
         sns.pointplot(x="stream", y=param, data=_df, ci=68, ax=ax, color="black")
         if plot_single_subj:
-            sns.stripplot(x="stream", y=param, data=_df, ax=ax)
+            sns.stripplot(x="stream", y=param, data=_df, ax=ax, zorder=0)
 
         if param == "bias":
             ax.axhline(0, c="black", ls="--", lw=0.5)
@@ -460,7 +461,8 @@ df_estimates["stream"] = df_estimates["stream_idx"].map(dict(zip(range(2), STREA
 
 # drop failed estimations
 nfail = np.sum(~df_estimates["success"].to_numpy())
-print(f"{(nfail/len(df_estimates)*100):.2f}% of fitting procedures failed.")
+nstartvals = len(df_estimates)
+print(f"{(nfail/nstartvals)*100:.2f}% of fitting procedures failed.")
 print("...selecting only successful fits")
 df_estimates = df_estimates[df_estimates["success"].to_numpy()]
 
@@ -513,7 +515,7 @@ with sns.plotting_context("talk"):
     title = (
         "Best fitting initial values over subjects\n"
         "thin black lines indicate ranges from which\n"
-        "initial values were tried out"
+        f"{df_estimates['ix0'].max()} initial values were tried out per subj and stream"
     )
     ax.set_title(title)
     handles, labels = ax.get_legend_handles_labels()
@@ -577,14 +579,14 @@ with sns.plotting_context("talk"):
 
 # %%
 # Fit all data as if from single subject
-bias0s = (0, -0.1, 0.1)
-kappa0s = (0.5, 1, 2)
-leakage0s = (0, 0.2)
-noise0s = (0.01, 0.1, 0.2)
+_bias0s = (0, -0.1, 0.1)
+_kappa0s = (0.5, 1, 2)
+_leakage0s = (0, 0.2)
+_noise0s = (0.01, 0.1, 0.2)
 
 x0s = []
 for bias0, kappa0, leakage0, noise0 in itertools.product(
-    bias0s, kappa0s, leakage0s, noise0s
+    _bias0s, _kappa0s, _leakage0s, _noise0s
 ):
     x0s.append(np.array([bias0, kappa0, leakage0, noise0]))
 
@@ -605,8 +607,11 @@ for sub in SUBJS:
 df_single_sub = pd.concat(df_single_sub)
 
 # go through different initial values per stream
+do_fit = False
 results = np.full((len(x0s), 2, 4), np.nan)  # init_vals X stream X params
 for istream, stream in enumerate(STREAMS):
+    if not do_fit:
+        continue
 
     X, categories, y, y_true, ambiguous = prep_model_inputs(
         df_single_sub[df_single_sub["stream"] == stream]
@@ -637,28 +642,31 @@ for istream, stream in enumerate(STREAMS):
         results[ix0, istream, ...] = res.x
 
 # %%
-# Turn results into DataFrame
-_dfs = []
-for ires in range(len(x0s)):
-    _df = pd.DataFrame(results[ires, ...], columns=param_names)
-    _df["stream"] = STREAMS
-    _df["ix0s"] = ires
-    _dfs.append(_df)
-_df = pd.concat(_dfs)
-_df = _df.melt(id_vars=["ix0s", "stream"], var_name="parameter")
+# plot single subj "fixed effects" results
+if do_fit:
+    # Turn results into DataFrame
+    _dfs = []
+    for ires in range(len(x0s)):
+        _df = pd.DataFrame(results[ires, ...], columns=param_names)
+        _df["stream"] = STREAMS
+        _df["ix0s"] = ires
+        _dfs.append(_df)
+    _df = pd.concat(_dfs)
+    _df = _df.melt(id_vars=["ix0s", "stream"], var_name="parameter")
 
-# %%
-# Plot results from single subj
-with sns.plotting_context("talk"):
-    fig, ax = plt.subplots(figsize=(5, 6))
-    sns.stripplot(x="parameter", y="value", hue="stream", data=_df, ax=ax, alpha=0.5)
-    ax.axhline(1, ls="--", c="black", lw=0.5)
-    ax.axhline(0, ls="--", c="black", lw=0.5)
-    ax.legend(frameon=False)
-    ax.set_title(
-        "Estimation results\ndata combined over subjects ('fixed effects')\n"
-        f"over {len(x0s)} different start parameters"
-    )
-sns.despine(fig)
-fig.tight_layout()
+    # Plot results from single subj
+    with sns.plotting_context("talk"):
+        fig, ax = plt.subplots(figsize=(5, 6))
+        sns.stripplot(
+            x="parameter", y="value", hue="stream", data=_df, ax=ax, alpha=0.5
+        )
+        ax.axhline(1, ls="--", c="black", lw=0.5)
+        ax.axhline(0, ls="--", c="black", lw=0.5)
+        ax.legend(frameon=False)
+        ax.set_title(
+            "Estimation results\ndata combined over subjects ('fixed effects')\n"
+            f"over {len(x0s)} different start parameters"
+        )
+    sns.despine(fig)
+    fig.tight_layout()
 # %%
