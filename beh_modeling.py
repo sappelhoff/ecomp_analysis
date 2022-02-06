@@ -57,6 +57,10 @@ if not hasattr(sys, "ps1"):
 fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
 fname_estimates.parent.mkdir(parents=True, exist_ok=True)
 
+fname_estimates_best = (
+    analysis_dir / "derived_data" / f"estim_params_{minimize_method}_best.tsv"
+)
+
 # %%
 # fit model
 bias = 0
@@ -589,6 +593,12 @@ df_best_estims_wide = (
 )
 df_best_estims_wide.columns.name = None
 
+if fname_estimates_best.exists():
+    pd.testing.assert_frame_equal(
+        df_best_estims_wide, pd.read_csv(fname_estimates_best, sep="\t")
+    )
+df_best_estims_wide.to_csv(fname_estimates_best, sep="\t", na_rep="n/a", index=False)
+
 df_best_estims_wide["init_vals"] = "specific"
 df_fixed["init_vals"] = "fixed"
 df_both = pd.concat([df_best_estims_wide, df_fixed])
@@ -617,10 +627,12 @@ statsout.head()
 
 # %%
 # Compare mean loss between estimates based on fixed vs. specific start values
-g = sns.catplot(
-    kind="point", x="init_vals", y="loss", col="stream", data=df_both, ci=68
-)
+with sns.plotting_context("talk"):
+    g = sns.catplot(
+        kind="point", x="init_vals", y="loss", col="stream", data=df_both, ci=68
+    )
 
+df_both.groupby(["stream", "init_vals"])["loss"].describe()
 
 # %%
 # Fit all data as if from single subject

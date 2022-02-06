@@ -142,7 +142,7 @@ def calc_nonp_weights(df, nsamples=10):
     return weights, position_weights
 
 
-def calc_CP_weights(sub, stream, data_dir, analysis_dir, minimize_method):
+def calc_CP_weights(sub, stream, data_dir, analysis_dir, minimize_method, slug=""):
     """Calculate decision weights based on model output `CP`.
 
     Each weight is the mean of its associated CP values.
@@ -159,6 +159,9 @@ def calc_CP_weights(sub, stream, data_dir, analysis_dir, minimize_method):
         The path to the analysis directory.
     minimize_method : {"Neldar-Mead", "L-BFGS-B", "Powell"}
         The method with which the parameters were estimated.
+    slug : str
+        Some string to pass to `get_estim_params` for getting
+        the right data, if needed. Defaults to an empty string.
 
     Returns
     -------
@@ -181,7 +184,7 @@ def calc_CP_weights(sub, stream, data_dir, analysis_dir, minimize_method):
     X, categories, y, y_true, ambiguous = prep_model_inputs(df)
 
     # Get estimated parameters and predicted choices
-    parameters = get_estim_params(sub, stream, minimize_method, analysis_dir)
+    parameters = get_estim_params(sub, stream, minimize_method, analysis_dir, slug)
 
     _, CP = psychometric_model(
         parameters, X, categories, y, return_val="G", gain=None, gnorm=False
@@ -246,6 +249,10 @@ def calc_CP_weights(sub, stream, data_dir, analysis_dir, minimize_method):
 
 # %%
 # calculate weights over subjects
+
+# Take model parameter estimates based on fixed or "best" (specific) init vals
+init_vals = "_best"  # "" or "_best"
+
 wtypes = ["data", "model"]
 weight_dfs = []
 posweight_dfs = []
@@ -260,7 +267,12 @@ for sub in SUBJS:
                 weights, position_weights = calc_nonp_weights(df)
             elif wtype == "model":
                 weights, position_weights = calc_CP_weights(
-                    sub, stream, data_dir, analysis_dir, minimize_method
+                    sub,
+                    stream,
+                    data_dir,
+                    analysis_dir,
+                    minimize_method,
+                    slug=init_vals,
                 )
             else:
                 raise RuntimeError("unrecognized `wtype`")
