@@ -277,7 +277,7 @@ noise0 = 0.1
 x0 = np.array([bias0, kappa0, leakage0, noise0])
 
 if fname_estimates.exists():
-    _df_prev = pd.read_csv(fname_estimates, sep="\t")
+    df_fixed_prev = pd.read_csv(fname_estimates, sep="\t")
 
 # boundaries for params (in order)
 lower = np.array([-1, 0, 0, 0.01], dtype=float)
@@ -333,13 +333,14 @@ for sub in tqdm(SUBJS):
         data["leakage"].append(res.x[2])
         data["noise"].append(res.x[3])
 
-_df = pd.DataFrame.from_dict(data)
-assert not np.any(~_df["success"])  # no failures
+df_fixed = pd.DataFrame.from_dict(data)
+assert not np.any(~df_fixed["success"])  # no failures
+df_fixed.drop(["success"], axis=1, inplace=True)
 
 # Save the data
 if fname_estimates.exists():
-    pd.testing.assert_frame_equal(_df, _df_prev)
-_df.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
+    pd.testing.assert_frame_equal(df_fixed, df_fixed_prev)
+df_fixed.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 
 # %%
 # Plot estimation results
@@ -349,9 +350,9 @@ with sns.plotting_context("talk"):
     for iparam, param in enumerate(["bias", "kappa", "leakage", "noise", "loss"]):
         ax = axs.flat[iparam]
 
-        sns.pointplot(x="stream", y=param, data=_df, ci=68, ax=ax, color="black")
+        sns.pointplot(x="stream", y=param, data=df_fixed, ci=68, ax=ax, color="black")
         if plot_single_subj:
-            sns.stripplot(x="stream", y=param, data=_df, ax=ax, zorder=0)
+            sns.stripplot(x="stream", y=param, data=df_fixed, ax=ax, zorder=0)
 
         if param == "bias":
             ax.axhline(0, c="black", ls="--", lw=0.5)
@@ -545,8 +546,10 @@ with sns.plotting_context("talk"):
 
 # %%
 # plot distribution of estimated params based on best fitting initial start values
-df_best_estims = df_bestfits[["subject", "stream", *param_names]].melt(
-    id_vars=["subject", "stream"], var_name="parameter", value_name="estimated value"
+df_best_estims = df_bestfits[["subject", "stream", "loss", *param_names]].melt(
+    id_vars=["subject", "stream", "loss"],
+    var_name="parameter",
+    value_name="estimated value",
 )
 
 plot_single_subj = True
@@ -580,26 +583,44 @@ with sns.plotting_context("talk"):
 # %%
 # Correlation between noise and kappa per stream
 df_best_estims_wide = (
-    df_best_estims.pivot(index=["subject", "stream"], columns=["parameter"])
+    df_best_estims.pivot(index=["subject", "stream", "loss"], columns=["parameter"])
     .droplevel(0, axis=1)
     .reset_index()
 )
+df_best_estims_wide.columns.name = None
+
+df_best_estims_wide["init_vals"] = "specific"
+df_fixed["init_vals"] = "fixed"
+df_both = pd.concat([df_best_estims_wide, df_fixed])
 
 with sns.plotting_context("talk"):
     g = sns.lmplot(
-        x="noise", y="kappa", col_order=STREAMS, data=df_best_estims_wide, col="stream"
+        x="noise",
+        y="kappa",
+        col_order=STREAMS,
+        data=df_both,
+        col="stream",
+        row="init_vals",
     )
 
 statsouts = []
-for meta, grp in df_best_estims_wide.groupby("stream"):
+for meta, grp in df_both.groupby(["init_vals", "stream"]):
     out = pingouin.corr(
         grp["noise"], grp["kappa"], method="pearson", alternative="two-sided"
     )
-    out["stream"] = meta
+    out["init_vals"] = meta[0]
+    out["stream"] = meta[1]
     statsouts.append(out)
 
 statsout = pd.concat(statsouts)
 statsout.head()
+
+# %%
+# Compare mean loss between estimates based on fixed vs. specific start values
+g = sns.catplot(
+    kind="point", x="init_vals", y="loss", col="stream", data=df_both, ci=68
+)
+
 
 # %%
 # Fit all data as if from single subject
@@ -669,20 +690,20 @@ for istream, stream in enumerate(STREAMS):
 # plot single subj "fixed effects" results
 if do_fit:
     # Turn results into DataFrame
-    _dfs = []
+    dfs_fixedfx = []
     for ires in range(len(x0s)):
-        _df = pd.DataFrame(results[ires, ...], columns=param_names)
-        _df["stream"] = STREAMS
-        _df["ix0s"] = ires
-        _dfs.append(_df)
-    _df = pd.concat(_dfs)
-    _df = _df.melt(id_vars=["ix0s", "stream"], var_name="parameter")
+        df_fixedfx = pd.DataFrame(results[ires, ...], columns=param_names)
+        df_fixedfx["stream"] = STREAMS
+        df_fixedfx["ix0s"] = ires
+        dfs_fixedfx.append(df_fixedfx)
+    df_fixedfx = pd.concat(dfs_fixedfx)
+    df_fixedfx = df_fixedfx.melt(id_vars=["ix0s", "stream"], var_name="parameter")
 
     # Plot results from single subj
     with sns.plotting_context("talk"):
         fig, ax = plt.subplots(figsize=(5, 6))
         sns.stripplot(
-            x="parameter", y="value", hue="stream", data=_df, ax=ax, alpha=0.5
+            x="parameter", y="value", hue="stream", data=df_fixedfx, ax=ax, alpha=0.5
         )
         ax.axhline(1, ls="--", c="black", lw=0.5)
         ax.axhline(0, ls="--", c="black", lw=0.5)
