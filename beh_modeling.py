@@ -285,7 +285,7 @@ if fname_estimates.exists():
 
 # boundaries for params (in order)
 lower = np.array([-1, 0, 0, 0.01], dtype=float)
-upper = np.array([1, 5, 1, 5], dtype=float)
+upper = np.array([1, 5, 1, 3], dtype=float)
 bounds = Bounds(lower, upper)
 
 data = {
@@ -386,7 +386,7 @@ fname = Path(str(fname_estimates).replace(".tsv", ".npy"))
 if not fname.exists() or overwrite:
     # Set reasonable bounds for the parameters (in param_names order)
     lower = np.array([-1, 0, 0, 0.01], dtype=float)
-    upper = np.array([1, 5, 1, 5], dtype=float)
+    upper = np.array([1, 5, 1, 3], dtype=float)
     bounds = Bounds(lower, upper)
 
     x0s = list(itertools.product(bias0s, kappa0s, leakage0s, noise0s))
@@ -649,7 +649,7 @@ for bias0, kappa0, leakage0, noise0 in itertools.product(
 
 # boundaries for params (in order)
 lower = np.array([-1, 0, 0, 0.01], dtype=float)
-upper = np.array([1, 5, 1, 5], dtype=float)
+upper = np.array([1, 5, 1, 3], dtype=float)
 bounds = Bounds(lower, upper)
 
 # Collect all data as if from "single subject" (fixed effects)
