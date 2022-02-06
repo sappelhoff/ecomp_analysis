@@ -9,3 +9,5 @@ figures/*.pdf
 nohup.out
 
 derived_data/estim_params*
+
+*.py*.ipynb
