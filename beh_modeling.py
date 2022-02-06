@@ -9,6 +9,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pingouin
 import seaborn as sns
 from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
@@ -576,6 +577,29 @@ with sns.plotting_context("talk"):
                 zorder=0,
             )
 
+# %%
+# Correlation between noise and kappa per stream
+df_best_estims_wide = (
+    df_best_estims.pivot(index=["subject", "stream"], columns=["parameter"])
+    .droplevel(0, axis=1)
+    .reset_index()
+)
+
+with sns.plotting_context("talk"):
+    g = sns.lmplot(
+        x="noise", y="kappa", col_order=STREAMS, data=df_best_estims_wide, col="stream"
+    )
+
+statsouts = []
+for meta, grp in df_best_estims_wide.groupby("stream"):
+    out = pingouin.corr(
+        grp["noise"], grp["kappa"], method="pearson", alternative="two-sided"
+    )
+    out["stream"] = meta
+    statsouts.append(out)
+
+statsout = pd.concat(statsouts)
+statsout.head()
 
 # %%
 # Fit all data as if from single subject
