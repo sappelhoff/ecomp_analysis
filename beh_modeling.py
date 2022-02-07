@@ -629,20 +629,22 @@ for x0_type in ["fixed", "specific"]:
         _data["dual"] += y.tolist()
 
 df_corrs = pd.concat(outs)
+
+# plots
+_data = pd.DataFrame.from_dict(_data)
+with sns.plotting_context("talk"):
+    g = sns.lmplot(
+        x="single",
+        y="dual",
+        col="parameter",
+        row="x0_type",
+        data=_data,
+        sharex=False,
+        sharey=False,
+    )
+
 print("Within-subject correlations: Single vs Dual")
 df_corrs
-
-_data = pd.DataFrame.from_dict(_data)
-sns.lmplot(
-    x="single",
-    y="dual",
-    col="parameter",
-    row="x0_type",
-    data=_data,
-    sharex=False,
-    sharey=False,
-)
-
 # %%
 df_estimates[["subject", "stream", *param_names]].pivot(
     index="subject", columns="stream"
