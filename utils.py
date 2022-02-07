@@ -23,11 +23,13 @@ def get_sourcedata(sub, stream, data_dir):
     return vhdr, tsv
 
 
-def get_estim_params(sub, stream, minimize_method, analysis_dir, slug=""):
+def get_estim_params(sub, stream, x0_type, minimize_method, analysis_dir):
     """Get the estimated model parameters."""
-    fpath = analysis_dir / "derived_data" / f"estim_params_{minimize_method}{slug}.tsv"
+    fpath = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
     df = pd.read_csv(fpath, sep="\t")
-    datasel = df[(df["subject"] == sub) & (df["stream"] == stream)]
+    datasel = df[
+        (df["subject"] == sub) & (df["stream"] == stream) & (df["x0_type"] == x0_type)
+    ]
     param_names = ["bias", "kappa", "leakage", "noise"]
     parameters = datasel[param_names].to_numpy().flatten()
     return parameters

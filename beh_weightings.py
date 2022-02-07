@@ -142,7 +142,7 @@ def calc_nonp_weights(df, nsamples=10):
     return weights, position_weights
 
 
-def calc_CP_weights(sub, stream, data_dir, analysis_dir, minimize_method, slug=""):
+def calc_CP_weights(sub, stream, x0_type, data_dir, analysis_dir, minimize_method):
     """Calculate decision weights based on model output `CP`.
 
     Each weight is the mean of its associated CP values.
@@ -153,15 +153,15 @@ def calc_CP_weights(sub, stream, data_dir, analysis_dir, minimize_method, slug="
         Which subject the data should be based on.
     stream : {"single", "dual"}
         The stream this data should be based on.
+    x0_type : {"fixed", "specific"}
+        Whether to work on estimated parameters based on fixed initial guesses
+        or subject/stream-specific initial guesses.
     data_dir : pathlib.Path
         The path to the data directory.
     analysis_dir : pathlib.Path
         The path to the analysis directory.
     minimize_method : {"Neldar-Mead", "L-BFGS-B", "Powell"}
         The method with which the parameters were estimated.
-    slug : str
-        Some string to pass to `get_estim_params` for getting
-        the right data, if needed. Defaults to an empty string.
 
     Returns
     -------
@@ -184,7 +184,7 @@ def calc_CP_weights(sub, stream, data_dir, analysis_dir, minimize_method, slug="
     X, categories, y, y_true, ambiguous = prep_model_inputs(df)
 
     # Get estimated parameters and predicted choices
-    parameters = get_estim_params(sub, stream, minimize_method, analysis_dir, slug)
+    parameters = get_estim_params(sub, stream, x0_type, minimize_method, analysis_dir)
 
     _, CP = psychometric_model(
         parameters, X, categories, y, return_val="G", gain=None, gnorm=False
@@ -250,8 +250,8 @@ def calc_CP_weights(sub, stream, data_dir, analysis_dir, minimize_method, slug="
 # %%
 # calculate weights over subjects
 
-# Take model parameter estimates based on fixed or "best" (specific) init vals
-init_vals = "_best"  # "" or "_best"
+# Take model parameter estimates based on "fixed" or "specific" initial guesses
+x0_type = "specific"
 
 wtypes = ["data", "model"]
 weight_dfs = []
@@ -269,10 +269,10 @@ for sub in SUBJS:
                 weights, position_weights = calc_CP_weights(
                     sub,
                     stream,
+                    x0_type,
                     data_dir,
                     analysis_dir,
                     minimize_method,
-                    slug=init_vals,
                 )
             else:
                 raise RuntimeError("unrecognized `wtype`")
@@ -329,7 +329,7 @@ plotkwargs = dict(
 )
 plotgrid = True
 if plotgrid:
-    grid = sns.catplot(
+    g = sns.catplot(
         hue="weight_type",
         col="stream",
         kind="point",
@@ -362,8 +362,9 @@ if plot_ref_lines and not plotgrid:
 
 fname = analysis_dir / "figures" / "weights.jpg"
 if plotgrid:
-    sns.despine(grid.fig)
-    grid.fig.savefig(fname)
+    sns.despine(g.fig)
+    g.fig.suptitle(f"Model based on initial guesses of type '{x0_type}'", y=1.05)
+    g.fig.savefig(fname)
 else:
     sns.despine(fig)
     fig.savefig(fname)
@@ -383,6 +384,7 @@ g = sns.catplot(
     kind="point",
 )
 
+g.fig.suptitle(f"Model based on initial guesses of type '{x0_type}'", y=1.05)
 fname = analysis_dir / "figures" / "posweights_numberhue.jpg"
 g.fig.savefig(fname)
 
@@ -402,6 +404,7 @@ g = sns.catplot(
     palette="crest_r",
 )
 
+g.fig.suptitle(f"Model based on initial guesses of type '{x0_type}'", y=1.05)
 fname = analysis_dir / "figures" / "posweights_positionhue.jpg"
 g.fig.savefig(fname)
 
