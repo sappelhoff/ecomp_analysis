@@ -3,6 +3,7 @@
 import itertools
 import json
 import sys
+import warnings
 from functools import partial
 from pathlib import Path
 
@@ -248,11 +249,19 @@ for ignorm_type, gnorm_type in enumerate(gnorm_types):
         [""] + [f"{i:.1f}" for i in noises[(ax.get_yticks()[1:-1]).astype(int)]] + [""]
     )
 
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
+        )
+
+        ax.set(
+            xticklabels=xticklabels,
+            yticklabels=yticklabels,
+        )
+
     ax.set(
         xlabel="curvature (k)",
         ylabel="noise (s)",
-        xticklabels=xticklabels,
-        yticklabels=yticklabels,
         title=f"Gain normalization:\n{gnorm_type}",
     )
 
