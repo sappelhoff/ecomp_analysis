@@ -5,7 +5,6 @@ import json
 import sys
 import warnings
 from functools import partial
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -61,6 +60,8 @@ fname_estimates.parent.mkdir(parents=True, exist_ok=True)
 fname_estimates_best = (
     analysis_dir / "derived_data" / f"estim_params_{minimize_method}_best.tsv"
 )
+
+fname_x0s = analysis_dir / "derived_data" / f"x0s_{minimize_method}.npy"
 
 # %%
 # fit model
@@ -391,8 +392,7 @@ leakage0s = np.arange(0, 1.25, 0.25)
 noise0s = np.arange(0.1, 1.1, 0.1)
 
 
-fname = Path(str(fname_estimates).replace(".tsv", ".npy"))
-if not fname.exists() or overwrite:
+if not fname_x0s.exists() or overwrite:
     # Set reasonable bounds for the parameters (in param_names order)
     lower = np.array([-1, 0, 0, 0.01], dtype=float)
     upper = np.array([1, 5, 1, 3], dtype=float)
@@ -446,13 +446,13 @@ if not fname.exists() or overwrite:
                 rowcount += 1
 
     # Save as npy
-    assert not fname.exists() or overwrite
-    np.save(fname, estimates)
+    assert not fname_x0s.exists() or overwrite
+    np.save(fname_x0s, estimates)
 
 else:
     # load if already saved
-    print(f"Start value npy file already exists: {fname}\n\nLoading ...")
-    estimates = np.load(fname)
+    print(f"Start value npy file already exists: {fname_x0s}\n\nLoading ...")
+    estimates = np.load(fname_x0s)
 
 # turn into DataFrame
 df_estimates = pd.DataFrame(

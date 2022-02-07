@@ -8,6 +8,7 @@ figures/*.pdf
 
 nohup.out
 
-derived_data/estim_params*
+derived_data/estim_params_*.tsv
+x0s_*.npy
 
 *.py*.ipynb
