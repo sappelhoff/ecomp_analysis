@@ -645,16 +645,7 @@ with sns.plotting_context("talk"):
 
 print("Within-subject correlations: Single vs Dual")
 df_corrs
-# %%
-df_estimates[["subject", "stream", *param_names]].pivot(
-    index="subject", columns="stream"
-)
 
-df = df_estimates.copy().reset_index()
-df = df.set_index(["stream", "index"]).unstack(["stream"])
-df = df.reindex(columns=sorted(df.columns, key=lambda x: x[::-1]))
-df.columns = ["{}_{}".format(t, v) for v, t in df.columns]
-df
 # %%
 # Fit all data as if from single subject
 _bias0s = (0, -0.1, 0.1)
