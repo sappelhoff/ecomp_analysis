@@ -601,6 +601,59 @@ with sns.plotting_context("talk"):
 df_estimates.groupby(["stream", "x0_type"])["loss"].describe()
 
 # %%
+# Correlate parameters within subjects (single vs dual)
+_data = {"x0_type": [], "parameter": [], "single": [], "dual": []}
+outs = []
+for x0_type in ["fixed", "specific"]:
+    for param in param_names:
+
+        xy_list = []
+        for stream in STREAMS:
+            xy_list += [
+                df_estimates[
+                    (df_estimates["stream"] == stream)
+                    & (df_estimates["x0_type"] == x0_type)
+                ][param].to_numpy()
+            ]
+
+        x, y = xy_list
+        out = pingouin.corr(x, y)
+        out["x0_type"] = x0_type
+        out["param"] = param
+        outs.append(out)
+
+        # save for plotting
+        _data["x0_type"] += [x0_type] * len(SUBJS)
+        _data["parameter"] += [param] * len(SUBJS)
+        _data["single"] += x.tolist()
+        _data["dual"] += y.tolist()
+
+df_corrs = pd.concat(outs)
+print("Within-subject correlations: Single vs Dual")
+df_corrs
+
+_data = pd.DataFrame.from_dict(_data)
+sns.lmplot(
+    x="single",
+    y="dual",
+    col="parameter",
+    row="x0_type",
+    data=_data,
+    sharex=False,
+    sharey=False,
+)
+
+# %%
+df_estimates[["subject", "stream", *param_names]].pivot(
+    index="subject", columns="stream"
+)
+
+df = df_estimates.copy().reset_index()
+df = df.set_index(["stream", "index"]).unstack(["stream"])
+df = df.reindex(columns=sorted(df.columns, key=lambda x: x[::-1]))
+df.columns = ["{}_{}".format(t, v) for v, t in df.columns]
+df
+# %%
 # Fit all data as if from single subject
 _bias0s = (0, -0.1, 0.1)
 _kappa0s = (0.5, 1, 2)
