@@ -53,6 +53,9 @@ data_dir = DATA_DIR_LOCAL
 
 overwrite = False
 
+# for plotting
+SUBJ_LINE_SETTINGS = dict(color="black", alpha=0.1, linewidth=0.75)
+
 # %%
 # When not in an IPython session, get command line inputs
 # https://docs.python.org/3/library/sys.html#sys.ps1
@@ -384,15 +387,33 @@ def plot_estim_res(df, plot_single_subj, param_names):
                 x="stream", y=param, data=df, order=STREAMS, ci=68, ax=ax, color="black"
             )
             if plot_single_subj:
-                sns.stripplot(
-                    x="stream", y=param, data=df, order=STREAMS, ax=ax, zorder=0
+                sns.swarmplot(
+                    x="stream", y=param, data=df, order=STREAMS, ax=ax, alpha=0.5
                 )
+
+                # https://stackoverflow.com/a/63171175/5201771
+                set1 = df[df["stream"] == STREAMS[0]][param]
+                set2 = df[df["stream"] == STREAMS[1]][param]
+
+                locs1 = ax.get_children()[1].get_offsets()
+                locs2 = ax.get_children()[2].get_offsets()
+
+                sort_idxs1 = np.argsort(set1)
+                sort_idxs2 = np.argsort(set2)
+
+                locs2_sorted = locs2[sort_idxs2.argsort()][sort_idxs1]
+
+                for i in range(locs1.shape[0]):
+                    x = [locs1[i, 0], locs2_sorted[i, 0]]
+                    y = [locs1[i, 1], locs2_sorted[i, 1]]
+                    ax.plot(x, y, **SUBJ_LINE_SETTINGS)
 
             hline = hlines.get(param, None)
             if hline is not None:
                 ax.axhline(hline, c="black", ls="--", lw=0.5)
 
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
+            ax.set_xlabel("")
 
     sns.despine(fig)
     fig.tight_layout()
@@ -506,7 +527,6 @@ df_specific["method"] = minimize_method
 
 # %%
 # Plot info on initial guesses
-
 # plot distribution of "losses" per stream and subject,
 # depending on start values
 with sns.plotting_context("poster"):
@@ -519,6 +539,7 @@ with sns.plotting_context("poster"):
         col_wrap=6,
     )
 
+# %%
 # plot distribution of best fitting initial start values
 fig, axs = plot_estim_res(
     df_specific, plot_single_subj=True, param_names=[i + "0" for i in param_names]
@@ -530,6 +551,7 @@ fig.suptitle(
     y=1.15,
 )
 
+# %%
 # plot distribution of estimated params based on best fitting initial start values
 fig, axs = plot_estim_res(df_specific, plot_single_subj=True, param_names=param_names)
 fig.suptitle("Parameter estimates based on best fitting initial values", y=1.05)
