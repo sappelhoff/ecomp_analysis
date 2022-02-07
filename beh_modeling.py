@@ -1,5 +1,6 @@
 """Model the behavioral data."""
 # %%
+# Imports
 import itertools
 import json
 import sys
@@ -73,20 +74,19 @@ if not hasattr(sys, "ps1"):
 fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
 fname_estimates.parent.mkdir(parents=True, exist_ok=True)
 
-fname_estimates_best = (
-    analysis_dir / "derived_data" / f"estim_params_{minimize_method}_best.tsv"
-)
-
 fname_x0s = analysis_dir / "derived_data" / f"x0s_{minimize_method}.npy"
 
 # %%
-# fit model
+# Simulate accuracies over parameter ranges
+
+# fixed model parameter values
 bias = 0
 kappa = 1
 leakage = 0
 noise = 0.1
 return_val = "G"
 
+# vary one parameter over these ranges while holding all others fixed
 simulation = {
     param: ({"subject": [], "stream": [], "accuracy": [], param: []}, xs, kwargs)
     for param, xs, kwargs in zip(
@@ -106,6 +106,10 @@ simulation = {
     )
 }
 
+# NOTE: We run over subjects and streams, but results are almost identical as when
+#       running over data from a single subject: The only variance comes from slightly
+#       different underlying datasets. But this has a small influence given the uniform
+#       distribution and large number of trials in these datasets.
 for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
     for x in xs_key:
 
@@ -134,7 +138,6 @@ for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
 
                 # Calculate accuracy on non-ambiguous, objectively correct choices
                 acc = 1 - np.mean(np.abs(y_true[~ambiguous] - CP[~ambiguous]))
-                # print(loss, acc)
 
                 # Save data
                 data["subject"].append(sub)
@@ -142,7 +145,7 @@ for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
                 data["accuracy"].append(acc)
                 data[param].append(x)
 # %%
-# Plot simulation results
+# Plot accuracy simulation results
 dfs = {}
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(2, 2, figsize=(15, 10), sharey=True)
@@ -178,7 +181,7 @@ sns.despine(fig)
 fig.tight_layout()
 
 # %%
-# Run accuracy performance simulations
+# Simulate change in accuracy depending on noise and kappa parameters
 
 # We can take data from any subj or stream, results will be nearly the same
 sub = 32
@@ -188,7 +191,7 @@ df = pd.read_csv(tsv, sep="\t")
 df.insert(0, "subject", sub)
 X, categories, y, y_true, ambiguous = prep_model_inputs(df)
 
-# Leave bias and leakage at standard values
+# Leave bias and leakage fixed at standard values
 bias = 0
 leakage = 0
 return_val = "G"
@@ -197,28 +200,30 @@ return_val = "G"
 n = 101
 kappas = np.linspace(0, 2.5, n)
 noises = np.linspace(0.01, 2, n)[::-1]
-gnorm_types = ["none", "experiment-wise", "trial-wise"]
-
 idx_kappa_one = (np.abs(kappas - 1.0)).argmin()
 
-# Collect data for different types of gain normalization
+# Apply different kinds of "gain normalization" to simulate limited-capacity agents
+# (limited amount of "gain", e.g., firing speed of neurons, glucose in brain, ...)
+gnorm_types = ["none", "experiment-wise", "trial-wise"]
+
+# Collect data
 acc_grid = np.full((n, n, len(gnorm_types)), np.nan)
 for ignorm_type, gnorm_type in enumerate(tqdm(gnorm_types)):
     for ikappa, kappa in enumerate(kappas):
 
         # Setup gain normalization for this kappa parameterization
+        gain = None
+        gnorm = True
         if gnorm_type == "experiment-wise":
-            gain = eq2(
-                feature_space=np.atleast_2d(numbers_rescaled), kappa=kappa, bias=bias
-            )
-            gnorm = True
+            feature_space = np.atleast_2d(numbers_rescaled)
         elif gnorm_type == "trial-wise":
-            gain = eq2(feature_space=X * categories, kappa=kappa, bias=bias)
-            gnorm = True
+            feature_space = X * categories
         else:
             assert gnorm_type == "none"
-            gain = None
             gnorm = False
+
+        if gnorm:
+            gain = eq2(feature_space=feature_space, kappa=kappa, bias=bias)
 
         # Calculate accuracy for each noise level
         kwargs = dict(
@@ -238,64 +243,68 @@ for ignorm_type, gnorm_type in enumerate(tqdm(gnorm_types)):
             acc_grid[inoise, ikappa, ignorm_type] = acc
 
 # %%
-# Plot performance simulations
-fig, axs = plt.subplots(3, 1, figsize=(5, 10))
+# Plot "change in accuracy" simulations
+with sns.plotting_context("talk"):
+    fig, axs = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
 
-for ignorm_type, gnorm_type in enumerate(gnorm_types):
-    ax = axs.flat[ignorm_type]
+    for ignorm_type, gnorm_type in enumerate(gnorm_types):
+        ax = axs.flat[ignorm_type]
 
-    grid_norm = (
-        acc_grid[..., ignorm_type].T - acc_grid[..., idx_kappa_one, ignorm_type]
-    ).T
+        grid_norm = (
+            acc_grid[..., ignorm_type].T - acc_grid[..., idx_kappa_one, ignorm_type]
+        ).T
 
-    # Trace maximum values using np.nan
-    grid_norm[np.arange(n), np.argmax(grid_norm, axis=1)] = np.nan
+        # Trace maximum values using np.nan (inserts white cells)
+        grid_norm[np.arange(n), np.argmax(grid_norm, axis=1)] = np.nan
 
-    im = ax.imshow(grid_norm, origin="upper", interpolation="nearest")
+        im = ax.imshow(grid_norm, origin="upper", interpolation="nearest")
 
-    ax.axvline(idx_kappa_one, ls="--", c="w")
-    fig.colorbar(im, ax=ax, label="Δ accuracy")
+        ax.axvline(idx_kappa_one, ls="--", c="w")
+        fig.colorbar(im, ax=ax, label="Δ accuracy", shrink=0.625)
 
-    # Set ticklabels
-    ax.xaxis.set_major_locator(plt.MaxNLocator(6))
-    ax.yaxis.set_major_locator(plt.MaxNLocator(6))
-    xticklabels = (
-        [""] + [f"{i:.2f}" for i in kappas[(ax.get_xticks()[1:-1]).astype(int)]] + [""]
-    )
-    yticklabels = (
-        [""] + [f"{i:.1f}" for i in noises[(ax.get_yticks()[1:-1]).astype(int)]] + [""]
-    )
-
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
+        # Set ticklabels
+        ax.xaxis.set_major_locator(plt.MaxNLocator(6))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(6))
+        xticklabels = (
+            [""]
+            + [f"{i:.2f}" for i in kappas[(ax.get_xticks()[1:-1]).astype(int)]]
+            + [""]
         )
+        yticklabels = (
+            [""]
+            + [f"{i:.1f}" for i in noises[(ax.get_yticks()[1:-1]).astype(int)]]
+            + [""]
+        )
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
+            )
+
+            ax.set(
+                xticklabels=xticklabels,
+                yticklabels=yticklabels,
+            )
 
         ax.set(
-            xticklabels=xticklabels,
-            yticklabels=yticklabels,
+            xlabel="curvature (k)",
+            ylabel="noise (s)",
+            title=f'Gain normalization:\n"{gnorm_type}"',
         )
-
-    ax.set(
-        xlabel="curvature (k)",
-        ylabel="noise (s)",
-        title=f"Gain normalization:\n{gnorm_type}",
-    )
+        ax.set_ylabel(ax.get_ylabel(), labelpad=10)
 
 fig.tight_layout()
 
 # %%
-# Try fitting parameters
-# Initial parameter values
+# Fit model parameters for each subj and stream
+
+# Initial guesses for parameter values: `x0`
 bias0 = 0
 kappa0 = 1
 leakage0 = 0
 noise0 = 0.1
 
 x0 = np.array([bias0, kappa0, leakage0, noise0])
-
-if fname_estimates.exists():
-    df_fixed_prev = pd.read_csv(fname_estimates, sep="\t")
 
 data = {
     "subject": [],
@@ -353,89 +362,94 @@ assert not np.any(~df_fixed["success"])
 df_fixed.drop(["success"], axis=1, inplace=True)
 
 # This is data with "fixed" start values
-df_fixed["x0_type"] = "fixed"
 df_fixed["bias0"] = bias0
 df_fixed["kappa0"] = kappa0
 df_fixed["leakage0"] = leakage0
 df_fixed["noise0"] = noise0
+df_fixed["x0_type"] = "fixed"
+df_fixed["method"] = minimize_method
 
-# Save the data
-if fname_estimates.exists():
-    pd.testing.assert_frame_equal(df_fixed, df_fixed_prev)
-df_fixed.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 
 # %%
 # Plot estimation results
-plot_single_subj = True
-with sns.plotting_context("talk"):
-    fig, axs = plt.subplots(1, 5, figsize=(10, 5))
-    for iparam, param in enumerate(["bias", "kappa", "leakage", "noise"]):
-        ax = axs.flat[iparam]
+def plot_estim_res(df, plot_single_subj, param_names):
+    """Help to plot estimates."""
+    hlines = dict(bias=0, kappa=1, leakage=0, noise=0)
+    with sns.plotting_context("talk"):
+        fig, axs = plt.subplots(1, len(param_names), figsize=(10, 5))
+        for iparam, param in enumerate(param_names):
+            ax = axs.flat[iparam]
 
-        sns.pointplot(x="stream", y=param, data=df_fixed, ci=68, ax=ax, color="black")
-        if plot_single_subj:
-            sns.stripplot(x="stream", y=param, data=df_fixed, ax=ax, zorder=0)
+            sns.pointplot(
+                x="stream", y=param, data=df, order=STREAMS, ci=68, ax=ax, color="black"
+            )
+            if plot_single_subj:
+                sns.stripplot(
+                    x="stream", y=param, data=df, order=STREAMS, ax=ax, zorder=0
+                )
 
-        if param == "bias":
-            ax.axhline(0, c="black", ls="--", lw=0.5)
-        elif param == "kappa":
-            ax.axhline(1, c="black", ls="--", lw=0.5)
-        elif param == "leakage":
-            ax.axhline(0, c="black", ls="--", lw=0.5)
-        else:
-            pass
+            hline = hlines.get(param, None)
+            if hline is not None:
+                ax.axhline(hline, c="black", ls="--", lw=0.5)
 
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
 
-sns.despine(fig)
-fig.tight_layout()
+    sns.despine(fig)
+    fig.tight_layout()
+    return fig, axs
+
+
+fig, axs = plot_estim_res(df_fixed, plot_single_subj=True, param_names=param_names)
+fig.suptitle("Parameter estimates based on best fixed initial values", y=1.05)
 
 # %%
-# Run large set of (reasonable) initial start values per subj to find best ones
+# Run large set of (reasonable) initial guesses per subj to find best ones
+# NOTE: Depending on how many initial guesses to try, this will take a long time to run
+#       ... could be sped up significantly through parallelization.
 
-# Draw random initial values for the parameters
+# Draw random initial values for the parameters from "reasonable" ranges
 bias0s = np.arange(-5, 6) / 10
 kappa0s = np.arange(0.2, 2.2, 0.2)
 leakage0s = np.arange(0, 1.25, 0.25)
 noise0s = np.arange(0.1, 1.1, 0.1)
-
 
 if not fname_x0s.exists() or overwrite:
 
     x0s = list(itertools.product(bias0s, kappa0s, leakage0s, noise0s))
 
     # Estimate parameters based on initial values for each dataset
-    # we save columns: sub-stream_idx-ix0-res.success-res.fun-x0-res.x
-    # = sub*streams*x0s rows
-    # takes about 125ms per fit, so (125*nrows)/1000 seconds overall
+    # we save columns: sub,stream_idx,ix0,res.success,res.fun,x0,res.x
+    # for `sub*streams*x0s` rows
+    # script takes about 125ms per fit, so (125*nrows)/1000 seconds overall
     nrows = len(SUBJS) * len(STREAMS) * len(x0s)
     secs = (125 * nrows) / 1000
     print(f"Will run for about {secs} seconds ({secs/60/60:.2f}) hours.")
-    estimates = np.full(
+    x0_estimates = np.full(
         (len(x0s) * len(SUBJS) * len(STREAMS), 5 + len(param_names) * 2), np.nan
     )
     rowcount = 0
     for sub in tqdm(SUBJS):
         for stream in STREAMS:
+            # get input values
+            _, tsv = get_sourcedata(sub, stream, data_dir)
+            df = pd.read_csv(tsv, sep="\t")
+            df.insert(0, "subject", sub)
+
+            X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+
+            # Add non-changing arguments to function
+            kwargs = dict(
+                X=X,
+                categories=categories,
+                y=y,
+                return_val="G_noCP",
+                gain=None,
+                gnorm=False,
+            )
+            fun = partial(psychometric_model, **kwargs)
+
+            # Run different initial guesses
             for ix0, x0 in enumerate(x0s):
-                _, tsv = get_sourcedata(sub, stream, data_dir)
-                df = pd.read_csv(tsv, sep="\t")
-                df.insert(0, "subject", sub)
-
-                X, categories, y, y_true, ambiguous = prep_model_inputs(df)
-
-                # Add non-changing arguments to function
-                kwargs = dict(
-                    X=X,
-                    categories=categories,
-                    y=y,
-                    return_val="G_noCP",
-                    gain=None,
-                    gnorm=False,
-                )
-                fun = partial(psychometric_model, **kwargs)
-
-                # estimate
                 res = minimize(
                     fun=fun,
                     x0=x0,
@@ -444,23 +458,22 @@ if not fname_x0s.exists() or overwrite:
                     options=minimize_method_opts,
                 )
 
-                estimates[rowcount, ...] = np.array(
+                x0_estimates[rowcount, ...] = np.array(
                     [sub, STREAMS.index(stream), ix0, res.success, res.fun, *x0, *res.x]
                 )
                 rowcount += 1
 
     # Save as npy
-    assert not fname_x0s.exists() or overwrite
-    np.save(fname_x0s, estimates)
+    np.save(fname_x0s, x0_estimates)
 
 else:
     # load if already saved
-    print(f"Start value npy file already exists: {fname_x0s}\n\nLoading ...")
-    estimates = np.load(fname_x0s)
+    print(f"Initial guesses x0 npy file already exists: {fname_x0s}\n\nLoading ...")
+    x0_estimates = np.load(fname_x0s)
 
-# turn into DataFrame
-df_estimates = pd.DataFrame(
-    estimates,
+# turn into DataFrame and sanitize columns
+df_x0s = pd.DataFrame(
+    x0_estimates,
     columns=[
         "subject",
         "stream_idx",
@@ -472,166 +485,84 @@ df_estimates = pd.DataFrame(
     ],
 )
 
-# sanitize columns
-df_estimates = df_estimates.astype(
-    {"subject": int, "stream_idx": int, "ix0": int, "success": bool}
-)
-df_estimates["stream"] = df_estimates["stream_idx"].map(dict(zip(range(2), STREAMS)))
+df_x0s = df_x0s.astype({"subject": int, "stream_idx": int, "ix0": int, "success": bool})
+df_x0s["stream"] = df_x0s["stream_idx"].map(dict(zip(range(2), STREAMS)))
 
 # drop failed estimations
-nfail = np.sum(~df_estimates["success"].to_numpy())
-nstartvals = len(df_estimates)
+nfail = np.sum(~df_x0s["success"].to_numpy())
+nstartvals = len(df_x0s)
 print(f"{(nfail/nstartvals)*100:.2f}% of fitting procedures failed.")
 print("...selecting only successful fits")
-df_estimates = df_estimates[df_estimates["success"].to_numpy()]
+df_x0s = df_x0s[df_x0s["success"].to_numpy()]
 
 # Get the best fitting start values and estimates per subj and stream
-df_bestfits = df_estimates.loc[
-    df_estimates.groupby(["subject", "stream"])["loss"].idxmin()
-]
-assert len(df_bestfits) == len(SUBJS) * len(STREAMS)
+df_specific = df_x0s.loc[df_x0s.groupby(["subject", "stream"])["loss"].idxmin()]
+assert len(df_specific) == len(SUBJS) * len(STREAMS)
+df_specific = df_specific[
+    ["subject", "stream", "loss", *param_names, *[i + "0" for i in param_names]]
+].reset_index(drop=True)
+df_specific["x0_type"] = "specific"
+df_specific["method"] = minimize_method
 
 # %%
-# Plot info on initial start values
+# Plot info on initial guesses
 
 # plot distribution of "losses" per stream and subject,
 # depending on start values
-with sns.plotting_context("talk"):
+with sns.plotting_context("poster"):
     g = sns.catplot(
         kind="violin",
-        data=df_estimates,
+        data=df_x0s,
         x="stream",
         y="loss",
         col="subject",
-        col_wrap=5,
+        col_wrap=6,
     )
 
 # plot distribution of best fitting initial start values
-df_startval = df_bestfits[["subject", "stream", *[i + "0" for i in param_names]]].melt(
-    id_vars=["subject", "stream"], var_name="parameter", value_name="initial value"
+fig, axs = plot_estim_res(
+    df_specific, plot_single_subj=True, param_names=[i + "0" for i in param_names]
+)
+fig.suptitle(
+    "Best fitting initial values over subjects\n"
+    f"y-limits indicate ranges from which\n{df_x0s['ix0'].max()} "
+    "initial values were tried out per subj and stream",
+    y=1.15,
 )
 
-kwargs = dict(
-    x="parameter",
-    y="initial value",
-    hue="stream",
-    data=df_startval,
-    dodge=True,
-)
-with sns.plotting_context("talk"):
-    fig, ax = plt.subplots()
-    sns.pointplot(
-        **kwargs,
-        ci=68,
-        ax=ax,
-        join=False,
-    )
-    sns.stripplot(
-        **kwargs,
-        ax=ax,
-    )
-    sns.despine(fig)
-    title = (
-        "Best fitting initial values over subjects\n"
-        "thin black lines indicate ranges from which\n"
-        f"{df_estimates['ix0'].max()} initial values were tried out per subj and stream"
-    )
-    ax.set_title(title)
-    handles, labels = ax.get_legend_handles_labels()
-    sns.move_legend(
-        obj=ax,
-        loc="upper left",
-        bbox_to_anchor=(1, 1),
-        frameon=False,
-        handles=handles[:2],
-        labels=labels[:2],
-    )
-
-    x0_bounds = [
-        bias0s.min(),
-        bias0s.max(),
-        kappa0s.min(),
-        kappa0s.max(),
-        leakage0s.min(),
-        leakage0s.max(),
-        noise0s.min(),
-        noise0s.max(),
-    ]
-    xmins = np.repeat(np.arange(-0.5, 3.5, 1), 2)
-    xmaxs = np.repeat(np.arange(0.5, 4.5, 1), 2)
-    ax.hlines(y=x0_bounds, xmin=xmins, xmax=xmaxs, color="black", ls="--", lw=0.5)
+# plot distribution of estimated params based on best fitting initial start values
+fig, axs = plot_estim_res(df_specific, plot_single_subj=True, param_names=param_names)
+fig.suptitle("Parameter estimates based on best fitting initial values", y=1.05)
 
 # %%
-# plot distribution of estimated params based on best fitting initial start values
-df_best_estims = df_bestfits[["subject", "stream", "loss", *param_names]].melt(
-    id_vars=["subject", "stream", "loss"],
-    var_name="parameter",
-    value_name="estimated value",
-)
+# Concatenate fixed and specific estimates and save
+df_estimates = pd.concat([df_fixed, df_specific]).reset_index(drop=True)
+assert len(df_estimates) == len(SUBJS) * len(STREAMS) * 2
 
-plot_single_subj = True
-with sns.plotting_context("talk"):
-    g = sns.catplot(
-        x="stream",
-        y="estimated value",
-        data=df_best_estims,
-        col="parameter",
-        sharey=False,
-        kind="point",
-        order=STREAMS,
-        ci=68,
-        color="black",
-    )
-
-    for param, ax in g.axes_dict.items():
-        ax.axhline(
-            dict(zip(param_names, [0, 1, 0, 0]))[param], c="black", ls="--", lw=0.5
-        )
-        if plot_single_subj:
-            sns.stripplot(
-                x="stream",
-                y="estimated value",
-                data=df_best_estims[df_best_estims["parameter"] == param],
-                order=STREAMS,
-                ax=ax,
-                zorder=0,
-            )
+# Save the data
+if fname_estimates.exists():
+    df_estimates_prev = pd.read_csv(fname_estimates, sep="\t")
+    pd.testing.assert_frame_equal(df_estimates, df_estimates_prev)
+df_estimates.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 
 # %%
 # Correlation between noise and kappa per stream
-df_best_estims_wide = (
-    df_best_estims.pivot(index=["subject", "stream", "loss"], columns=["parameter"])
-    .droplevel(0, axis=1)
-    .reset_index()
-)
-df_best_estims_wide.columns.name = None
-
-if fname_estimates_best.exists():
-    pd.testing.assert_frame_equal(
-        df_best_estims_wide, pd.read_csv(fname_estimates_best, sep="\t")
-    )
-df_best_estims_wide.to_csv(fname_estimates_best, sep="\t", na_rep="n/a", index=False)
-
-df_best_estims_wide["init_vals"] = "specific"
-df_fixed["init_vals"] = "fixed"
-df_both = pd.concat([df_best_estims_wide, df_fixed])
-
 with sns.plotting_context("talk"):
     g = sns.lmplot(
         x="noise",
         y="kappa",
         col_order=STREAMS,
-        data=df_both,
+        data=df_estimates,
         col="stream",
-        row="init_vals",
+        row="x0_type",
     )
 
 statsouts = []
-for meta, grp in df_both.groupby(["init_vals", "stream"]):
+for meta, grp in df_estimates.groupby(["x0_type", "stream"]):
     out = pingouin.corr(
         grp["noise"], grp["kappa"], method="pearson", alternative="two-sided"
     )
-    out["init_vals"] = meta[0]
+    out["x0_type"] = meta[0]
     out["stream"] = meta[1]
     statsouts.append(out)
 
@@ -642,10 +573,10 @@ statsout.head()
 # Compare mean loss between estimates based on fixed vs. specific start values
 with sns.plotting_context("talk"):
     g = sns.catplot(
-        kind="point", x="init_vals", y="loss", col="stream", data=df_both, ci=68
+        kind="point", x="x0_type", y="loss", col="stream", data=df_estimates, ci=68
     )
 
-df_both.groupby(["stream", "init_vals"])["loss"].describe()
+df_estimates.groupby(["stream", "x0_type"])["loss"].describe()
 
 # %%
 # Fit all data as if from single subject
@@ -654,11 +585,11 @@ _kappa0s = (0.5, 1, 2)
 _leakage0s = (0, 0.2)
 _noise0s = (0.01, 0.1, 0.2)
 
-x0s = []
+_x0s = []
 for bias0, kappa0, leakage0, noise0 in itertools.product(
     _bias0s, _kappa0s, _leakage0s, _noise0s
 ):
-    x0s.append(np.array([bias0, kappa0, leakage0, noise0]))
+    _x0s.append(np.array([bias0, kappa0, leakage0, noise0]))
 
 # Collect all data as if from "single subject" (fixed effects)
 df_single_sub = []
@@ -673,7 +604,7 @@ df_single_sub = pd.concat(df_single_sub)
 
 # go through different initial values per stream
 do_fit = False
-results = np.full((len(x0s), 2, 4), np.nan)  # init_vals X stream X params
+results = np.full((len(_x0s), len(STREAMS), len(param_names)), np.nan)
 for istream, stream in enumerate(STREAMS):
     if not do_fit:
         continue
@@ -693,7 +624,7 @@ for istream, stream in enumerate(STREAMS):
 
     fun = partial(psychometric_model, **kwargs)
 
-    for ix0, x0 in enumerate(tqdm(x0s)):
+    for ix0, x0 in enumerate(tqdm(_x0s)):
 
         res = minimize(
             fun=fun,
@@ -711,7 +642,7 @@ for istream, stream in enumerate(STREAMS):
 if do_fit:
     # Turn results into DataFrame
     dfs_fixedfx = []
-    for ires in range(len(x0s)):
+    for ires in range(len(_x0s)):
         df_fixedfx = pd.DataFrame(results[ires, ...], columns=param_names)
         df_fixedfx["stream"] = STREAMS
         df_fixedfx["ix0s"] = ires
@@ -730,7 +661,7 @@ if do_fit:
         ax.legend(frameon=False)
         ax.set_title(
             "Estimation results\ndata combined over subjects ('fixed effects')\n"
-            f"over {len(x0s)} different start parameters"
+            f"over {len(_x0s)} different initial guesses"
         )
     sns.despine(fig)
     fig.tight_layout()
