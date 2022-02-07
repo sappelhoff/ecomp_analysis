@@ -27,9 +27,25 @@ from utils import (
 # Settings
 numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1, +1))
 
+# Use a method that can work with bounds. "L-BFGS-B" is scipy default.
+# "Nelder-Mead", "L-BFGS-B", "Powell" work, Nelder-Mead seems to work best.
+minimize_method = "Nelder-Mead"
+minimize_method_opts = {
+    "Nelder-Mead": dict(maxiter=1000),
+    "L-BFGS-B": dict(
+        maxiter=1000, eps=1e-6
+    ),  # https://stats.stackexchange.com/a/167199/148275
+    "Powell": dict(
+        maxiter=1000,
+    ),
+}[minimize_method]
+
 param_names = ["bias", "kappa", "leakage", "noise"]
 
-minimize_method = "Nelder-Mead"
+# parameter bounds (in order of param_names)
+lower = np.array([-1, 0, 0, 0.01], dtype=float)
+upper = np.array([1, 5, 1, 3], dtype=float)
+bounds = Bounds(lower, upper)
 
 analysis_dir = ANALYSIS_DIR_LOCAL
 data_dir = DATA_DIR_LOCAL
@@ -270,18 +286,6 @@ fig.tight_layout()
 
 # %%
 # Try fitting parameters
-# Use a method that can work with bounds. "L-BFGS-B" is scipy default.
-# "Nelder-Mead", "L-BFGS-B", "Powell" work
-minimize_method_opts = {
-    "Nelder-Mead": dict(maxiter=1000),
-    "L-BFGS-B": dict(
-        maxiter=1000, eps=1e-3
-    ),  # https://stats.stackexchange.com/a/167199/148275
-    "Powell": dict(
-        maxiter=1000,
-    ),
-}[minimize_method]
-
 # Initial parameter values
 bias0 = 0
 kappa0 = 1
@@ -292,11 +296,6 @@ x0 = np.array([bias0, kappa0, leakage0, noise0])
 
 if fname_estimates.exists():
     df_fixed_prev = pd.read_csv(fname_estimates, sep="\t")
-
-# boundaries for params (in order)
-lower = np.array([-1, 0, 0, 0.01], dtype=float)
-upper = np.array([1, 5, 1, 3], dtype=float)
-bounds = Bounds(lower, upper)
 
 data = {
     "subject": [],
@@ -348,8 +347,17 @@ for sub in tqdm(SUBJS):
         data["noise"].append(res.x[3])
 
 df_fixed = pd.DataFrame.from_dict(data)
-assert not np.any(~df_fixed["success"])  # no failures
+
+# Sanity check: no failures during fitting
+assert not np.any(~df_fixed["success"])
 df_fixed.drop(["success"], axis=1, inplace=True)
+
+# This is data with "fixed" start values
+df_fixed["x0_type"] = "fixed"
+df_fixed["bias0"] = bias0
+df_fixed["kappa0"] = kappa0
+df_fixed["leakage0"] = leakage0
+df_fixed["noise0"] = noise0
 
 # Save the data
 if fname_estimates.exists():
@@ -361,7 +369,7 @@ df_fixed.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 plot_single_subj = True
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(1, 5, figsize=(10, 5))
-    for iparam, param in enumerate(["bias", "kappa", "leakage", "noise", "loss"]):
+    for iparam, param in enumerate(["bias", "kappa", "leakage", "noise"]):
         ax = axs.flat[iparam]
 
         sns.pointplot(x="stream", y=param, data=df_fixed, ci=68, ax=ax, color="black")
@@ -393,10 +401,6 @@ noise0s = np.arange(0.1, 1.1, 0.1)
 
 
 if not fname_x0s.exists() or overwrite:
-    # Set reasonable bounds for the parameters (in param_names order)
-    lower = np.array([-1, 0, 0, 0.01], dtype=float)
-    upper = np.array([1, 5, 1, 3], dtype=float)
-    bounds = Bounds(lower, upper)
 
     x0s = list(itertools.product(bias0s, kappa0s, leakage0s, noise0s))
 
@@ -655,11 +659,6 @@ for bias0, kappa0, leakage0, noise0 in itertools.product(
     _bias0s, _kappa0s, _leakage0s, _noise0s
 ):
     x0s.append(np.array([bias0, kappa0, leakage0, noise0]))
-
-# boundaries for params (in order)
-lower = np.array([-1, 0, 0, 0.01], dtype=float)
-upper = np.array([1, 5, 1, 3], dtype=float)
-bounds = Bounds(lower, upper)
 
 # Collect all data as if from "single subject" (fixed effects)
 df_single_sub = []
