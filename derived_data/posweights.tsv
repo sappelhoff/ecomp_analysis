@@ -1,4 +1,4 @@
-sub	stream	number	position	weight
+subject	stream	number	position	weight
 1	single	1	0	0.4411764705882353
 1	single	2	0	0.5142857142857142
 1	single	3	0	0.3870967741935484
