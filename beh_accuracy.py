@@ -160,3 +160,16 @@ tstats
 df_acc["acc"].agg(["min", "max"]).round(3).to_list()
 
 # %%
+# Print earned bonus money
+# see:
+# https://github.com/sappelhoff/ecomp_experiment/blob/main/ecomp_experiment/utils.py#L146
+# < 55 = 0€, >= 90€ = 10€, all in between mapped linearly between 0€ and 10€
+accs = np.ceil(df_acc.groupby("sub").mean().to_numpy() * 100).astype(int)
+assert not (accs < 55).any()
+assert not (accs >= 90).any()
+cents_map = np.linspace(0, 1000, 90 - 55)
+bonus_cents = cents_map[accs - 55]
+bonus_euro = np.ceil(bonus_cents / 100).astype(int).flatten()
+print(f"Participant earned €{bonus_euro.mean():.2f}±{bonus_euro.std():.2f} on average.")
+
+# %%
