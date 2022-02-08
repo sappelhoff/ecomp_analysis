@@ -472,7 +472,7 @@ def prep_weight_calc(df, nsamples=10):
 
     # prepare data
     isamples = [f"sample{i}" for i in range(1, nsamples + 1)]  # samples 1 to nsamples
-    samples_signed = weights_df.loc[:, isamples].to_numpy().reshape(-1)
+    samples_signed = weights_df.loc[:, isamples].to_numpy().flatten()
     samples = np.abs(samples_signed)
     colors = (np.sign(samples_signed) + 1) / 2  # red=0, blue=1
     positions = np.tile(

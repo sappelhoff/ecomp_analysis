@@ -289,11 +289,11 @@ for sub in SUBJS:
             )
             pwdf = pd.DataFrame.from_dict(
                 dict(
-                    sub=[sub] * len(positions) * len(NUMBERS),
-                    stream=[stream] * len(positions) * len(NUMBERS),
+                    sub=sub,
+                    stream=stream,
                     number=np.tile(NUMBERS, len(positions)),
-                    position=np.tile(positions, len(NUMBERS)),
-                    weight=position_weights.reshape(-1),
+                    position=np.repeat(positions, len(NUMBERS)),
+                    weight=position_weights.flatten(),  # shape(pos X weight)
                     weight_type=wtype,
                 )
             )
