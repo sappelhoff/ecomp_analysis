@@ -101,6 +101,7 @@ print(partici_df["age"].describe().round(2), end="\n\n")
 
 # %%
 # Print average number of timeouts per participant
-np.round(np.mean((partici_df["ntimeouts"] / 600) * 100), 2)
+_ = np.round(np.mean((partici_df["ntimeouts"] / 600) * 100), 2)
+print(f"On average there were {_}% timouts per participant.")
 
 # %%

@@ -72,7 +72,7 @@ with sns.plotting_context(**plotting_context):
     # Accuracies
     x = "stream"
     order = stream_order
-    colname = "acc"
+    colname = "accuracy"
     ax = ax1
     data = accdata
 

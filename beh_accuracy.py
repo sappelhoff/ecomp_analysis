@@ -1,7 +1,4 @@
-"""Analyze accuracies.
-
-TODO: Ignore "ambiguous" trials for accuracy.
-"""
+"""Analyze accuracies."""
 # %%
 # Imports
 import matplotlib.pyplot as plt
@@ -11,7 +8,7 @@ import pingouin
 import seaborn as sns
 from scipy.stats import sem
 
-from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_LOCAL
+from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, SUBJS
 from utils import get_sourcedata
 
 # %%
@@ -21,26 +18,26 @@ analysis_dir = ANALYSIS_DIR_LOCAL
 
 # %%
 # Get accuracies from participants
-data = dict(sub=[], stream=[], acc=[])
-for sub in range(1, 33):
+ambiguous = []
+data = dict(subject=[], stream=[], accuracy=[])
+for sub in SUBJS:
 
-    # skip bad subjs
-    if sub in BAD_SUBJS:
-        continue
-
+    nambigs = 0
     for stream in ["single", "dual"]:
         _, tsv = get_sourcedata(sub, stream, DATA_DIR_LOCAL)
         df = pd.read_csv(tsv, sep="\t")
 
-        corrects = df["correct"].to_numpy()
+        # count number of ambiguous trials
+        nambigs += df["ambiguous"].sum()
 
-        # drop invalid trials (timeouts)
-        dropidxs = np.nonzero(~df["validity"].to_numpy())[0]
-        corrects = np.delete(corrects, dropidxs)
+        # drop invalid trials (timouts and ambiguous)
+        corrects = df[(~df["ambiguous"]) & (df["validity"])]["correct"].to_numpy()
 
-        data["sub"] += [sub]
+        data["subject"] += [sub]
         data["stream"] += [stream]
-        data["acc"] += [np.mean(corrects)]
+        data["accuracy"] += [np.mean(corrects)]
+
+    ambiguous.append(nambigs)
 
 df_acc = pd.DataFrame.from_dict(data)
 fname = analysis_dir / "derived_data" / "accuracies.tsv"
@@ -83,7 +80,7 @@ with sns.plotting_context(**plotting_context):
 
     x = "stream"
     order = stream_order
-    colname = "acc"
+    colname = "accuracy"
     ax = ax
     data = df_acc
 
@@ -124,8 +121,12 @@ with sns.plotting_context(**plotting_context):
     locs2 = ax.get_children()[idx1].get_offsets()
 
     # before plotting, we need to sort so that the data points correspond
-    sort_idxs1 = np.argsort(data[data["stream"] == stream_order[0]]["acc"].to_numpy())
-    sort_idxs2 = np.argsort(data[data["stream"] == stream_order[1]]["acc"].to_numpy())
+    sort_idxs1 = np.argsort(
+        data[data["stream"] == stream_order[0]]["accuracy"].to_numpy()
+    )
+    sort_idxs2 = np.argsort(
+        data[data["stream"] == stream_order[1]]["accuracy"].to_numpy()
+    )
     locs2_sorted = locs2[sort_idxs2.argsort()][sort_idxs1]
 
     for i in range(locs1.shape[0]):
@@ -143,33 +144,38 @@ with sns.plotting_context(**plotting_context):
 
 # %%
 # print descriptives
-descr = df_acc.groupby("stream")["acc"].agg([np.mean, sem]).round(3)
+descr = df_acc.groupby("stream")["accuracy"].agg([np.mean, sem]).round(3)
 descr
 
 # %%
 # print stats
 tstats = pingouin.ttest(
-    df_acc[df_acc["stream"] == "single"]["acc"],
-    df_acc[df_acc["stream"] == "dual"]["acc"],
+    df_acc[df_acc["stream"] == "single"]["accuracy"],
+    df_acc[df_acc["stream"] == "dual"]["accuracy"],
     paired=True,
 )
 tstats
 
 # %%
 # print acc range
-df_acc["acc"].agg(["min", "max"]).round(3).to_list()
+df_acc["accuracy"].agg(["min", "max"]).round(3).to_list()
 
 # %%
 # Print earned bonus money
 # see:
 # https://github.com/sappelhoff/ecomp_experiment/blob/main/ecomp_experiment/utils.py#L146
 # < 55 = 0€, >= 90€ = 10€, all in between mapped linearly between 0€ and 10€
-accs = np.ceil(df_acc.groupby("sub").mean().to_numpy() * 100).astype(int)
+accs = np.ceil(df_acc.groupby("subject").mean().to_numpy() * 100).astype(int)
 assert not (accs < 55).any()
 assert not (accs >= 90).any()
 cents_map = np.linspace(0, 1000, 90 - 55)
 bonus_cents = cents_map[accs - 55]
 bonus_euro = np.ceil(bonus_cents / 100).astype(int).flatten()
 print(f"Participant earned €{bonus_euro.mean():.2f}±{bonus_euro.std():.2f} on average.")
+
+# %%
+# Print average percent of ambiguous trials per participant
+_ = np.round(np.mean((np.array(ambiguous) / 600) * 100), 2)
+print(f"On average there were {_}% ambiguous trials per participant.")
 
 # %%
