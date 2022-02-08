@@ -3,6 +3,7 @@
 # Imports
 import json
 
+import numpy as np
 import pandas as pd
 
 from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_LOCAL
@@ -97,5 +98,9 @@ partici_df = participants_tsv[participants_tsv["included"]]
 print(partici_df["sex"].value_counts(), end="\n\n")
 print(partici_df["handedness"].value_counts(), end="\n\n")
 print(partici_df["age"].describe().round(2), end="\n\n")
+
+# %%
+# Print average number of timeouts per participant
+np.round(np.mean((partici_df["ntimeouts"] / 600) * 100), 2)
 
 # %%
