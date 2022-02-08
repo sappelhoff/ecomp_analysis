@@ -23,8 +23,12 @@ bad_channels_template = (
 # Analyze dropped epochs
 df_dropped_epochs = pd.read_csv(dropped_epochs, sep="\t")
 
-mean_retained = 100 - np.round(df_dropped_epochs["perc_rejected"].mean(), 1)
-print(f"On average, {mean_retained} percent of epochs were retained per participant.")
+mean_retained = 100 - df_dropped_epochs["perc_rejected"].mean()
+print(
+    f"On average, {np.mean(df_dropped_epochs['nkept_epos']):.0f} "
+    "({mean_retained:.1f} %) of epochs were retained per participant."
+)
+
 
 # %%
 # Analyze interpolated channels
