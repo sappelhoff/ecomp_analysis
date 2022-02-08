@@ -280,7 +280,7 @@ for sub in SUBJS:
             # save in DF
             wdf = pd.DataFrame.from_dict(
                 dict(
-                    sub=sub,
+                    subject=sub,
                     stream=stream,
                     number=NUMBERS,
                     weight=weights,
@@ -289,7 +289,7 @@ for sub in SUBJS:
             )
             pwdf = pd.DataFrame.from_dict(
                 dict(
-                    sub=sub,
+                    subject=sub,
                     stream=stream,
                     number=np.tile(NUMBERS, len(positions)),
                     position=np.repeat(positions, len(NUMBERS)),
@@ -387,6 +387,79 @@ g = sns.catplot(
 g.fig.suptitle(f"Model based on initial guesses of type '{x0_type}'", y=1.05)
 fname = analysis_dir / "figures" / "posweights_numberhue.jpg"
 g.fig.savefig(fname)
+
+# %%
+# plot over positions: data and model overlaid
+palette = "muted"  # "crest_r"
+
+with sns.plotting_context("talk"):
+    fig, axs = plt.subplots(1, 2, figsize=(12, 7), sharey=True)
+
+    for istream, stream in enumerate(STREAMS):
+
+        data = posweightdata[(posweightdata["stream"] == stream)]
+
+        ax = axs.flat[istream]
+
+        # plot data
+        sns.pointplot(
+            x="position",
+            y="weight",
+            hue="number",
+            data=data[data["weight_type"] == "data"],
+            ci=68,
+            palette=palette,
+            ax=ax,
+        )
+
+        # plot model
+        _ = (
+            data[data["weight_type"] == "model"]
+            .groupby(["position", "number"])
+            .mean()
+            .reset_index()[["position", "number", "weight"]]
+        )
+        _
+
+        for inumber, number in enumerate(NUMBERS):
+            color = sns.color_palette(palette, n_colors=len(NUMBERS))[inumber]
+            ax.plot(
+                _[_["number"] == number]["position"].to_numpy(),
+                _[_["number"] == number]["weight"].to_numpy(),
+                marker="o",
+                markerfacecolor=color,
+                markeredgecolor="black",
+                markersize=5,
+                zorder=10,
+                color="black",
+                lw=0.5,
+            )
+
+        handles, labels = ax.get_legend_handles_labels()
+        sns.move_legend(
+            ax,
+            loc="center left",
+            bbox_to_anchor=(1, 0.5),
+            handles=reversed(handles),
+            labels=reversed(labels),
+        )
+        if istream == 1:
+            ax.set_ylabel("")
+            ax.get_legend().remove()
+
+        ax.set_title(stream)
+
+        fig.suptitle(
+            (
+                "large dots without outline = data (error = SEM)\n"
+                "small dots with black outline = model (error not plotted)"
+            )
+        )
+
+sns.despine(fig)
+fig.tight_layout()
+# %%
+
 
 # %%
 # plot weights over positions: positions as hue
