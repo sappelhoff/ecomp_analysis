@@ -72,7 +72,7 @@ else:
         "numberline": model_numberline,
         "extremity": model_extremity,
         "category": model_category,
-        "digit": model_identity,
+        "identity": model_identity,
     }
 
 
