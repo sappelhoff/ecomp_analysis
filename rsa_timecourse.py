@@ -54,15 +54,12 @@ else:
     conditions = np.hstack((NUMBERS, NUMBERS))
 
 model_numberline = calc_rdm(conditions, normalize=True)
+
 model_extremity = calc_rdm(np.abs(conditions - 5), normalize=True)
 
-model_category = np.vstack(
-    (
-        np.hstack((np.ones((9, 9)), np.zeros((9, 9)))),
-        np.hstack((np.zeros((9, 9)), np.ones((9, 9)))),
-    )
-)
-model_identity = np.tile(np.eye(9), (2, 2))
+model_category = np.repeat(np.repeat(np.abs(np.identity(2) - 1), 9, axis=1), 9, axis=0)
+
+model_identity = np.tile(np.abs(np.identity(9) - 1), (2, 2))
 
 if rdm_size == "9x9":
     models = {"numberline": model_numberline, "extremity": model_extremity}
