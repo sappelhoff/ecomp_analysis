@@ -5,6 +5,7 @@ import json
 
 import numpy as np
 import pandas as pd
+from scipy.stats import binomtest
 
 from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_LOCAL
 from utils import get_sourcedata
@@ -103,5 +104,20 @@ print(partici_df["age"].describe().round(2), end="\n\n")
 # Print average number of timeouts per participant
 _ = np.round(np.mean((partici_df["ntimeouts"] / 600) * 100), 2)
 print(f"On average there were {_}% timouts per participant.")
+
+# %%
+# Compute Binomial tests for bad subjects
+for sub in BAD_SUBJS:
+    for stream in ["single", "dual"]:
+        _, tsv = get_sourcedata(sub, stream, data_dir)
+        df = pd.read_csv(tsv, sep="\t")
+
+        # binomial test on performance)
+        n = df[(~df["ambiguous"]) & (df["validity"])]["correct"].to_numpy().shape[0]
+        successes = (
+            df[(~df["ambiguous"]) & (df["validity"])]["correct"].to_numpy().sum()
+        )
+        res = binomtest(k=successes, n=n, p=0.5, alternative="two-sided")
+        print(sub, stream, res, "\n")
 
 # %%
