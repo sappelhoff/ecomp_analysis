@@ -48,6 +48,8 @@ window_sel = (0.2, 0.6)  # representative window, look at RSA timecourse figure
 
 pthresh = 0.05
 
+subtract_maps = True
+
 # %%
 # Prepare file paths
 derivatives = data_dir / "derivatives"
@@ -110,16 +112,17 @@ for isub, sub in enumerate(tqdm(SUBJS)):
 
 # %%
 # Normalize maps to be relative to bias=0, kappa=1
-rng = np.random.default_rng(42)
-for isub, sub in enumerate(tqdm(SUBJS)):
-    for istream, stream in enumerate(STREAMS):
-        corr_ref = grid_streams_subjs[idx_kappa_one, idx_bias_zero, istream, isub]
-        grid_streams_subjs[..., istream, isub] -= corr_ref
+if subtract_maps:
+    rng = np.random.default_rng(42)
+    for isub, sub in enumerate(tqdm(SUBJS)):
+        for istream, stream in enumerate(STREAMS):
+            corr_ref = grid_streams_subjs[idx_kappa_one, idx_bias_zero, istream, isub]
+            grid_streams_subjs[..., istream, isub] -= corr_ref
 
-        # don't make the b=0, k=1 cell zero for all subjs. Add tiny amount
-        # of random noise, so that down-the-line tests don't run into NaN problems
-        noise = rng.normal() * 1e-5
-        grid_streams_subjs[idx_kappa_one, idx_bias_zero, istream, isub] += noise
+            # don't make the b=0, k=1 cell zero for all subjs. Add tiny amount
+            # of random noise, so that down-the-line tests don't run into NaN problems
+            noise = rng.normal() * 1e-5
+            grid_streams_subjs[idx_kappa_one, idx_bias_zero, istream, isub] += noise
 
 # %%
 # Calculate 1 samp t-tests against 0 for each cell to test significance
@@ -158,6 +161,13 @@ for istream, stream in enumerate(STREAMS):
 
     ax = axs.flat[istream]
 
+    # settings
+    cbarlabel = "Pearson's r"
+    vmin = None
+    if subtract_maps:
+        cbarlabel = "Δ " + cbarlabel
+        vmin = 0
+
     # Calculate subj wise maxima
     for isub, sub in enumerate(SUBJS):
         shape = grid_streams_subjs[..., istream, isub].shape
@@ -169,20 +179,21 @@ for istream, stream in enumerate(STREAMS):
     mask = sig_masks_streams[..., istream]
     mask[grid_mean <= 0] = alpha_val_mask
     _ = ax.imshow(
-        grid_mean, origin="upper", interpolation="nearest", vmin=0, alpha=mask
+        grid_mean, origin="upper", interpolation="nearest", vmin=vmin, alpha=mask
     )
 
     # tweak to get colorbar without alpha mask
     _, tweak_ax = plt.subplots()
-    im = tweak_ax.imshow(grid_mean, origin="upper", interpolation="nearest", vmin=0)
+    im = tweak_ax.imshow(grid_mean, origin="upper", interpolation="nearest", vmin=vmin)
 
     # plot colorbar
     cbar = fig.colorbar(
-        im, ax=ax, orientation="horizontal", label="Δ Pearson's r", shrink=0.75
+        im, ax=ax, orientation="horizontal", label=cbarlabel, shrink=0.75
     )
-    cbar_ticks = np.linspace(0, im.get_array().max(), 4)
-    cbar.set_ticks(cbar_ticks)
-    cbar.ax.set_xticklabels(["<=0"] + [f"{i:.2}" for i in cbar_ticks[1:]])
+    if subtract_maps:
+        cbar_ticks = np.linspace(0, im.get_array().max(), 4)
+        cbar.set_ticks(cbar_ticks)
+        cbar.ax.set_xticklabels(["<=0"] + [f"{i:.2}" for i in cbar_ticks[1:]])
 
     # plot subj maxima
     ax.scatter(
@@ -226,10 +237,12 @@ for istream, stream in enumerate(STREAMS):
         ylabel="kappa (k)",
     )
 
-    title = (
-        "Improved model correlation relative to linear model (b=0, k=1)\n"
-        f"Transparent mask shows significant values at p={pthresh} (FDR corrected)"
-    )
+    title = f"Transparent mask shows significant values at p={pthresh} (FDR corrected)"
+    if subtract_maps:
+        title = (
+            "Improved model correlation relative to linear model (b=0, k=1)\n" + title
+        )
+
     fig.suptitle(title, y=1.15)
 # %%
 # Do the same on grand mean RDMs -- no stats possible
@@ -251,9 +264,17 @@ for istream, stream in enumerate(tqdm(STREAMS)):
         idx_kappa = np.nonzero(kappas == kappa)[0][0]
         grid_streams_grandmean[idx_kappa, idx_bias, istream] = corr
 
+    # settings
+    cbarlabel = "Pearson's r"
+    vmin = None
+    if subtract_maps:
+        cbarlabel = "Δ " + cbarlabel
+        vmin = 0
+
     # Make relative to b=0, k=1
-    corr_ref = grid_streams_grandmean[idx_kappa_one, idx_bias_zero, istream]
-    grid_streams_grandmean[..., istream] -= corr_ref
+    if subtract_maps:
+        corr_ref = grid_streams_grandmean[idx_kappa_one, idx_bias_zero, istream]
+        grid_streams_grandmean[..., istream] -= corr_ref
 
     # plot
     ax = axs.flat[istream]
@@ -261,15 +282,16 @@ for istream, stream in enumerate(tqdm(STREAMS)):
         grid_streams_grandmean[..., istream],
         origin="upper",
         interpolation="nearest",
-        vmin=0,
+        vmin=vmin,
     )
     # plot colorbar
     cbar = fig.colorbar(
-        im, ax=ax, orientation="horizontal", label="Δ Pearson's r", shrink=0.75
+        im, ax=ax, orientation="horizontal", label=cbarlabel, shrink=0.75
     )
-    cbar_ticks = np.linspace(0, im.get_array().max(), 4)
-    cbar.set_ticks(cbar_ticks)
-    cbar.ax.set_xticklabels(["<=0"] + [f"{i:.2}" for i in cbar_ticks[1:]])
+    if subtract_maps:
+        cbar_ticks = np.linspace(0, im.get_array().max(), 4)
+        cbar.set_ticks(cbar_ticks)
+        cbar.ax.set_xticklabels(["<=0"] + [f"{i:.2}" for i in cbar_ticks[1:]])
 
     # lines
     ax.axvline(idx_bias_zero, color="white", ls="--")
@@ -292,9 +314,11 @@ for istream, stream in enumerate(tqdm(STREAMS)):
         ylabel="kappa (k)",
     )
 
-    title = (
-        "Improved model correlation relative to linear model (b=0, k=1)\n"
-        "Based on grand mean RDMs"
-    )
+    title = "Based on grand mean RDMs"
+    if subtract_maps:
+        title = (
+            "Improved model correlation relative to linear model (b=0, k=1)\n" + title
+        )
+
     fig.suptitle(title, y=1.15)
 # %%
