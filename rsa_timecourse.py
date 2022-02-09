@@ -1,10 +1,10 @@
 """Calculate RSA timecourse.
 
-- create numberline model RDM
+- create numberline and extremity model RDMs
 - For each subj and stream:
     - load rdm_times array
     - for each timepoint
-        - correlate ERP-RDM with model RDM
+        - correlate ERP-RDM with model RDMs
 - plot means over subjs for each stream
 - check which timewindow is has high correlation
 - plot mean ERP-RDMs for each stream over subjs and selected timewindow
@@ -45,8 +45,11 @@ fname_times = mahal_dir / "times.npy"
 times = np.load(fname_times)
 
 # %%
-# Calculate model RDM
+# Calculate model RDMs
 numberline = calc_rdm(NUMBERS, normalize=True)
+extremity = calc_rdm(np.abs(NUMBERS - 5), normalize=True)
+
+models = {"numberline": numberline, "extremity": extremity}
 
 # %%
 # Calculate RSA per subj and stream
@@ -54,39 +57,40 @@ df_rsa_list = []
 rdm_times_streams_subjs = np.full(
     (len(NUMBERS), len(NUMBERS), len(times), len(STREAMS), len(SUBJS)), np.nan
 )
-for isub, sub in enumerate(tqdm(SUBJS)):
-    for istream, stream in enumerate(STREAMS):
-        rdm_times = np.load(fname_rdm_template.format(sub, stream))
-        rdm_times_streams_subjs[..., istream, isub] = rdm_times
+for imodel, (modelname, model) in enumerate(tqdm(models.items())):
+    for isub, sub in enumerate(SUBJS):
+        for istream, stream in enumerate(STREAMS):
+            rdm_times = np.load(fname_rdm_template.format(sub, stream))
+            rdm_times_streams_subjs[..., istream, isub] = rdm_times
 
-        # Correlation
-        ntimes = rdm_times.shape[-1]
-        x = rdm2vec(numberline, lower_tri=True)
-        corr_model_times = np.full((ntimes, 1), np.nan)
-        for itime in range(ntimes):
-            y = rdm2vec(rdm_times[..., itime], lower_tri=True)
-            if rsa_method == "pearson":
-                corr, _ = scipy.stats.pearsonr(x, y)
-            else:
-                raise RuntimeError(f"invalid rsa_method: {rsa_method}")
-            corr_model_times[itime, 0] = corr
+            # Correlation with model
+            ntimes = rdm_times.shape[-1]
+            x = rdm2vec(model, lower_tri=True)
+            corr_model_times = np.full((ntimes, 1), np.nan)
+            for itime in range(ntimes):
+                y = rdm2vec(rdm_times[..., itime], lower_tri=True)
+                if rsa_method == "pearson":
+                    corr, _ = scipy.stats.pearsonr(x, y)
+                else:
+                    raise RuntimeError(f"invalid rsa_method: {rsa_method}")
+                corr_model_times[itime, 0] = corr
 
-        # Make a dataframe
-        _df_rsa = pd.DataFrame(corr_model_times, columns=["similarity"])
-        _df_rsa.insert(0, "model", "numberline")
-        _df_rsa.insert(0, "method", rsa_method)
-        _df_rsa.insert(0, "measure", distance_measure)
-        _df_rsa.insert(0, "itime", range(ntimes))
-        _df_rsa.insert(0, "time", times)
-        _df_rsa.insert(0, "stream", stream)
-        _df_rsa.insert(0, "subject", sub)
+            # Make a dataframe
+            _df_rsa = pd.DataFrame(corr_model_times, columns=["similarity"])
+            _df_rsa.insert(0, "model", modelname)
+            _df_rsa.insert(0, "method", rsa_method)
+            _df_rsa.insert(0, "measure", distance_measure)
+            _df_rsa.insert(0, "itime", range(ntimes))
+            _df_rsa.insert(0, "time", times)
+            _df_rsa.insert(0, "stream", stream)
+            _df_rsa.insert(0, "subject", sub)
 
-        # Save
-        df_rsa_list.append(_df_rsa)
+            # Save
+            df_rsa_list.append(_df_rsa)
 
 df_rsa = pd.concat(df_rsa_list)
 df_rsa = df_rsa.reset_index(drop=True)
-assert len(df_rsa) == ntimes * len(SUBJS) * len(STREAMS)
+assert len(df_rsa) == ntimes * len(SUBJS) * len(STREAMS) * len(models)
 assert not np.isnan(rdm_times_streams_subjs).any()
 df_rsa
 
@@ -97,13 +101,19 @@ ylabel = {"pearson": "Pearson's r"}[rsa_method]
 window_sel = (0.2, 0.6)  # representative window, look at figure
 
 with sns.plotting_context("talk"):
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(10, 5))
 
-    sns.lineplot(data=df_rsa, x="time", y="similarity", hue="stream", ci=68, ax=ax)
+    sns.lineplot(
+        data=df_rsa, x="time", y="similarity", hue="model", style="stream", ci=68, ax=ax
+    )
     ax.axhline(0, color="black", lw=0.25, ls="--")
+    ax.axvline(0, color="black", lw=0.25, ls="--")
     ax.set(ylabel=f"{ylabel}", xlabel="Time (s)")
     ax.axvspan(*window_sel, color="black", alpha=0.1)
-    sns.despine(fig)
+    sns.move_legend(ax, loc="upper left", bbox_to_anchor=(1, 1))
+
+sns.despine(fig)
+fig.tight_layout()
 
 # %%
 # Show mean RDMs in selected timewindow
