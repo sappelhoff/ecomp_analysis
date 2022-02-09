@@ -1,13 +1,13 @@
 """Calculate RSA timecourse.
 
-- create numberline and extremity model RDMs
+- create model RDMs
 - For each subj and stream:
     - load rdm_times array
     - for each timepoint
         - correlate ERP-RDM with model RDMs
 - plot means over subjs for each stream
 - check which timewindow is has high correlation
-- plot mean ERP-RDMs for each stream over subjs and selected timewindow
+- plot mean ERP-RDMs for each stream over subjs and selected time window
 
 """
 # %%
@@ -30,12 +30,13 @@ analysis_dir = ANALYSIS_DIR_LOCAL
 
 rsa_method = "pearson"
 distance_measure = "mahalanobis"
+rdm_size = "18x18"  # "9x9" or "18x18"
 
 # %%
 # Prepare file paths
 derivatives = data_dir / "derivatives"
 
-mahal_dir = data_dir / "derivatives" / "rsa" / "rdms_mahalanobis"
+mahal_dir = data_dir / "derivatives" / "rsa" / rdm_size / "rdms_mahalanobis"
 
 fname_rdm_template = str(mahal_dir / "sub-{:02}_stream-{}_rdm-mahal.npy")
 fname_times = mahal_dir / "times.npy"
@@ -46,16 +47,55 @@ times = np.load(fname_times)
 
 # %%
 # Calculate model RDMs
-numberline = calc_rdm(NUMBERS, normalize=True)
-extremity = calc_rdm(np.abs(NUMBERS - 5), normalize=True)
+if rdm_size == "9x9":
+    conditions = NUMBERS
+else:
+    assert rdm_size == "18x18"
+    conditions = np.hstack((NUMBERS, NUMBERS))
 
-models = {"numberline": numberline, "extremity": extremity}
+model_numberline = calc_rdm(conditions, normalize=True)
+model_extremity = calc_rdm(np.abs(conditions - 5), normalize=True)
+
+model_category = np.vstack(
+    (
+        np.hstack((np.ones((9, 9)), np.zeros((9, 9)))),
+        np.hstack((np.zeros((9, 9)), np.ones((9, 9)))),
+    )
+)
+model_identity = np.tile(np.eye(9), (2, 2))
+
+if rdm_size == "9x9":
+    models = {"numberline": model_numberline, "extremity": model_extremity}
+else:
+    assert rdm_size == "18x18"
+    models = {
+        "numberline": model_numberline,
+        "extremity": model_extremity,
+        "category": model_category,
+        "digit": model_identity,
+    }
+
+
+# %%
+# plot models
+fig, axs = plt.subplots(
+    len(models), 2, sharex=True, sharey=True, figsize=(10, 5 * len(models))
+)
+for imodel, (modelname, model) in enumerate(models.items()):
+
+    ax1, ax2 = axs[imodel, :]
+    ax1.imshow(model)
+    ax2.imshow(prep_to_plot(model))
+    assert model.min() == 0
+    assert model.max() == 1
+    ax1.set_title(modelname)
+
 
 # %%
 # Calculate RSA per subj and stream
 df_rsa_list = []
 rdm_times_streams_subjs = np.full(
-    (len(NUMBERS), len(NUMBERS), len(times), len(STREAMS), len(SUBJS)), np.nan
+    (len(conditions), len(conditions), len(times), len(STREAMS), len(SUBJS)), np.nan
 )
 for imodel, (modelname, model) in enumerate(tqdm(models.items())):
     for isub, sub in enumerate(SUBJS):
@@ -77,6 +117,7 @@ for imodel, (modelname, model) in enumerate(tqdm(models.items())):
 
             # Make a dataframe
             _df_rsa = pd.DataFrame(corr_model_times, columns=["similarity"])
+            _df_rsa.insert(0, "rdm_size", rdm_size)
             _df_rsa.insert(0, "model", modelname)
             _df_rsa.insert(0, "method", rsa_method)
             _df_rsa.insert(0, "measure", distance_measure)
