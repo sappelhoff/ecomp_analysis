@@ -141,6 +141,7 @@ def prepare_raw_from_source(sub, data_dir, analysis_dir):
 @click.option("--downsample_freq", type=int, help="downsample_freq")
 @click.option("--t_min_max_epochs", type=(float, float), help="t_min_max_epochs")
 @click.option("--recompute_faster", default=False, type=bool, help="recompute_faster")
+@click.option("--rdm_size", type=str, help="rdm_size")
 def get_inputs(
     sub,
     data_dir,
@@ -154,6 +155,7 @@ def get_inputs(
     downsample_freq,
     t_min_max_epochs,
     recompute_faster,
+    rdm_size,
 ):
     """Parse inputs in case script is run from command line.
 
@@ -179,6 +181,7 @@ def get_inputs(
         downsample_freq=downsample_freq,
         t_min_max_epochs=t_min_max_epochs,
         recompute_faster=recompute_faster,
+        rdm_size=rdm_size,
     )
 
     return inputs

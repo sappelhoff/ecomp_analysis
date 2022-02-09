@@ -50,11 +50,13 @@ pthresh = 0.05
 
 subtract_maps = True
 
+rdm_size = "9x9"
+
 # %%
 # Prepare file paths
 derivatives = data_dir / "derivatives"
 
-mahal_dir = data_dir / "derivatives" / "rsa" / "rdms_mahalanobis"
+mahal_dir = data_dir / "derivatives" / "rsa" / rdm_size / "rdms_mahalanobis"
 
 fname_rdm_template = str(mahal_dir / "sub-{:02}_stream-{}_rdm-mahal.npy")
 fname_times = mahal_dir / "times.npy"

@@ -39,7 +39,7 @@ from scipy.spatial.distance import pdist, squareform
 from sklearn.covariance import LedoitWolf
 from tqdm.auto import tqdm
 
-from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL, NUMBERS, STREAMS
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL, STREAMS
 from utils import parse_overwrite
 
 # %%
@@ -57,6 +57,8 @@ overwrite = False
 # which baseline to apply
 baseline = (None, 0)
 
+rdm_size = "9x9"  # 9x9 or 18x18
+
 # %%
 # When not in an IPython session, get command line inputs
 # https://docs.python.org/3/library/sys.html#sys.ps1
@@ -66,6 +68,7 @@ if not hasattr(sys, "ps1"):
         data_dir=data_dir,
         analysis_dir=analysis_dir,
         overwrite=overwrite,
+        rdm_size=rdm_size,
     )
 
     defaults = parse_overwrite(defaults)
@@ -74,6 +77,7 @@ if not hasattr(sys, "ps1"):
     data_dir = defaults["data_dir"]
     analysis_dir = defaults["analysis_dir"]
     overwrite = defaults["overwrite"]
+    rdm_size = defaults["rdm_size"]
 
 if sub in BAD_SUBJS:
     raise RuntimeError("No need to work on the bad subjs.")
@@ -84,11 +88,36 @@ derivatives = data_dir / "derivatives"
 
 fname_epo = derivatives / f"sub-{sub:02}" / f"sub-{sub:02}_numbers_epo.fif.gz"
 
-mahal_dir = data_dir / "derivatives" / "rsa" / "rdms_mahalanobis"
+mahal_dir = data_dir / "derivatives" / "rsa" / rdm_size / "rdms_mahalanobis"
 mahal_dir.mkdir(exist_ok=True, parents=True)
 
 fname_rdm_template = mahal_dir / "sub-{:02}_stream-{}_rdm-mahal.npy"
 fname_times = mahal_dir / "times.npy"
+
+
+# %%
+# Prepare conditions
+def add_condition_to_metadata(epochs, rdm_size):
+    """Add a "condition" column to epochs.metadata."""
+    if rdm_size == "9x9":
+        # number 1...9 are the conditions
+        conditions = epochs.metadata["number"].to_list()
+    else:
+        assert rdm_size == "18x18"
+        # conditions are: 1-9 for red, 10-18 for blue numbers
+        condimap = {
+            "red": {i: j for i, j in zip(range(1, 10), range(1, 10))},
+            "blue": {i: j for i, j in zip(range(1, 10), range(10, 19))},
+        }
+        conditions = []
+        for row in epochs.metadata.itertuples(index=False):
+            num = row[list(epochs.metadata.columns).index("number")]
+            col = row[list(epochs.metadata.columns).index("color")]
+            conditions.append(condimap[col][num])
+
+    epochs.metadata["condition"] = conditions
+    return epochs
+
 
 # %%
 # Calculate RDMs for each stream
@@ -111,15 +140,16 @@ for stream in STREAMS:
     epochs.apply_baseline(baseline)
 
     # Prepare a design matrix
+    epochs = add_condition_to_metadata(epochs, rdm_size)
     ntrials = len(epochs)
-    conditions = np.unique(epochs.metadata["number"])
+    conditions = np.unique(epochs.metadata["condition"])
     nconditions = len(conditions)
     design_matrix = np.zeros((ntrials, nconditions))
 
     for icondi, condi in enumerate(conditions):
 
         assert isinstance(condi, np.int64)
-        idxs = epochs.metadata["number"] == condi
+        idxs = epochs.metadata["condition"] == condi
 
         design_matrix[idxs, icondi] = 1
 
@@ -165,8 +195,8 @@ for stream in STREAMS:
     # need to zscore epochs first
     epochs._data = scipy.stats.zscore(epochs._data, axis=0)
     erps = np.zeros_like(coefs)
-    for inumber, number in enumerate(NUMBERS):
-        erps[inumber, ...] = epochs[f"{number}"].average().data
+    for icondi, condi in enumerate(conditions):
+        erps[icondi, ...] = epochs[f"condition == {condi}"].average().data
 
     np.testing.assert_allclose(coefs, erps)
 
