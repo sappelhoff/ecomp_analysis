@@ -87,6 +87,7 @@ model_numXcat = np.vstack(
     )
 )
 
+# Include or exclude models
 if rdm_size == "9x9":
     models_dict = {
         "no_orth": {"numberline": model_numberline, "extremity": model_extremity}
@@ -106,16 +107,30 @@ nmodels = len(models_dict["no_orth"])
 
 # %%
 # Orthogonalize models
-# First make a copy of non-orth models
+# First make a copy of non-orth models, this copy will be modified below
 models_dict["orth"] = copy.deepcopy(models_dict["no_orth"])
 
-# orthogonalize recursively (last column vector in spm_orth is orthed)
-# e.g., for models 1, 2, 3, 4, 5 do the following column orders:
+# orthogonalize recursively using spm_orth
+# The last column vector in the output of the spm_orth function
+# is orthogonalized with respect to all previous column vectors.
+#
+# Iterate through models, for each model, obtain its orthed version
+# by placing it in the last column in a matrix X.
+# For example, for models 1, 2, 3, 4, 5 do the following column orders:
+#
 # 2 3 4 5 1
 # 1 3 4 5 2
 # 1 2 4 5 3
 # 1 2 3 5 4
 # 1 2 3 4 5
+#
+# ... to obtain the orthed models (5 calls to spm_orth needed).
+#
+#  NOTE: Each column must be mean-centered, and only the vector
+#        form of a square symmetric RDM should be passed to spm_orth
+#        That is, use "squareform", or extract the lower (or upper)
+#        triangle of the RDM, excluding the diagonal (but do not mix
+#        these approaches).
 model_arrs = np.stack(list(models_dict["orth"].values()), axis=-1)
 modelnames = list(models_dict["orth"].keys())
 imodels = np.arange(nmodels)
@@ -125,13 +140,13 @@ for imodel in imodels:
     X = np.full((len(squareform(model_numberline)), nmodels), np.nan)
     for imod in range(nmodels):
         icol = orth_col_order.index(imod)
-        vec = squareform(model_arrs[..., imod])
+        vec = squareform(model_arrs[..., imod])  # convert to condensed vector
         X[..., icol] = vec - vec.mean()  # mean-center before orth
     X_orth = spm_orth(X)
-    orth_model = squareform(X_orth[..., -1])
+    orth_model = squareform(X_orth[..., -1])  # convert to square symmetric RDM again
     orthmodels.append((modelnames[imodel], orth_model))
 
-# update dict
+# update copied dict with final, orthogonalized models
 for modelname, orthmodel in orthmodels:
     models_dict["orth"][modelname] = orthmodel
 
@@ -209,7 +224,8 @@ df_rsa
 # Plot the data
 ylabel = {"pearson": "Pearson's r"}[rsa_method]
 
-window_sel = (0.2, 0.6)  # representative window, look at figure
+# representative windows, look at figure
+window_sels = [(0.075, 0.19), (0.21, 0.6)]
 
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(2, 1, figsize=(10, 10))
@@ -230,7 +246,8 @@ with sns.plotting_context("talk"):
         ax.axhline(0, color="black", lw=0.25, ls="--")
         ax.axvline(0, color="black", lw=0.25, ls="--")
         ax.set(ylabel=f"{ylabel}", xlabel="Time (s)")
-        ax.axvspan(*window_sel, color="black", alpha=0.1)
+        for window_sel in window_sels:
+            ax.axvspan(*window_sel, color="black", alpha=0.1)
 
         if iax == 0:
             ax.get_legend().remove()
@@ -242,52 +259,69 @@ sns.despine(fig)
 fig.tight_layout()
 
 # %%
-# Show mean RDMs in selected timewindow
-idx_start, idx_stop = np.unique(df_rsa[df_rsa["time"].isin(window_sel)]["itime"])
+# Show mean RDMs in selected time windows
+for window_sel in window_sels:
 
-rdm_times_streams_subjs.shape
+    # find measured time closest to our selection
+    start = times[np.argmin(np.abs(times - window_sel[0]))]
+    stop = times[np.argmin(np.abs(times - window_sel[1]))]
 
-mean_rdms = {}
-for istream, stream in enumerate(STREAMS):
-    # mean over subjects
-    rdm_submean = np.mean(rdm_times_streams_subjs[..., istream, :], axis=-1)
+    idx_start, idx_stop = np.unique(df_rsa[df_rsa["time"].isin((start, stop))]["itime"])
 
-    # mean over time
-    rdm_subtimemean = np.mean(rdm_submean[..., idx_start:idx_stop], axis=-1)
-    mean_rdms[stream] = rdm_subtimemean
+    rdm_times_streams_subjs.shape
 
+    mean_rdms = {}
+    for istream, stream in enumerate(STREAMS):
+        # mean over subjects
+        rdm_submean = np.mean(rdm_times_streams_subjs[..., istream, :], axis=-1)
 
-with sns.plotting_context("talk"):
-    fig, axs = plt.subplots(
-        1,
-        2,
-        figsize=(10, 4),
-        sharex=True,
-        sharey=True,
-    )
+        # mean over time
+        rdm_subtimemean = np.mean(rdm_submean[..., idx_start:idx_stop], axis=-1)
+        mean_rdms[stream] = rdm_subtimemean
 
-    for i, stream in enumerate(STREAMS):
-        ax = axs.flat[i]
-        plotrdm = prep_to_plot(mean_rdms[stream])
-
-        im = ax.imshow(plotrdm)
-        fig.colorbar(
-            im,
-            ax=ax,
-            label=f"{distance_measure}",
-            orientation="horizontal",
-            shrink=0.75,
+    with sns.plotting_context("talk"):
+        fig, axs = plt.subplots(
+            1,
+            2,
+            figsize=(10, 8),
+            sharex=True,
+            sharey=True,
         )
 
-        ax.set_title(stream)
-        ax.xaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS)))
-        ax.set_xticklabels([""] + [str(j) for j in NUMBERS])
-        ax.yaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS)))
-        ax.set_yticklabels([""] + [str(j) for j in NUMBERS])
+        for i, stream in enumerate(STREAMS):
+            ax = axs.flat[i]
+            plotrdm = prep_to_plot(mean_rdms[stream])
 
-    fig.suptitle(
-        f"RDMs, mean over subjects and time\n({window_sel[0]}s - {window_sel[1]}s)",
-        y=1.1,
-    )
+            im = ax.imshow(plotrdm)
+            fig.colorbar(
+                im,
+                ax=ax,
+                label=f"{distance_measure}",
+                orientation="horizontal",
+                shrink=0.75,
+                pad=0.25,
+            )
+
+            ax.set_title(stream)
+            if rdm_size == "9x9":
+                ax.xaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS)))
+                ax.set_xticklabels([""] + [str(j) for j in NUMBERS])
+                ax.yaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS)))
+                ax.set_yticklabels([""] + [str(j) for j in NUMBERS])
+            else:
+                assert rdm_size == "18x18"
+                ax.xaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS) * 2))
+                ax.set_xticklabels([""] + [str(j) for j in NUMBERS] * 2)
+                ax.yaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS) * 2))
+                ax.set_yticklabels([""] + [str(j) for j in NUMBERS] * 2)
+                ax.xaxis.set_tick_params(labelsize=10)
+                ax.yaxis.set_tick_params(labelsize=10)
+                ax.set_xlabel("red             blue", labelpad=12)
+                ax.set_ylabel("blue             red", labelpad=12)
+
+        fig.suptitle(
+            f"RDMs, mean over subjects and time\n({window_sel[0]}s - {window_sel[1]}s)",
+            y=1.1,
+        )
 
 # %%
