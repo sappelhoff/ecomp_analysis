@@ -94,14 +94,26 @@ if rdm_size == "9x9":
     }
 else:
     assert rdm_size == "18x18"
-    models_dict = {
-        "no_orth": {
-            "identity": model_identity,
-            "category": model_category,
-            "numberline": model_numberline,
-            "extremity": model_extremity,
+    take_all = False
+    if take_all:
+        models_dict = {
+            "no_orth": {
+                "identity": model_identity,
+                "category": model_category,
+                "parity": model_parity,
+                "numberline": model_numberline,
+                "numXcat": model_numXcat,
+                "extremity": model_extremity,
+            }
         }
-    }
+    else:
+        models_dict = {
+            "no_orth": {
+                "identity": model_identity,
+                "category": model_category,
+                "numberline": model_numberline,
+            }
+        }
 
 nmodels = len(models_dict["no_orth"])
 
@@ -163,8 +175,8 @@ with sns.plotting_context("talk"):
         model = list(models_dict["no_orth"].values())[imodel]
         orthmodel = list(models_dict["orth"].values())[imodel]
         ax1, ax2 = axs[:, imodel]
-        im1 = ax1.imshow(model, vmin=0, vmax=1, cmap="hot")
-        im2 = ax2.imshow(orthmodel, vmin=-1, vmax=1, cmap="hot")
+        im1 = ax1.imshow(model, vmin=0, vmax=1, cmap="viridis")
+        im2 = ax2.imshow(orthmodel, vmin=-1, vmax=1, cmap="viridis")
         ax1.set_title(modelnames[imodel])
         ax2.set_title("orth " + modelnames[imodel])
         plt.colorbar(im1, ax=ax1)
@@ -223,6 +235,14 @@ df_rsa
 # %%
 # Plot the data
 ylabel = {"pearson": "Pearson's r"}[rsa_method]
+rsa_colors = {
+    "identity": "C0",
+    "category": "C3",
+    "numberline": "C4",
+    "extremity": "C5",
+    "parity": "C1",
+    "numXcat": "C2",
+}
 
 # representative windows, look at figure
 window_sels = [(0.075, 0.19), (0.21, 0.6)]
@@ -242,6 +262,7 @@ with sns.plotting_context("talk"):
             style="stream",
             ci=68,
             ax=ax,
+            palette=rsa_colors,
         )
         ax.axhline(0, color="black", lw=0.25, ls="--")
         ax.axvline(0, color="black", lw=0.25, ls="--")
