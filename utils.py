@@ -680,3 +680,71 @@ def psychometric_model(
         loss = np.sum((y - CP) ** 2)
 
     return loss, CP
+
+
+def spm_orth(X, opt="pad"):
+    """Perform a recursive Gram-Schmidt orthogonalisation of basis functions.
+
+    This function was translated from Matlab to Python using the code from
+    the SPM MATLAB toolbox on ``spm_orth.m`` [1]_.
+
+    .. warning:: For arrays of shape(1, m) the results are not equivalent
+                 to what the original ``spm_orth.m`` produces.
+
+    Parameters
+    ----------
+    X : numpy.ndarray, shape(n, m)
+        Data to perform the orthogonalization on. Will be performed on the
+        columns.
+    opt : {"pad", "norm"}, optional
+        If ``"norm"``, perform a euclidean normalization according to
+        ``spm_en.m`` [2]_. If ``"pad"``, ensure that the output is of the
+        same size as the input. Defaults to ``"pad"``.
+
+    Returns
+    -------
+    X : numpy.ndarray
+        The orthogonalized data.
+
+    References
+    ----------
+    .. [1] https://github.com/spm/spm12/blob/3085dac00ac804adb190a7e82c6ef1/spm_orth.m
+    .. [2] https://github.com/spm/spm12/blob/f6948fff302fa4d4b80c9c67bb9ddf/spm_en.m
+    """
+    assert X.ndim == 2, "This function only operates on 2D numpy arrays."
+    n, m = X.shape
+    if n == 1:
+        raise RuntimeError("Function is unreliable for inputs of shape (1, m).")
+    X = X[:, np.any(X, axis=0)]  # drop all "all-zero" columns
+    rank_x = np.linalg.matrix_rank(X)
+
+    x = X[:, np.newaxis, 0]
+    j = [0]
+    for i in range(1, X.shape[-1]):
+        D = X[:, np.newaxis, i]
+        D = D - np.dot(x, np.dot(np.linalg.pinv(x), D))
+        if np.linalg.norm(D, 1) > np.exp(-32):
+            x = np.concatenate([x, D], axis=1)
+            j.append(i)
+
+        if len(j) == rank_x:
+            break
+
+    if opt == "pad":
+        # zero padding of null space (if present)
+        X = np.zeros((n, m))
+        X[:, np.asarray(j)] = x
+
+    elif opt == "norm":
+        # Euclidean normalization, based on "spm_en.m", see docstring.
+        for i in range(X.shape[-1]):
+            if np.any(X[:, i]):
+                X[:, i] = X[:, i] / np.sqrt(np.sum(X[:, i] ** 2))
+
+    else:
+        # spm_orth.m does "X = x" here. We raise an error, because
+        # this option is not documented in spm_orth.m
+        # X = x
+        raise ValueError("opt must be one of ['pad', 'norm'].")
+
+    return X
