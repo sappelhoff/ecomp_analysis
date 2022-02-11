@@ -9,36 +9,58 @@ import numpy as np
 from scipy.spatial.distance import squareform
 
 from config import NUMBERS
-from utils import calc_rdm, spm_orth
+from utils import calc_rdm, eq1, spm_orth
 
 MODELS = (
     "digit",
     "color",
     "parity",
     "numberline",
-    "numberline_k0",
-    "numberline_kinf",
     "numXcat",
     "extremity",
 )
 
 
-def get_models_dict(rdm_size, modelnames):
-    """Get a dict of models and their orthogonalized versions."""
+def get_models_dict(rdm_size, modelnames, bias=None, kappa=None):
+    """Get a dict of models and their orthogonalized versions.
+
+    Parameters
+    ----------
+    rdm_size : {"9x9", "18x18"}
+        The size of the RDMs.
+    modelnames : list of str
+        The names of the models to supply.
+    bias, kappa : float | None
+        The bias and kappa parameters, ignored if None. If specified,
+        both must be specified, and numbers will be passed through
+        `eq1` before RDMs are formed.
+
+    Returns
+    -------
+    models_dict : dict
+        The models in orthogonalized and non-orthogonalized format.
+    """
     for model in modelnames:
         assert model in MODELS
 
-    ndim = len(NUMBERS)
-    if rdm_size == "9x9":
-        conditions = NUMBERS
+    if (bias is not None) or (kappa is not None):
+        numbers_rescaled = np.interp(
+            NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1.0, 1.0)
+        )
+        numbers = eq1(numbers_rescaled, bias=bias, kappa=kappa)
     else:
-        assert rdm_size == "18x18"
-        conditions = np.hstack((NUMBERS, NUMBERS))
+        numbers = NUMBERS
+
+    ndim = len(numbers)
+    if rdm_size == "18x18":
+        numbers = np.hstack((numbers, numbers))
+    else:
+        assert rdm_size == "9x9"
 
     # Define the models
-    model_numberline = calc_rdm(conditions, normalize=True)
+    model_numberline = calc_rdm(numbers, normalize=True)
 
-    model_extremity = calc_rdm(np.abs(conditions - 5), normalize=True)
+    model_extremity = calc_rdm(np.abs(numbers - 5), normalize=True)
 
     # following models are only 18x18
     model_color = np.repeat(
@@ -53,14 +75,14 @@ def get_models_dict(rdm_size, modelnames):
         (
             np.hstack(
                 (
-                    calc_rdm(NUMBERS, normalize=True),
-                    np.fliplr(calc_rdm(NUMBERS, normalize=True)),
+                    calc_rdm(numbers[:9], normalize=True),
+                    np.fliplr(calc_rdm(numbers[:9], normalize=True)),
                 )
             ),
             np.hstack(
                 (
-                    np.fliplr(calc_rdm(NUMBERS, normalize=True)),
-                    calc_rdm(NUMBERS, normalize=True),
+                    np.fliplr(calc_rdm(numbers[:9], normalize=True)),
+                    calc_rdm(numbers[:9], normalize=True),
                 )
             ),
         )
