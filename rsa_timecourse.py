@@ -245,9 +245,10 @@ df_rsa
 # Cluster based permutation testing
 test_models = ["identity", "category", "numberline"]
 test_orth = True
+clusterstat = "length"
 thresh = 0.001
 clusterthresh = 0.001
-niterations = 10000
+niterations = 1000
 ttest_kwargs = dict(axis=0, nan_policy="raise", alternative="two-sided")
 
 sig_clusters_dict = {
@@ -270,16 +271,18 @@ for test_model in test_models:
         Xperm = _perm_X_paired(X, nsubjs, ntimes)
 
         # Calculate statistics
-        _, pval = scipy.stats.ttest_rel(Xperm[..., 0], Xperm[..., 1], **ttest_kwargs)
+        tval, pval = scipy.stats.ttest_rel(Xperm[..., 0], Xperm[..., 1], **ttest_kwargs)
 
         # Find clusters and cluster statistic
         clusters = return_clusters(pval < thresh)
-        distr[iteration] = get_max_stat(clusters)
+        distr[iteration] = get_max_stat(clusters, clusterstat, tval)
 
     # calculate observed stats and evaluate significance
-    _, pval = scipy.stats.ttest_rel(X[..., 0], X[..., 1], **ttest_kwargs)
-    clusters_obs = return_clusters(pval < thresh)
-    _, sig_clusters, _ = get_significance(distr, clusters_obs, clusterthresh)
+    tval_obs, pval_obs = scipy.stats.ttest_rel(X[..., 0], X[..., 1], **ttest_kwargs)
+    clusters_obs = return_clusters(pval_obs < thresh)
+    _, sig_clusters, _ = get_significance(
+        distr, clusterstat, clusters_obs, tval_obs, clusterthresh
+    )
     sig_clusters_dict[test_model]["paired"] += sig_clusters
 
     # One samp ttests
@@ -292,22 +295,26 @@ for test_model in test_models:
         Xperm = perm_X_1samp(X, nsubjs, ntimes, nstreams)
 
         # Calculate statistics
-        _, pval0 = scipy.stats.ttest_1samp(Xperm[..., 0], popmean=0)
-        _, pval1 = scipy.stats.ttest_1samp(Xperm[..., 1], popmean=0)
+        tval0, pval0 = scipy.stats.ttest_1samp(Xperm[..., 0], popmean=0)
+        tval1, pval1 = scipy.stats.ttest_1samp(Xperm[..., 1], popmean=0)
 
         # Find clusters and cluster statistic
         clusters0 = return_clusters(pval0 < thresh)
         clusters1 = return_clusters(pval1 < thresh)
-        distr0[iteration] = get_max_stat(clusters0)
-        distr1[iteration] = get_max_stat(clusters1)
+        distr0[iteration] = get_max_stat(clusters0, clusterstat, tval0)
+        distr1[iteration] = get_max_stat(clusters1, clusterstat, tval1)
 
     # calculate observed stats and evaluate significance
-    _, pval0 = scipy.stats.ttest_1samp(X[..., 0], popmean=0)
-    _, pval1 = scipy.stats.ttest_1samp(X[..., 1], popmean=0)
-    clusters_obs0 = return_clusters(pval0 < thresh)
-    clusters_obs1 = return_clusters(pval1 < thresh)
-    _, sig_clusters0, _ = get_significance(distr0, clusters_obs0, clusterthresh)
-    _, sig_clusters1, _ = get_significance(distr1, clusters_obs1, clusterthresh)
+    tval_obs0, pval_obs0 = scipy.stats.ttest_1samp(X[..., 0], popmean=0)
+    tval_obs1, pval_obs1 = scipy.stats.ttest_1samp(X[..., 1], popmean=0)
+    clusters_obs0 = return_clusters(pval_obs0 < thresh)
+    clusters_obs1 = return_clusters(pval_obs1 < thresh)
+    _, sig_clusters0, _ = get_significance(
+        distr0, clusterstat, clusters_obs0, tval_obs0, clusterthresh
+    )
+    _, sig_clusters1, _ = get_significance(
+        distr1, clusterstat, clusters_obs1, tval_obs1, clusterthresh
+    )
     sig_clusters_dict[test_model]["1samp_single"] += sig_clusters0
     sig_clusters_dict[test_model]["1samp_dual"] += sig_clusters1
 

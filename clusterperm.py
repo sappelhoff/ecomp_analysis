@@ -99,35 +99,53 @@ def return_clusters(arr):
     ]
 
 
-def get_max_stat(clusters):
+def get_max_stat(clusters, stat="length", tvals=None):
     """Get maximum cluster statistic.
 
     Parameters
     ----------
     clusters : list of lists
         Each entry in the list is a list of indices into time.
+    stat : {"length", "mass"}
+        Whether to return cluster length or cluster mass
+        statistic. ``"mass"`` requires `tvals` to be specified
+    tvals : np.ndarray
+        The t-values used for computing cluster mass if `stat`
+        is "mass".
 
     Returns
     -------
-    maxstat : int
-        The cluster statistic based on cluster length (over time).
+    maxstat : float
+        The maximum cluster statistic.
     """
     maxstat = 0
-    _clu_lengths = [len(cluster) for cluster in clusters]
-    if len(_clu_lengths) > 0:
-        maxstat = np.max(_clu_lengths)
+    cluster_lengths = [len(cluster) for cluster in clusters]
+    if len(cluster_lengths) == 0:
+        # if no clusters, return early
+        return maxstat
+    if stat == "length":
+        maxstat = np.max(cluster_lengths)
+    else:
+        assert stat == "mass"
+        cluster_masses = [np.sum(np.abs(tvals[cluster])) for cluster in clusters]
+        maxstat = np.max(cluster_masses)
     return maxstat
 
 
-def get_significance(distr, clusters_obs, clusterthresh):
+def get_significance(distr, stat, clusters_obs, tvals_obs, clusterthresh):
     """Evaluate significance of observed clusters.
 
     Parameters
     ----------
     distr : np.ndarray, shape(n,)
         The permutation distribution.
+    stat : {"length", "mass"}
+        Whether to return cluster length or cluster mass statistic.
+        ``"mass"`` requires `tvals` to be specified
     clusters_obs : list of lists
         The observed clusters. The nested lists contain time indices.
+    tvals_obs : np.ndarray
+        The observed t-values used for computing cluster mass if `stat` is "mass"
     clusterthresh : float
         The threshold to consider for determining significance of a cluster.
 
@@ -148,8 +166,12 @@ def get_significance(distr, clusters_obs, clusterthresh):
     # Find significant observed clusters
     is_significant = []
     pvals = []
-    clusterlengths = [len(cluster) for cluster in clusters_obs]
-    for stat in clusterlengths:
+    if stat == "length":
+        cluster_stats = [len(cluster) for cluster in clusters_obs]
+    else:
+        assert stat == "mass"
+        cluster_stats = [np.sum(np.abs(tvals_obs[cluster])) for cluster in clusters_obs]
+    for stat in cluster_stats:
         pval = (1 + np.sum(distr >= stat)) / (1 + len(distr))
         is_significant.append(pval < clusterthresh)
         pvals.append(pval)
