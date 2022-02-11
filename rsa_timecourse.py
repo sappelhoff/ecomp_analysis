@@ -12,7 +12,6 @@
 """
 # %%
 # Imports
-import copy
 import warnings
 
 import matplotlib.pyplot as plt
@@ -32,7 +31,8 @@ from clusterperm import (
     return_clusters,
 )
 from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, NUMBERS, STREAMS, SUBJS
-from utils import calc_rdm, prep_to_plot, spm_orth
+from model_rdms import get_models_dict
+from utils import prep_to_plot
 
 # %%
 # Settings
@@ -58,119 +58,10 @@ fname_times = mahal_dir / "times.npy"
 times = np.load(fname_times)
 
 # %%
-# Calculate model RDMs
-ndim = len(NUMBERS)
-if rdm_size == "9x9":
-    conditions = NUMBERS
-else:
-    assert rdm_size == "18x18"
-    conditions = np.hstack((NUMBERS, NUMBERS))
-
-model_numberline = calc_rdm(conditions, normalize=True)
-
-model_extremity = calc_rdm(np.abs(conditions - 5), normalize=True)
-
-# following models are only 18x18
-model_color = np.repeat(
-    np.repeat(np.abs(np.identity(2) - 1), ndim, axis=1), ndim, axis=0
-)
-
-model_digit = np.tile(np.abs(np.identity(ndim) - 1), (2, 2))
-
-model_parity = np.tile(np.tile(np.abs(np.identity(2) - 1), ndim).T, ndim)
-
-model_numXcat = np.vstack(
-    (
-        np.hstack(
-            (
-                calc_rdm(NUMBERS, normalize=True),
-                np.fliplr(calc_rdm(NUMBERS, normalize=True)),
-            )
-        ),
-        np.hstack(
-            (
-                np.fliplr(calc_rdm(NUMBERS, normalize=True)),
-                calc_rdm(NUMBERS, normalize=True),
-            )
-        ),
-    )
-)
-
-# Include or exclude models
-if rdm_size == "9x9":
-    models_dict = {
-        "no_orth": {"numberline": model_numberline, "extremity": model_extremity}
-    }
-else:
-    assert rdm_size == "18x18"
-    take_all = False
-    if take_all:
-        models_dict = {
-            "no_orth": {
-                "digit": model_digit,
-                "color": model_color,
-                "parity": model_parity,
-                "numberline": model_numberline,
-                "numXcat": model_numXcat,
-                "extremity": model_extremity,
-            }
-        }
-    else:
-        models_dict = {
-            "no_orth": {
-                "digit": model_digit,
-                "color": model_color,
-                "numberline": model_numberline,
-            }
-        }
-
-nmodels = len(models_dict["no_orth"])
-
-# %%
-# Orthogonalize models
-# First make a copy of non-orth models, this copy will be modified below
-models_dict["orth"] = copy.deepcopy(models_dict["no_orth"])
-
-# orthogonalize recursively using spm_orth
-# The last column vector in the output of the spm_orth function
-# is orthogonalized with respect to all previous column vectors.
-#
-# Iterate through models, for each model, obtain its orthed version
-# by placing it in the last column in a matrix X.
-# For example, for models 1, 2, 3, 4, 5 do the following column orders:
-#
-# 2 3 4 5 1
-# 1 3 4 5 2
-# 1 2 4 5 3
-# 1 2 3 5 4
-# 1 2 3 4 5
-#
-# ... to obtain the orthed models (5 calls to spm_orth needed).
-#
-#  NOTE: Each column must be mean-centered, and only the vector
-#        form of a square symmetric RDM should be passed to spm_orth
-#        That is, use "squareform", or extract the lower (or upper)
-#        triangle of the RDM, excluding the diagonal (but do not mix
-#        these approaches).
-model_arrs = np.stack(list(models_dict["orth"].values()), axis=-1)
-modelnames = list(models_dict["orth"].keys())
-imodels = np.arange(nmodels)
-orthmodels = []
-for imodel in imodels:
-    orth_col_order = np.hstack((imodels[imodels != imodel], imodel)).tolist()
-    X = np.full((len(squareform(model_numberline)), nmodels), np.nan)
-    for imod in range(nmodels):
-        icol = orth_col_order.index(imod)
-        vec = squareform(model_arrs[..., imod])  # convert to condensed vector
-        X[..., icol] = vec - vec.mean()  # mean-center before orth
-    X_orth = spm_orth(X)
-    orth_model = squareform(X_orth[..., -1])  # convert to square symmetric RDM again
-    orthmodels.append((modelnames[imodel], orth_model))
-
-# update copied dict with final, orthogonalized models
-for modelname, orthmodel in orthmodels:
-    models_dict["orth"][modelname] = orthmodel
-
+# Get model RDMs
+modelnames = ["digit", "color", "numberline"]
+nmodels = len(modelnames)
+models_dict = get_models_dict(rdm_size, modelnames)
 
 # %%
 # plot models
@@ -195,9 +86,10 @@ fig.tight_layout()
 
 # %%
 # Calculate RSA per subj and stream
+nconditions = int(rdm_size.split("x")[0])
 df_rsa_list = []
 rdm_times_streams_subjs = np.full(
-    (len(conditions), len(conditions), len(times), len(STREAMS), len(SUBJS)), np.nan
+    (nconditions, nconditions, len(times), len(STREAMS), len(SUBJS)), np.nan
 )
 for orth_str, models in models_dict.items():
     orth = dict(no_orth=False, orth=True)[orth_str]
