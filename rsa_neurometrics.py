@@ -15,15 +15,17 @@
 # %%
 # Imports
 import itertools
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats
 import statsmodels.stats.multitest
+from scipy.spatial.distance import squareform
 from tqdm.auto import tqdm
 
 from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, NUMBERS, STREAMS, SUBJS
-from utils import calc_rdm, eq1, rdm2vec
+from utils import calc_rdm, eq1
 
 # %%
 # Settings
@@ -100,12 +102,12 @@ for isub, sub in enumerate(tqdm(SUBJS)):
 
         # Get ERP ERM
         rdm_mean = rdm_mean_streams_subjs[..., istream, isub]
-        rdm_mean_vec = rdm2vec(rdm_mean, lower_tri=True)
+        rdm_mean_vec = squareform(rdm_mean)
 
         for icombi, (bias, kappa) in enumerate(bias_kappa_combis):
 
             rdm_model = model_rdms[..., icombi]
-            rdm_model_vec = rdm2vec(rdm_model, lower_tri=True)
+            rdm_model_vec = squareform(rdm_model)
             corr, _ = scipy.stats.pearsonr(rdm_mean_vec, rdm_model_vec)
 
             idx_bias = np.nonzero(biases == bias)[0][0]
@@ -231,13 +233,17 @@ for istream, stream in enumerate(STREAMS):
     yticklabels = (
         [""] + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]] + [""]
     )
-    ax.set(
-        title=stream,
-        xticklabels=xticklabels,
-        yticklabels=yticklabels,
-        xlabel="bias (b)",
-        ylabel="kappa (k)",
-    )
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
+        )
+        ax.set(
+            title=stream,
+            xticklabels=xticklabels,
+            yticklabels=yticklabels,
+            xlabel="bias (b)",
+            ylabel="kappa (k)",
+        )
 
     title = f"Transparent mask shows significant values at p={pthresh} (FDR corrected)"
     if subtract_maps:
@@ -253,13 +259,13 @@ fig.tight_layout()
 grid_streams_grandmean = np.full((len(kappas), len(biases), len(STREAMS)), np.nan)
 for istream, stream in enumerate(tqdm(STREAMS)):
     rdm_grandmean = np.mean(rdm_mean_streams_subjs[..., istream, :], axis=-1)
-    rdm_grandmean_model_vec = rdm2vec(rdm_grandmean, lower_tri=True)
+    rdm_grandmean_model_vec = squareform(rdm_grandmean)
 
     for icombi, (bias, kappa) in enumerate(bias_kappa_combis):
 
         # Model correlations
         rdm_model = model_rdms[..., icombi]
-        rdm_model_vec = rdm2vec(rdm_model, lower_tri=True)
+        rdm_model_vec = squareform(rdm_model)
         corr, _ = scipy.stats.pearsonr(rdm_grandmean_model_vec, rdm_model_vec)
 
         idx_bias = np.nonzero(biases == bias)[0][0]
@@ -308,13 +314,17 @@ for istream, stream in enumerate(tqdm(STREAMS)):
     yticklabels = (
         [""] + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]] + [""]
     )
-    ax.set(
-        title=stream,
-        xticklabels=xticklabels,
-        yticklabels=yticklabels,
-        xlabel="bias (b)",
-        ylabel="kappa (k)",
-    )
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
+        )
+        ax.set(
+            title=stream,
+            xticklabels=xticklabels,
+            yticklabels=yticklabels,
+            xlabel="bias (b)",
+            ylabel="kappa (k)",
+        )
 
     title = "Based on grand mean RDMs"
     if subtract_maps:
