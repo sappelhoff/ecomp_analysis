@@ -244,11 +244,10 @@ df_rsa
 # Cluster based permutation testing
 test_models = ["identity", "category", "numberline"]
 test_orth = True
-thresh = 0.05
-clusterthresh = 0.05
-niterations = 1000
+thresh = 0.001
+clusterthresh = 0.001
+niterations = 10000
 ttest_kwargs = dict(axis=0, nan_policy="raise", alternative="two-sided")
-
 
 sig_clusters_dict = {
     mod: {"1samp_single": [], "1samp_dual": [], "paired": []} for mod in test_models
@@ -322,6 +321,8 @@ rsa_colors = {
     "parity": "C1",
     "numXcat": "C2",
 }
+min_clu_len = 0
+min_clu_len_ms = ((1 / 250) * min_clu_len) * 1000
 
 # representative windows, look at figure
 window_sels = [(0.075, 0.19), (0.21, 0.6)]
@@ -355,6 +356,30 @@ with sns.plotting_context("talk"):
             sns.move_legend(ax, loc="upper left", bbox_to_anchor=(1, 1))
 
         ax.set_title(f"orth = {bool(iax)}")
+
+        # plot significance bars (if present)
+        if bool(iax) != test_orth:
+            continue
+        skipped_clus = []
+        y = ax.get_ylim()[0]
+        for test_model in test_models:
+            c = rsa_colors[test_model]
+            for test, clusters in sig_clusters_dict[test_model].items():
+                if len(clusters) == 0:
+                    continue
+                ls = {"1samp_single": "-", "1samp_dual": "--", "paired": ":"}[test]
+                if any([len(clu) > min_clu_len for clu in clusters]):
+                    y -= 0.02
+                for clu in clusters:
+                    if len(clu) <= min_clu_len:
+                        skipped_clus += [test_model + "_" + test]
+                        continue
+                    ax.plot(times[clu], [y] * len(clu), c=c, ls=ls)
+        print(
+            f"{len(skipped_clus)} clusters shorter than {min_clu_len_ms} ms not shown:"
+            f"\n{skipped_clus}"
+        )
+
 sns.despine(fig)
 fig.tight_layout()
 
