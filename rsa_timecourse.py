@@ -71,11 +71,11 @@ model_numberline = calc_rdm(conditions, normalize=True)
 model_extremity = calc_rdm(np.abs(conditions - 5), normalize=True)
 
 # following models are only 18x18
-model_category = np.repeat(
+model_color = np.repeat(
     np.repeat(np.abs(np.identity(2) - 1), ndim, axis=1), ndim, axis=0
 )
 
-model_identity = np.tile(np.abs(np.identity(ndim) - 1), (2, 2))
+model_digit = np.tile(np.abs(np.identity(ndim) - 1), (2, 2))
 
 model_parity = np.tile(np.tile(np.abs(np.identity(2) - 1), ndim).T, ndim)
 
@@ -107,8 +107,8 @@ else:
     if take_all:
         models_dict = {
             "no_orth": {
-                "identity": model_identity,
-                "category": model_category,
+                "digit": model_digit,
+                "color": model_color,
                 "parity": model_parity,
                 "numberline": model_numberline,
                 "numXcat": model_numXcat,
@@ -118,8 +118,8 @@ else:
     else:
         models_dict = {
             "no_orth": {
-                "identity": model_identity,
-                "category": model_category,
+                "digit": model_digit,
+                "color": model_color,
                 "numberline": model_numberline,
             }
         }
@@ -243,7 +243,7 @@ df_rsa
 
 # %%
 # Cluster based permutation testing
-test_models = ["identity", "category", "numberline"]
+test_models = ["digit", "color", "numberline"]
 test_orth = True
 clusterstat = "length"
 thresh = 0.001
@@ -322,8 +322,8 @@ for test_model in test_models:
 # Plot the data
 ylabel = {"pearson": "Pearson's r"}[rsa_method]
 rsa_colors = {
-    "identity": "C0",
-    "category": "C3",
+    "digit": "C0",
+    "color": "C3",
     "numberline": "C4",
     "extremity": "C5",
     "parity": "C1",
