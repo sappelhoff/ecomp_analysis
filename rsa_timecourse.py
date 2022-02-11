@@ -13,6 +13,7 @@
 # %%
 # Imports
 import copy
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -428,21 +429,27 @@ for window_sel in window_sels:
             )
 
             ax.set_title(stream)
-            if rdm_size == "9x9":
-                ax.xaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS)))
-                ax.set_xticklabels([""] + [str(j) for j in NUMBERS])
-                ax.yaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS)))
-                ax.set_yticklabels([""] + [str(j) for j in NUMBERS])
-            else:
-                assert rdm_size == "18x18"
-                ax.xaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS) * 2))
-                ax.set_xticklabels([""] + [str(j) for j in NUMBERS] * 2)
-                ax.yaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS) * 2))
-                ax.set_yticklabels([""] + [str(j) for j in NUMBERS] * 2)
-                ax.xaxis.set_tick_params(labelsize=10)
-                ax.yaxis.set_tick_params(labelsize=10)
-                ax.set_xlabel("red             blue", labelpad=12)
-                ax.set_ylabel("blue             red", labelpad=12)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    category=UserWarning,
+                    message="FixedFormatter .* FixedLocator",
+                )
+                if rdm_size == "9x9":
+                    ax.xaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS)))
+                    ax.set_xticklabels([""] + [str(j) for j in NUMBERS])
+                    ax.yaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS)))
+                    ax.set_yticklabels([""] + [str(j) for j in NUMBERS])
+                else:
+                    assert rdm_size == "18x18"
+                    ax.xaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS) * 2))
+                    ax.set_xticklabels([""] + [str(j) for j in NUMBERS] * 2)
+                    ax.yaxis.set_major_locator(plt.MaxNLocator(len(NUMBERS) * 2))
+                    ax.set_yticklabels([""] + [str(j) for j in NUMBERS] * 2)
+                    ax.xaxis.set_tick_params(labelsize=10)
+                    ax.yaxis.set_tick_params(labelsize=10)
+                    ax.set_xlabel("red             blue", labelpad=12)
+                    ax.set_ylabel("blue             red", labelpad=12)
 
         fig.suptitle(
             f"RDMs, mean over subjects and time\n({window_sel[0]}s - {window_sel[1]}s)",
