@@ -22,6 +22,14 @@ import seaborn as sns
 from scipy.spatial.distance import squareform
 from tqdm.auto import tqdm
 
+from clusterperm import (
+    _perm_X_paired,
+    get_max_stat,
+    get_significance,
+    perm_X_1samp,
+    prep_for_clusterperm,
+    return_clusters,
+)
 from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, NUMBERS, STREAMS, SUBJS
 from utils import calc_rdm, prep_to_plot, spm_orth
 
@@ -231,6 +239,77 @@ df_rsa = df_rsa.reset_index(drop=True)
 assert len(df_rsa) == ntimes * len(SUBJS) * len(STREAMS) * nmodels * 2
 assert not np.isnan(rdm_times_streams_subjs).any()
 df_rsa
+
+# %%
+# Cluster based permutation testing
+test_models = ["identity", "category", "numberline"]
+test_orth = True
+thresh = 0.05
+clusterthresh = 0.05
+niterations = 1000
+ttest_kwargs = dict(axis=0, nan_policy="raise", alternative="two-sided")
+
+
+sig_clusters_dict = {
+    mod: {"1samp_single": [], "1samp_dual": [], "paired": []} for mod in test_models
+}
+print(
+    f"Running permutation testing for {len(test_models)} models, "
+    "1-sample and paired t-tests each."
+)
+for test_model in test_models:
+    X = prep_for_clusterperm(df_rsa, test_model, test_orth)
+    nsubjs, ntimes, nstreams = X.shape
+
+    # Paired ttest
+    # ---------------------------------------------------------------------------------
+    # Get permutation distribution
+    distr = np.full(niterations, np.nan)
+    for iteration in tqdm(range(niterations)):
+        # Permute data
+        Xperm = _perm_X_paired(X, nsubjs, ntimes)
+
+        # Calculate statistics
+        _, pval = scipy.stats.ttest_rel(Xperm[..., 0], Xperm[..., 1], **ttest_kwargs)
+
+        # Find clusters and cluster statistic
+        clusters = return_clusters(pval < thresh)
+        distr[iteration] = get_max_stat(clusters)
+
+    # calculate observed stats and evaluate significance
+    _, pval = scipy.stats.ttest_rel(X[..., 0], X[..., 1], **ttest_kwargs)
+    clusters_obs = return_clusters(pval < thresh)
+    _, sig_clusters, _ = get_significance(distr, clusters_obs, clusterthresh)
+    sig_clusters_dict[test_model]["paired"] += sig_clusters
+
+    # One samp ttests
+    # ---------------------------------------------------------------------------------
+    # Get permutation distribution
+    distr0 = np.full(niterations, np.nan)
+    distr1 = np.full(niterations, np.nan)
+    for iteration in tqdm(range(niterations)):
+        # Permute data
+        Xperm = perm_X_1samp(X, nsubjs, ntimes, nstreams)
+
+        # Calculate statistics
+        _, pval0 = scipy.stats.ttest_1samp(Xperm[..., 0], popmean=0)
+        _, pval1 = scipy.stats.ttest_1samp(Xperm[..., 1], popmean=0)
+
+        # Find clusters and cluster statistic
+        clusters0 = return_clusters(pval0 < thresh)
+        clusters1 = return_clusters(pval1 < thresh)
+        distr0[iteration] = get_max_stat(clusters0)
+        distr1[iteration] = get_max_stat(clusters1)
+
+    # calculate observed stats and evaluate significance
+    _, pval0 = scipy.stats.ttest_1samp(X[..., 0], popmean=0)
+    _, pval1 = scipy.stats.ttest_1samp(X[..., 1], popmean=0)
+    clusters_obs0 = return_clusters(pval0 < thresh)
+    clusters_obs1 = return_clusters(pval1 < thresh)
+    _, sig_clusters0, _ = get_significance(distr0, clusters_obs0, clusterthresh)
+    _, sig_clusters1, _ = get_significance(distr1, clusters_obs1, clusterthresh)
+    sig_clusters_dict[test_model]["1samp_single"] += sig_clusters0
+    sig_clusters_dict[test_model]["1samp_dual"] += sig_clusters1
 
 # %%
 # Plot the data
