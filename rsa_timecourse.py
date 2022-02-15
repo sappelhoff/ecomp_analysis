@@ -137,19 +137,21 @@ df_rsa
 test_models = ["digit", "color", "numberline"]
 test_orth = True
 clusterstat = "length"
-thresh = 0.001
-clusterthresh = 0.001
+thresh = 0.01
+clusterthresh = 0.01
 niterations = 1000
 ttest_kwargs = dict(axis=0, nan_policy="raise", alternative="two-sided")
 
-sig_clusters_dict = {
-    mod: {"1samp_single": [], "1samp_dual": [], "paired": []} for mod in test_models
+tests = ["1samp_single", "1samp_dual", "paired"]
+permdistr_dict = {
+    mod: {"1samp_single": {}, "1samp_dual": {}, "paired": {}} for mod in test_models
 }
 print(f"Running permutation testing for {len(test_models)} models")
 
 # Paired ttest is run as a 1-sample ttest of the difference between conditions
 # (this is equivalent)
 rng = np.random.default_rng(1337)
+dfs = []
 for test_model in test_models:
     X = prep_for_clusterperm(df_rsa, test_model, test_orth)
     X_paired = X[..., 0] - X[..., 1]
@@ -180,6 +182,12 @@ for test_model in test_models:
             clusters_paired, clusterstat, tval_paired
         )
 
+    # collect permutation distributions
+    df_distr = pd.DataFrame([distr0, distr1, distr_paired]).T
+    df_distr.columns = tests
+    df_distr["model"] = test_model
+    dfs.append(df_distr)
+
     # calculate observed stats and evaluate significance
     tval_obs0, pval_obs0 = scipy.stats.ttest_1samp(X[..., 0], popmean=0, **ttest_kwargs)
     tval_obs1, pval_obs1 = scipy.stats.ttest_1samp(X[..., 1], popmean=0, **ttest_kwargs)
@@ -189,18 +197,51 @@ for test_model in test_models:
     clusters_obs0 = return_clusters(pval_obs0 < thresh)
     clusters_obs1 = return_clusters(pval_obs1 < thresh)
     clusters_obs_paired = return_clusters(pval_obs_paired < thresh)
-    _, sig_clusters0, _ = get_significance(
-        distr0, clusterstat, clusters_obs0, tval_obs0, clusterthresh
-    )
-    _, sig_clusters1, _ = get_significance(
-        distr1, clusterstat, clusters_obs1, tval_obs1, clusterthresh
-    )
-    _, sig_clusters_paired, _ = get_significance(
+    (
+        permdistr_dict[test_model]["1samp_single"]["clusterthresh_stat"],
+        permdistr_dict[test_model]["1samp_single"]["cluster_stats"],
+        permdistr_dict[test_model]["1samp_single"]["sig_clusters"],
+        permdistr_dict[test_model]["1samp_single"]["pvals"],
+    ) = get_significance(distr0, clusterstat, clusters_obs0, tval_obs0, clusterthresh)
+    (
+        permdistr_dict[test_model]["1samp_dual"]["clusterthresh_stat"],
+        permdistr_dict[test_model]["1samp_dual"]["cluster_stats"],
+        permdistr_dict[test_model]["1samp_dual"]["sig_clusters"],
+        permdistr_dict[test_model]["1samp_dual"]["pvals"],
+    ) = get_significance(distr1, clusterstat, clusters_obs1, tval_obs1, clusterthresh)
+    (
+        permdistr_dict[test_model]["paired"]["clusterthresh_stat"],
+        permdistr_dict[test_model]["paired"]["cluster_stats"],
+        permdistr_dict[test_model]["paired"]["sig_clusters"],
+        permdistr_dict[test_model]["paired"]["pvals"],
+    ) = get_significance(
         distr_paired, clusterstat, clusters_obs_paired, tval_obs_paired, clusterthresh
     )
-    sig_clusters_dict[test_model]["1samp_single"] += sig_clusters0
-    sig_clusters_dict[test_model]["1samp_dual"] += sig_clusters1
-    sig_clusters_dict[test_model]["paired"] += sig_clusters_paired
+
+df_distr = pd.concat(dfs)
+
+# %%
+# Plot permutation distributions
+g = sns.displot(
+    data=df_distr.melt(
+        id_vars=["model"], var_name="distribution", value_name="max_stat"
+    ),
+    x="max_stat",
+    row="model",
+    col="distribution",
+    kind="kde",
+    cut=0,
+    facet_kws=dict(sharex=False, sharey=False),
+)
+
+for (row_val, col_val), ax in g.axes_dict.items():
+    clusterthresh_stat = permdistr_dict[row_val][col_val]["clusterthresh_stat"]
+    ax.axvline(clusterthresh_stat, color="blue", zorder=0)
+
+    cluster_stats = permdistr_dict[row_val][col_val]["cluster_stats"]
+    for stat in cluster_stats:
+        ax.axvline(stat, color="red", ls="--", zorder=1)
+
 
 # %%
 # Plot the data
@@ -256,7 +297,8 @@ with sns.plotting_context("talk"):
         y = ax.get_ylim()[0]
         for test_model in test_models:
             c = rsa_colors[test_model]
-            for test, clusters in sig_clusters_dict[test_model].items():
+            for test in tests:
+                clusters = permdistr_dict[test_model][test]["sig_clusters"]
                 if len(clusters) == 0:
                     continue
                 ls = {"1samp_single": "-", "1samp_dual": "--", "paired": ":"}[test]
@@ -274,6 +316,21 @@ with sns.plotting_context("talk"):
 
 sns.despine(fig)
 fig.tight_layout()
+
+# %%
+# Look at single subject RSA time courses
+g = sns.relplot(
+    kind="line",
+    data=data,
+    x="time",
+    y="similarity",
+    hue="model",
+    style="stream",
+    ci=None,
+    palette=rsa_colors,
+    col="subject",
+    col_wrap=6,
+)
 
 # %%
 # Show mean RDMs in selected time windows

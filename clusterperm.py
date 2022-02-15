@@ -2,7 +2,6 @@
 import itertools
 import operator
 
-import numba
 import numpy as np
 import pandas as pd
 
@@ -47,38 +46,17 @@ def prep_for_clusterperm(df, model, orth):
     return X
 
 
-@numba.njit
-def _perm_X_paired(X, nsubjs, ntimes):
-    """Permute X for a paired t-test.
-
-    We randomly exchange similiarity values for each stream (single, dual)
-    within subject/time bins. For example, sub-01 at t0 might have similarity
-    value 0.1 for "single", and 0.15 for "dual". On each iteration we randomly
-    assign 0.1 and 0.15 to either "single" or "dual" stream.
-    """
-    Xperm = np.zeros_like(X)
-    for i in range(nsubjs):
-        for j in range(ntimes):
-            swapped = np.random.permutation(X[i, j, ...])
-            Xperm[i, j, ...] = swapped
-    return Xperm
-
-
 def perm_X_1samp(X, rng):
     """Permute X for a 1 sample t-test against zero.
 
-    We randomly flip the sign of each similarity value.
+    We randomly flip the signs within each participant.
     """
-    if X.ndim == 2:
-        nsubjs, ntimes = X.shape
-        size = (nsubjs, ntimes)
-    else:
-        assert X.ndim == 3
-        nsubjs, ntimes, nstreams = X.shape
-        size = (nsubjs, ntimes, nstreams)
-    flip = rng.choice(np.array([-1, 1]), size=size, replace=True)
-    X_perm = X * flip
-    return np.squeeze(X_perm)
+    nsubjs = X.shape[0]
+    flip = rng.choice(np.array([-1, 1]), size=nsubjs, replace=True)
+    X_perm = np.full_like(X, np.nan)
+    for i in range(nsubjs):
+        X_perm[i, ...] = X[i, ...] * flip[i]
+    return X_perm
 
 
 def return_clusters(arr):
@@ -159,28 +137,41 @@ def get_significance(distr, stat, clusters_obs, tvals_obs, clusterthresh):
     clusterthresh_stat : int
         The cluster statistic cutoff. Statistics higher than this are
         considered significant.
-    sig_clusters : list of lists
+    cluster_stats : list of float
+        The observed cluster statistics.
+    cluster_stats_obs : list of lists
         The observed clusters that are significant at `clusterthresh`.
     pvals : list of float
         The p-values associated with the significant clusters.
     """
+
+    def _calc_pval(distr, clu_stat):
+        return (1 + np.sum(distr >= clu_stat)) / (1 + len(distr))
+
     # Calculate significance "threshold" in terms of sampled statistics
-    clusterthresh_idx = int(np.ceil(len(distr) * clusterthresh))
-    clusterthresh_stat = np.sort(distr)[::-1][clusterthresh_idx]
+    clusterthresh_stat = 0
+    step = 1 if stat == "length" else 0.01
+    while True:
+        pval = _calc_pval(distr, clusterthresh_stat)
+        if pval < clusterthresh:
+            break
+        clusterthresh_stat += step
 
     # Find significant observed clusters
     is_significant = []
     pvals = []
     if stat == "length":
-        cluster_stats = [len(cluster) for cluster in clusters_obs]
+        cluster_stats_obs = [len(cluster) for cluster in clusters_obs]
     else:
         assert stat == "mass"
-        cluster_stats = [np.sum(np.abs(tvals_obs[cluster])) for cluster in clusters_obs]
-    for stat in cluster_stats:
-        pval = (1 + np.sum(distr >= stat)) / (1 + len(distr))
+        cluster_stats_obs = [
+            np.sum(np.abs(tvals_obs[cluster])) for cluster in clusters_obs
+        ]
+    for clu_stat in cluster_stats_obs:
+        pval = _calc_pval(distr, clu_stat)
         is_significant.append(pval < clusterthresh)
         pvals.append(pval)
 
     sig_clusters = [clu for clu, sig in zip(clusters_obs, is_significant) if sig]
     pvals = [pval for pval, sig in zip(pvals, is_significant) if sig]
-    return clusterthresh_stat, sig_clusters, pvals
+    return clusterthresh_stat, cluster_stats_obs, sig_clusters, pvals
