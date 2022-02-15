@@ -64,16 +64,21 @@ def _perm_X_paired(X, nsubjs, ntimes):
     return Xperm
 
 
-def perm_X_1samp(X, nsubjs, ntimes, nstreams):
+def perm_X_1samp(X, rng):
     """Permute X for a 1 sample t-test against zero.
 
     We randomly flip the sign of each similarity value.
     """
-    flip = np.random.choice(
-        np.array([-1, 1]), size=((nsubjs, ntimes, nstreams)), replace=True
-    )
+    if X.ndim == 2:
+        nsubjs, ntimes = X.shape
+        size = (nsubjs, ntimes)
+    else:
+        assert X.ndim == 3
+        nsubjs, ntimes, nstreams = X.shape
+        size = (nsubjs, ntimes, nstreams)
+    flip = rng.choice(np.array([-1, 1]), size=size, replace=True)
     X_perm = X * flip
-    return X_perm
+    return np.squeeze(X_perm)
 
 
 def return_clusters(arr):
