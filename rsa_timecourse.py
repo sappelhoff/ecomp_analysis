@@ -60,7 +60,36 @@ times = np.load(fname_times)
 # Get model RDMs
 modelnames = ["digit", "color", "numberline"]
 nmodels = len(modelnames)
-models_dict = get_models_dict(rdm_size, modelnames)
+models_dict = get_models_dict(rdm_size, modelnames, bias=None, kappa=None)
+
+# %%
+# Try an compressed versus anticompressed numberline model
+comp_anticomp_timecourse = True
+if comp_anticomp_timecourse:
+    kcomp = 0.1
+    kacomp = 10
+    models_dict_comp = get_models_dict(rdm_size, modelnames, bias=0, kappa=kcomp)
+    models_dict_acomp = get_models_dict(rdm_size, modelnames, bias=0, kappa=kacomp)
+
+    models_dict = {"no_orth": {}, "orth": {}}
+    models_dict["no_orth"][f"numberline_k-{kcomp}"] = models_dict_comp["no_orth"][
+        "numberline"
+    ]
+    models_dict["no_orth"][f"numberline_k-{kacomp}"] = models_dict_acomp["no_orth"][
+        "numberline"
+    ]
+    models_dict["orth"][f"numberline_k-{kcomp}"] = models_dict_comp["orth"][
+        "numberline"
+    ]
+    models_dict["orth"][f"numberline_k-{kacomp}"] = models_dict_acomp["orth"][
+        "numberline"
+    ]
+
+    nmodels = 2
+    modelnames = [
+        f"numberline_k-{kcomp}",
+        f"numberline_k-{kacomp}",
+    ]
 
 # %%
 # plot models
@@ -134,7 +163,7 @@ df_rsa
 
 # %%
 # Cluster based permutation testing
-test_models = ["digit", "color", "numberline"]
+test_models = modelnames
 test_orth = True
 clusterstat = "length"
 thresh = 0.01
@@ -254,6 +283,8 @@ rsa_colors = {
     "parity": "C1",
     "numXcat": "C2",
 }
+if comp_anticomp_timecourse:
+    rsa_colors = {m: f"C{i}" for i, m in enumerate(modelnames)}
 min_clu_len = 0
 min_clu_len_ms = ((1 / 250) * min_clu_len) * 1000
 
