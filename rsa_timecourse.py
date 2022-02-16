@@ -17,6 +17,7 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pingouin
 import scipy.stats
 import seaborn as sns
 from scipy.spatial.distance import squareform
@@ -221,10 +222,6 @@ for test_model in test_models:
     dfs.append(df_distr)
 
 df_distr = pd.concat(dfs)
-# %%
-# comp/acomp -> Cluster based permutation testing
-if comp_anticomp_timecourse:
-    pass
 
 # %%
 # Plot permutation distributions
@@ -327,6 +324,55 @@ with sns.plotting_context("talk"):
 
 sns.despine(fig)
 fig.tight_layout()
+
+# %%
+# compare comp / acomp in window
+if comp_anticomp_timecourse:
+    comp_acomp_win = (0.2, 0.6)
+
+    _df = (
+        df_rsa[
+            (df_rsa["orth"] == test_orth)
+            & (df_rsa["time"] >= comp_acomp_win[0])
+            & (df_rsa["time"] <= comp_acomp_win[1])
+        ]
+        .groupby(["subject", "stream", "model"])
+        .mean()
+        .reset_index()
+    )
+
+    with sns.plotting_context("talk"):
+        fig, ax = plt.subplots()
+        sns.pointplot(
+            x="stream",
+            order=STREAMS,
+            y="similarity",
+            hue="model",
+            data=_df,
+            ci=68,
+            dodge=True,
+            ax=ax,
+        )
+        sns.despine(fig)
+        sns.move_legend(ax, loc="upper left", bbox_to_anchor=(1, 1))
+        ax.set_title(comp_acomp_win)
+
+    dfs = []
+
+    # paired ttests
+    for stream in STREAMS:
+        x = _df[
+            (_df["stream"] == stream) & (_df["model"] == np.unique(_df["model"])[0])
+        ]["similarity"]
+        y = _df[
+            (_df["stream"] == stream) & (_df["model"] == np.unique(_df["model"])[1])
+        ]["similarity"]
+        df_stats = pingouin.ttest(x, y, paired=True)
+        df_stats["stream"] = stream
+        dfs.append(df_stats)
+
+    df_stats = pd.concat(dfs)
+    df_stats
 
 # %%
 # Look at single subject RSA time courses
