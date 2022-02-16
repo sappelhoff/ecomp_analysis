@@ -301,8 +301,8 @@ for sub in SUBJS:
             weight_dfs.append(wdf)
             posweight_dfs.append(pwdf)
 
-weightdata = pd.concat(weight_dfs)
-posweightdata = pd.concat(posweight_dfs)
+weightdata = pd.concat(weight_dfs).reset_index(drop=True)
+posweightdata = pd.concat(posweight_dfs).reset_index(drop=True)
 # %%
 # save to files
 # (save only nonp weights for now)

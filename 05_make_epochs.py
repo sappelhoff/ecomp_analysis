@@ -110,7 +110,7 @@ if first_task == "dual":
     dfs = dfs[::-1]
 
 # concatenate
-df = pd.concat(dfs)
+df = pd.concat(dfs).reset_index(drop=True)
 
 # %%
 # Work on metadata format: melt "one row per trial" to "one row per sample"

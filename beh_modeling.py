@@ -588,7 +588,7 @@ for meta, grp in df_estimates.groupby(["x0_type", "stream"]):
     out["stream"] = meta[1]
     statsouts.append(out)
 
-statsout = pd.concat(statsouts)
+statsout = pd.concat(statsouts).reset_index(drop=True)
 statsout.head()
 
 # %%
@@ -628,7 +628,7 @@ for x0_type in ["fixed", "specific"]:
         _data["single"] += x.tolist()
         _data["dual"] += y.tolist()
 
-df_corrs = pd.concat(outs)
+df_corrs = pd.concat(outs).reset_index(drop=True)
 
 # plots
 _data = pd.DataFrame.from_dict(_data)
@@ -668,7 +668,7 @@ for sub in SUBJS:
         df.insert(0, "subject", sub)
         df_single_sub.append(df)
 
-df_single_sub = pd.concat(df_single_sub)
+df_single_sub = pd.concat(df_single_sub).reset_index(drop=True)
 
 # go through different initial values per stream
 do_fit = False
@@ -715,7 +715,7 @@ if do_fit:
         df_fixedfx["stream"] = STREAMS
         df_fixedfx["ix0s"] = ires
         dfs_fixedfx.append(df_fixedfx)
-    df_fixedfx = pd.concat(dfs_fixedfx)
+    df_fixedfx = pd.concat(dfs_fixedfx).reset_index(drop=True)
     df_fixedfx = df_fixedfx.melt(id_vars=["ix0s", "stream"], var_name="parameter")
 
     # Plot results from single subj

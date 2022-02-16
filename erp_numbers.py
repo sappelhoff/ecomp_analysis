@@ -161,7 +161,7 @@ for stream in STREAMS:
     df_mean_amps.insert(1, "stream", stream)
     all_dfs.append(df_mean_amps)
 
-df_mean_amps = pd.concat(all_dfs)
+df_mean_amps = pd.concat(all_dfs).reset_index(drop=True)
 assert df_mean_amps.shape[0] == len(subjects) * len(NUMBERS) * len(STREAMS)
 df_mean_amps
 

@@ -160,7 +160,7 @@ for orth_str, models in models_dict.items():
                 # Save
                 df_rsa_list.append(_df_rsa)
 
-df_rsa = pd.concat(df_rsa_list)
+df_rsa = pd.concat(df_rsa_list).reset_index(drop=True)
 df_rsa = df_rsa.reset_index(drop=True)
 assert len(df_rsa) == ntimes * len(SUBJS) * len(STREAMS) * nmodels * 2
 assert not np.isnan(rdm_times_streams_subjs).any()
@@ -221,7 +221,7 @@ for test_model in test_models:
     df_distr["model"] = test_model
     dfs.append(df_distr)
 
-df_distr = pd.concat(dfs)
+df_distr = pd.concat(dfs).reset_index(drop=True)
 
 # %%
 # Plot permutation distributions
@@ -371,7 +371,7 @@ if comp_anticomp_timecourse:
         df_stats["stream"] = stream
         dfs.append(df_stats)
 
-    df_stats = pd.concat(dfs)
+    df_stats = pd.concat(dfs).reset_index(drop=True)
     df_stats
 
 # %%

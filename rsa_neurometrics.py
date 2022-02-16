@@ -19,6 +19,7 @@ import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import scipy.stats
 import statsmodels.stats.multitest
 from scipy.spatial.distance import squareform
@@ -55,11 +56,22 @@ subtract_maps = True
 rdm_size = "18x18"
 ndim = int(rdm_size.split("x")[0])
 
+# "Pearson' r", "Kendall's tau-b", "Spearman's rho"
+corr_method = "Pearson's r"
+
 # whether or not to orthogonalize the model RDMs
-orth = False
+orth = True
 
 # which models to orthogonalize "numberline" with?
 modelnames = ["digit", "color", "numberline"]
+
+if rdm_size == "9x9":
+    modelnames = ["numberline"]
+    orth = False
+    print("For 9x9 neurometrics, always run without orth and only numberline.")
+
+# overwrite for saving?
+overwrite = False
 
 # %%
 # Prepare file paths
@@ -69,6 +81,8 @@ mahal_dir = data_dir / "derivatives" / "rsa" / rdm_size / "rdms_mahalanobis"
 
 fname_rdm_template = str(mahal_dir / "sub-{:02}_stream-{}_rdm-mahal.npy")
 fname_times = mahal_dir / "times.npy"
+
+fname_params = analysis_dir / "derived_data" / "neurometrics_params.tsv"
 
 # %%
 # Get times for RDM timecourses
@@ -112,7 +126,13 @@ for isub, sub in enumerate(tqdm(SUBJS)):
 
             rdm_model = model_rdms[..., icombi]
             rdm_model_vec = squareform(rdm_model)
-            corr, _ = scipy.stats.pearsonr(rdm_mean_vec, rdm_model_vec)
+            if corr_method == "Pearson's r":
+                corr, _ = scipy.stats.pearsonr(rdm_mean_vec, rdm_model_vec)
+            elif corr_method == "Kendall's tau-b":
+                corr, _ = scipy.stats.kendalltau(rdm_mean_vec, rdm_model_vec)
+            else:
+                assert corr_method == "Spearman's rho"
+                corr, _ = scipy.stats.spearmanr(rdm_mean_vec, rdm_model_vec)
 
             idx_bias = np.nonzero(biases == bias)[0][0]
             idx_kappa = np.nonzero(kappas == kappa)[0][0]
@@ -170,8 +190,12 @@ for istream, stream in enumerate(STREAMS):
     ax = axs.flat[istream]
 
     # settings
-    cbarlabel = "Pearson's r"
+    cbarlabel = corr_method
     vmin = None
+    vmax = max(
+        grid_streams_subjs[..., 0, :].mean(axis=-1).max(),
+        grid_streams_subjs[..., 1, :].mean(axis=-1).max(),
+    )
     if subtract_maps:
         cbarlabel = "Δ " + cbarlabel
         vmin = 0
@@ -187,19 +211,32 @@ for istream, stream in enumerate(STREAMS):
     mask = sig_masks_streams[..., istream]
     mask[grid_mean <= 0] = alpha_val_mask
     _ = ax.imshow(
-        grid_mean, origin="upper", interpolation="nearest", vmin=vmin, alpha=mask
+        grid_mean,
+        origin="upper",
+        interpolation="nearest",
+        vmin=vmin,
+        vmax=vmax,
+        alpha=mask,
     )
 
     # tweak to get colorbar without alpha mask
     _, tweak_ax = plt.subplots()
-    im = tweak_ax.imshow(grid_mean, origin="upper", interpolation="nearest", vmin=vmin)
+    im = tweak_ax.imshow(
+        grid_mean, origin="upper", interpolation="nearest", vmin=vmin, vmax=vmax
+    )
+    plt.close(_)
 
     # plot colorbar
     cbar = fig.colorbar(
         im, ax=ax, orientation="horizontal", label=cbarlabel, shrink=0.75
     )
     if subtract_maps:
-        cbar_ticks = np.linspace(0, im.get_array().max(), 4)
+        uptick = (
+            max(im.get_array().max(), vmax)
+            if vmax is not None
+            else im.get_array().max()
+        )
+        cbar_ticks = np.linspace(0, uptick, 4)
         cbar.set_ticks(cbar_ticks)
         cbar.ax.set_xticklabels(["<=0"] + [f"{i:.2}" for i in cbar_ticks[1:]])
 
@@ -254,10 +291,58 @@ for istream, stream in enumerate(STREAMS):
         title = (
             "Improved model correlation relative to linear model (b=0, k=1)\n" + title
         )
+    title = f"rdm_size={rdm_size}, orth={orth}\n" + title
 
     fig.suptitle(title, y=1.15)
+
 # %%
-# Do the same on grand mean RDMs -- no stats possible
+# Plot single subj maps
+for stream in STREAMS:
+    istream = STREAMS.index(stream)
+    fig, axs = plt.subplots(5, 6, figsize=(10, 10))
+    for isub, sub in enumerate(SUBJS):
+        grid = grid_streams_subjs[..., istream, isub]
+        ax = axs.flat[isub]
+        ax.imshow(grid)
+
+        ax.scatter(
+            max_coords_xy[..., istream, isub][0],
+            max_coords_xy[..., istream, isub][1],
+            color="red",
+            s=4,
+            zorder=10,
+        )
+
+        ax.set_axis_off()
+    fig.suptitle(f"Single subjects: {stream}")
+
+# %%
+# Save single subj bias and kappa maxima
+dfs = []
+for stream in STREAMS:
+    istream = STREAMS.index(stream)
+
+    bs = biases[max_coords_xy[0, istream, :].astype(int)]
+    ks = kappas[max_coords_xy[1, istream, :].astype(int)]
+    df = pd.DataFrame([bs, ks]).T
+    df.columns = ["bias", "kappa"]
+    df.insert(0, "stream", stream)
+    df.insert(0, "subject", SUBJS)
+    dfs.append(df)
+
+df = pd.concat(dfs).sort_values(["subject", "stream"]).reset_index(drop=True)
+df["rdm_size"] = rdm_size
+df["subtract_maps"] = subtract_maps
+df["orth"] = orth
+df["corr_method"] = corr_method
+
+if fname_params.exists() and not overwrite:
+    print("Params file exists and overwrite is set to False, not saving anything.")
+else:
+    df.to_csv(fname_params, sep="\t", na_rep="n/a", index=False)
+
+# %%
+# Plot maps based on grand mean RDMs -- no stats possible
 fig, axs = plt.subplots(1, 2, figsize=(8, 4))
 fig.tight_layout()
 grid_streams_grandmean = np.full((len(kappas), len(biases), len(STREAMS)), np.nan)
@@ -270,14 +355,19 @@ for istream, stream in enumerate(tqdm(STREAMS)):
         # Model correlations
         rdm_model = model_rdms[..., icombi]
         rdm_model_vec = squareform(rdm_model)
-        corr, _ = scipy.stats.pearsonr(rdm_grandmean_model_vec, rdm_model_vec)
-
+        if corr_method == "Pearson's r":
+            corr, _ = scipy.stats.pearsonr(rdm_grandmean_model_vec, rdm_model_vec)
+        elif corr_method == "Kendall's tau-b":
+            corr, _ = scipy.stats.kendalltau(rdm_grandmean_model_vec, rdm_model_vec)
+        else:
+            assert corr_method == "Spearman's rho"
+            corr, _ = scipy.stats.spearmanr(rdm_grandmean_model_vec, rdm_model_vec)
         idx_bias = np.nonzero(biases == bias)[0][0]
         idx_kappa = np.nonzero(kappas == kappa)[0][0]
         grid_streams_grandmean[idx_kappa, idx_bias, istream] = corr
 
     # settings
-    cbarlabel = "Pearson's r"
+    cbarlabel = corr_method
     vmin = None
     if subtract_maps:
         cbarlabel = "Δ " + cbarlabel
@@ -335,6 +425,7 @@ for istream, stream in enumerate(tqdm(STREAMS)):
         title = (
             "Improved model correlation relative to linear model (b=0, k=1)\n" + title
         )
+    title = f"rdm_size={rdm_size}, orth={orth}\n" + title
 
     fig.suptitle(title, y=1.15)
 # %%
