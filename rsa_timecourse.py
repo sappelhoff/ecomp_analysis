@@ -43,6 +43,9 @@ rsa_method = "pearson"
 distance_measure = "mahalanobis"
 rdm_size = "18x18"  # "9x9" or "18x18"
 
+# comparing compression and anti-compression
+comp_anticomp_timecourse = False
+
 # %%
 # Prepare file paths
 derivatives = data_dir / "derivatives"
@@ -64,7 +67,6 @@ models_dict = get_models_dict(rdm_size, modelnames, True, bias=None, kappa=None)
 
 # %%
 # Try an compressed versus anticompressed numberline model
-comp_anticomp_timecourse = True
 if comp_anticomp_timecourse:
     kcomp = 0.1
     kacomp = 10
@@ -161,95 +163,68 @@ df_rsa = pd.concat(df_rsa_list)
 df_rsa = df_rsa.reset_index(drop=True)
 assert len(df_rsa) == ntimes * len(SUBJS) * len(STREAMS) * nmodels * 2
 assert not np.isnan(rdm_times_streams_subjs).any()
-df_rsa
 
 # %%
 # Cluster based permutation testing
+# Run 1-sample ttests for each model and stream
+# Run paired ttests (single vs. dual) for each model, which is equivalent
+# to a 1-sample ttest of the difference between single and dual
 test_models = modelnames
 test_orth = True
 clusterstat = "length"
 thresh = 0.01
 clusterthresh = 0.01
 niterations = 1000
-ttest_kwargs = dict(axis=0, nan_policy="raise", alternative="two-sided")
+ttest_kwargs = dict(axis=0, nan_policy="raise", alternative="two-sided", popmean=0)
 
-tests = ["1samp_single", "1samp_dual", "paired"]
-permdistr_dict = {
-    mod: {"1samp_single": {}, "1samp_dual": {}, "paired": {}} for mod in test_models
-}
-print(f"Running permutation testing for {len(test_models)} models")
+tests = ["single", "dual", "diff"]
+permdistr_dict = {mod: {"single": {}, "dual": {}, "diff": {}} for mod in test_models}
+print(f"Running {len(tests)} cluster permutation tests for {len(test_models)} models")
 
-# Paired ttest is run as a 1-sample ttest of the difference between conditions
-# (this is equivalent)
 rng = np.random.default_rng(1337)
 dfs = []
 for test_model in test_models:
     X = prep_for_clusterperm(df_rsa, test_model, test_orth)
-    X_paired = X[..., 0] - X[..., 1]
 
-    # Get permutation distributions
-    distr0 = np.full(niterations, np.nan)
-    distr1 = np.full(niterations, np.nan)
-    distr_paired = np.full(niterations, np.nan)
-    for iteration in tqdm(range(niterations)):
-        # Permute data
-        Xperm = perm_X_1samp(X, rng)
-        Xperm_paired = perm_X_1samp(X_paired, rng)
+    tests_dict = dict(
+        single=X[..., STREAMS.index("single")],
+        dual=X[..., STREAMS.index("dual")],
+    )
+    tests_dict["diff"] = tests_dict["single"] - tests_dict["dual"]
 
-        # Calculate statistics
-        tval0, pval0 = scipy.stats.ttest_1samp(Xperm[..., 0], popmean=0, **ttest_kwargs)
-        tval1, pval1 = scipy.stats.ttest_1samp(Xperm[..., 1], popmean=0, **ttest_kwargs)
-        tval_paired, pval_paired = scipy.stats.ttest_1samp(
-            Xperm_paired, popmean=0, **ttest_kwargs
+    distr = np.full((len(tests), niterations), np.nan)
+    for itest, (test, X) in enumerate(tqdm(tests_dict.items())):
+
+        # Generate permutation distribution
+        for iteration in range(niterations):
+            Xperm = perm_X_1samp(X, rng)
+            tvals, pvals = scipy.stats.ttest_1samp(Xperm, **ttest_kwargs)
+            clusters = return_clusters(pvals < thresh)
+            distr[itest, iteration] = get_max_stat(clusters, clusterstat, tvals)
+
+        # Get observed statistics and evaluate significance
+        tvals_obs, pvals_obs = scipy.stats.ttest_1samp(X, **ttest_kwargs)
+        clusters_obs = return_clusters(pvals_obs < thresh)
+        (
+            permdistr_dict[test_model][test]["clusterthresh_stat"],
+            permdistr_dict[test_model][test]["cluster_stats"],
+            permdistr_dict[test_model][test]["sig_clusters"],
+            permdistr_dict[test_model][test]["pvals"],
+        ) = get_significance(
+            distr[itest, ...], clusterstat, clusters_obs, tvals_obs, clusterthresh
         )
 
-        # Find clusters and cluster statistic
-        clusters0 = return_clusters(pval0 < thresh)
-        clusters1 = return_clusters(pval1 < thresh)
-        clusters_paired = return_clusters(pval_paired < thresh)
-        distr0[iteration] = get_max_stat(clusters0, clusterstat, tval0)
-        distr1[iteration] = get_max_stat(clusters1, clusterstat, tval1)
-        distr_paired[iteration] = get_max_stat(
-            clusters_paired, clusterstat, tval_paired
-        )
-
-    # collect permutation distributions
-    df_distr = pd.DataFrame([distr0, distr1, distr_paired]).T
+    # Save permutation distributions as DataFrame
+    df_distr = pd.DataFrame(distr).T
     df_distr.columns = tests
     df_distr["model"] = test_model
     dfs.append(df_distr)
 
-    # calculate observed stats and evaluate significance
-    tval_obs0, pval_obs0 = scipy.stats.ttest_1samp(X[..., 0], popmean=0, **ttest_kwargs)
-    tval_obs1, pval_obs1 = scipy.stats.ttest_1samp(X[..., 1], popmean=0, **ttest_kwargs)
-    tval_obs_paired, pval_obs_paired = scipy.stats.ttest_1samp(
-        X_paired, popmean=0, **ttest_kwargs
-    )
-    clusters_obs0 = return_clusters(pval_obs0 < thresh)
-    clusters_obs1 = return_clusters(pval_obs1 < thresh)
-    clusters_obs_paired = return_clusters(pval_obs_paired < thresh)
-    (
-        permdistr_dict[test_model]["1samp_single"]["clusterthresh_stat"],
-        permdistr_dict[test_model]["1samp_single"]["cluster_stats"],
-        permdistr_dict[test_model]["1samp_single"]["sig_clusters"],
-        permdistr_dict[test_model]["1samp_single"]["pvals"],
-    ) = get_significance(distr0, clusterstat, clusters_obs0, tval_obs0, clusterthresh)
-    (
-        permdistr_dict[test_model]["1samp_dual"]["clusterthresh_stat"],
-        permdistr_dict[test_model]["1samp_dual"]["cluster_stats"],
-        permdistr_dict[test_model]["1samp_dual"]["sig_clusters"],
-        permdistr_dict[test_model]["1samp_dual"]["pvals"],
-    ) = get_significance(distr1, clusterstat, clusters_obs1, tval_obs1, clusterthresh)
-    (
-        permdistr_dict[test_model]["paired"]["clusterthresh_stat"],
-        permdistr_dict[test_model]["paired"]["cluster_stats"],
-        permdistr_dict[test_model]["paired"]["sig_clusters"],
-        permdistr_dict[test_model]["paired"]["pvals"],
-    ) = get_significance(
-        distr_paired, clusterstat, clusters_obs_paired, tval_obs_paired, clusterthresh
-    )
-
 df_distr = pd.concat(dfs)
+# %%
+# comp/acomp -> Cluster based permutation testing
+if comp_anticomp_timecourse:
+    pass
 
 # %%
 # Plot permutation distributions
@@ -285,8 +260,11 @@ rsa_colors = {
     "parity": "C1",
     "numXcat": "C2",
 }
+hue = "model"
+style = "stream"
 if comp_anticomp_timecourse:
-    rsa_colors = {m: f"C{i}" for i, m in enumerate(modelnames)}
+    hue, style = style, hue  # switch
+    rsa_colors = {"single": "C6", "dual": "C7"}
 min_clu_len = 0
 min_clu_len_ms = ((1 / 250) * min_clu_len) * 1000
 
@@ -304,8 +282,8 @@ with sns.plotting_context("talk"):
             data=data,
             x="time",
             y="similarity",
-            hue="model",
-            style="stream",
+            hue=hue,
+            style=style,
             ci=68,
             ax=ax,
             palette=rsa_colors,
@@ -324,7 +302,7 @@ with sns.plotting_context("talk"):
         ax.set_title(f"orth = {bool(iax)}")
 
         # plot significance bars (if present)
-        if bool(iax) != test_orth:
+        if bool(iax) != test_orth or comp_anticomp_timecourse:
             continue
         skipped_clus = []
         y = ax.get_ylim()[0]
@@ -334,7 +312,7 @@ with sns.plotting_context("talk"):
                 clusters = permdistr_dict[test_model][test]["sig_clusters"]
                 if len(clusters) == 0:
                     continue
-                ls = {"1samp_single": "-", "1samp_dual": "--", "paired": ":"}[test]
+                ls = {test: _ls for test, _ls in zip(tests, ["-", "--", ":"])}[test]
                 if any([len(clu) > min_clu_len for clu in clusters]):
                     y -= 0.02
                 for clu in clusters:
