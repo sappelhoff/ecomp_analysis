@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pingouin
+import scipy.stats
 import seaborn as sns
 from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
@@ -79,6 +80,7 @@ fname_estimates.parent.mkdir(parents=True, exist_ok=True)
 
 fname_x0s = analysis_dir / "derived_data" / f"x0s_{minimize_method}.npy"
 
+fname_neurometrics = analysis_dir / "derived_data" / "neurometrics_params.tsv"
 # %%
 # Simulate accuracies over parameter ranges
 
@@ -388,7 +390,13 @@ def plot_estim_res(df, plot_single_subj, param_names):
             )
             if plot_single_subj:
                 sns.swarmplot(
-                    x="stream", y=param, data=df, order=STREAMS, ax=ax, alpha=0.5
+                    x="stream",
+                    y=param,
+                    data=df,
+                    order=STREAMS,
+                    ax=ax,
+                    alpha=0.5,
+                    size=2,
                 )
 
                 # https://stackoverflow.com/a/63171175/5201771
@@ -421,7 +429,7 @@ def plot_estim_res(df, plot_single_subj, param_names):
 
 
 fig, axs = plot_estim_res(df_fixed, plot_single_subj=True, param_names=param_names)
-fig.suptitle("Parameter estimates based on best fixed initial values", y=1.05)
+fig.suptitle("Parameter estimates based on fixed initial values", y=1.05)
 
 # %%
 # Run large set of (reasonable) initial guesses per subj to find best ones
@@ -647,6 +655,54 @@ print("Within-subject correlations: Single vs Dual")
 df_corrs
 
 # %%
+# Correlate behavioral modelling and neurometrics "kappa" and "bias" parameters
+if not fname_neurometrics.exists():
+    print(f"neurometrics params not found ... skipping.\n\n({fname_neurometrics})")
+else:
+    df_neurom = pd.read_csv(fname_neurometrics, sep="\t")
+    if "kappa_neuro" not in df_estimates.columns:
+        df_estimates = df_estimates.merge(
+            df_neurom, on=["subject", "stream"], suffixes=(None, "_neuro")
+        )
+
+    _df = df_estimates[
+        ["subject", "stream", "bias", "kappa", "bias_neuro", "kappa_neuro", "x0_type"]
+    ]
+    _df = _df.melt(id_vars=["subject", "stream", "x0_type"], var_name="parameter")
+
+    x0_type = "specific"
+    with sns.plotting_context("talk"):
+        fig, axs = plt.subplots(2, 2, figsize=(15, 10))
+        for istream, stream in enumerate(STREAMS):
+            for iparam, param in enumerate(["bias", "kappa"]):
+                ax = axs[istream, iparam]
+
+                x = _df[
+                    (_df["stream"] == stream)
+                    & (_df["x0_type"] == x0_type)
+                    & (_df["parameter"] == param)
+                ]["value"]
+                y = _df[
+                    (_df["stream"] == stream)
+                    & (_df["x0_type"] == x0_type)
+                    & (_df["parameter"] == f"{param}_neuro")
+                ]["value"]
+                assert len(x) == len(y)
+                assert len(x) == len(SUBJS)
+                ax.scatter(x, y)
+                m, b = np.polyfit(x, y, 1)
+                ax.plot(x, m * x + b, color="r")
+                ax.set_title(f"{stream}")
+                ax.set(xlabel=param, ylabel=param + "_neuro")
+
+                # correlation
+                r, p = scipy.stats.pearsonr(x, y)
+                print(f"{stream}: {param} ~ {param}_neuro --> r={r:.3f}, p={p:.3f}")
+
+        sns.despine(fig)
+        fig.tight_layout()
+
+# %%
 # Fit all data as if from single subject
 _bias0s = (0, -0.1, 0.1)
 _kappa0s = (0.5, 1, 2)
@@ -707,7 +763,9 @@ for istream, stream in enumerate(STREAMS):
 
 # %%
 # plot single subj "fixed effects" results
-if do_fit:
+if not do_fit:
+    print("skipping ...")
+else:
     # Turn results into DataFrame
     dfs_fixedfx = []
     for ires in range(len(_x0s)):
