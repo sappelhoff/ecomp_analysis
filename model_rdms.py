@@ -11,17 +11,20 @@ from scipy.spatial.distance import squareform
 from config import NUMBERS
 from utils import calc_rdm, eq1, spm_orth
 
-MODELS = (
-    "digit",
-    "color",
-    "parity",
-    "numberline",
-    "numXcat",
-    "extremity",
-)
+MODELS = {
+    "9x9": {"numberline", "extremity"},
+    "18x18": {
+        "digit",
+        "color",
+        "parity",
+        "numberline",
+        "numXcat",
+        "extremity",
+    },
+}
 
 
-def get_models_dict(rdm_size, modelnames, bias=None, kappa=None):
+def get_models_dict(rdm_size, modelnames, orth, bias=None, kappa=None):
     """Get a dict of models and their orthogonalized versions.
 
     Parameters
@@ -30,6 +33,8 @@ def get_models_dict(rdm_size, modelnames, bias=None, kappa=None):
         The size of the RDMs.
     modelnames : list of str
         The names of the models to supply.
+    orth : boolean
+        Whether or not to also provide orthogonalized models.
     bias, kappa : float | None
         The bias and kappa parameters, ignored if None. If specified,
         both must be specified, and numbers will be passed through
@@ -38,10 +43,13 @@ def get_models_dict(rdm_size, modelnames, bias=None, kappa=None):
     Returns
     -------
     models_dict : dict
-        The models in orthogonalized and non-orthogonalized format.
+        The models in non-orthogonalized format, and optionally
+        additionally in orthogonalized format, depending on `orth`.
     """
     for model in modelnames:
-        assert model in MODELS
+        assert model in MODELS[rdm_size]
+    if len(modelnames) == 1:
+        assert not orth
 
     if (bias is not None) or (kappa is not None):
         numbers_rescaled = np.interp(
@@ -114,6 +122,9 @@ def get_models_dict(rdm_size, modelnames, bias=None, kappa=None):
         del models_dict["no_orth"][key]
 
     nmodels = len(models_dict["no_orth"])
+
+    if not orth:
+        return models_dict
 
     # Orthogonalize models
     # First make a copy of non-orth models, this copy will be modified below

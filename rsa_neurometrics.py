@@ -24,8 +24,8 @@ import statsmodels.stats.multitest
 from scipy.spatial.distance import squareform
 from tqdm.auto import tqdm
 
-from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, NUMBERS, STREAMS, SUBJS
-from utils import calc_rdm, eq1
+from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, STREAMS, SUBJS
+from model_rdms import get_models_dict
 
 # %%
 # Settings
@@ -52,7 +52,14 @@ pthresh = 0.05
 
 subtract_maps = True
 
-rdm_size = "9x9"
+rdm_size = "18x18"
+ndim = int(rdm_size.split("x")[0])
+
+# whether or not to orthogonalize the model RDMs
+orth = False
+
+# which models to orthogonalize "numberline" with?
+modelnames = ["digit", "color", "numberline"]
 
 # %%
 # Prepare file paths
@@ -71,9 +78,7 @@ idx_stop = np.nonzero(times == window_sel[1])[0][0]
 
 # %%
 # Load all rdm_times and form mean
-rdm_mean_streams_subjs = np.full(
-    (len(NUMBERS), len(NUMBERS), len(STREAMS), len(SUBJS)), np.nan
-)
+rdm_mean_streams_subjs = np.full((ndim, ndim, len(STREAMS), len(SUBJS)), np.nan)
 for isub, sub in enumerate(tqdm(SUBJS)):
     for istream, stream in enumerate(STREAMS):
         rdm_times = np.load(fname_rdm_template.format(sub, stream))
@@ -82,12 +87,11 @@ for isub, sub in enumerate(tqdm(SUBJS)):
 
 # %%
 # Calculate model RDMs
-numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1.0, +1.0))
-
-model_rdms = np.full((len(NUMBERS), len(NUMBERS), len(bias_kappa_combis)), np.nan)
+key = "orth" if orth else "no_orth"
+model_rdms = np.full((ndim, ndim, len(bias_kappa_combis)), np.nan)
 for i, (bias, kappa) in enumerate(tqdm(bias_kappa_combis)):
-    dv_vector = eq1(numbers_rescaled, bias=bias, kappa=kappa)
-    dv_rdm = calc_rdm(dv_vector, normalize=True)
+    models_dict = get_models_dict(rdm_size, modelnames, orth, bias=bias, kappa=kappa)
+    dv_rdm = models_dict[key]["numberline"]
     model_rdms[..., i] = dv_rdm
 
 assert not np.isnan(model_rdms).any()

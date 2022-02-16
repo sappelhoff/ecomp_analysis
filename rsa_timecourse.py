@@ -60,7 +60,7 @@ times = np.load(fname_times)
 # Get model RDMs
 modelnames = ["digit", "color", "numberline"]
 nmodels = len(modelnames)
-models_dict = get_models_dict(rdm_size, modelnames, bias=None, kappa=None)
+models_dict = get_models_dict(rdm_size, modelnames, True, bias=None, kappa=None)
 
 # %%
 # Try an compressed versus anticompressed numberline model
@@ -68,8 +68,10 @@ comp_anticomp_timecourse = True
 if comp_anticomp_timecourse:
     kcomp = 0.1
     kacomp = 10
-    models_dict_comp = get_models_dict(rdm_size, modelnames, bias=0, kappa=kcomp)
-    models_dict_acomp = get_models_dict(rdm_size, modelnames, bias=0, kappa=kacomp)
+    models_dict_comp = get_models_dict(rdm_size, modelnames, True, bias=0, kappa=kcomp)
+    models_dict_acomp = get_models_dict(
+        rdm_size, modelnames, True, bias=0, kappa=kacomp
+    )
 
     models_dict = {"no_orth": {}, "orth": {}}
     models_dict["no_orth"][f"numberline_k-{kcomp}"] = models_dict_comp["no_orth"][
