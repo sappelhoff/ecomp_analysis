@@ -11,7 +11,7 @@ import pandas as pd
 import scipy.special
 from numba import njit
 
-from config import CHOICE_MAP, DEFAULT_RNG_SEED
+from config import CHOICE_MAP, DEFAULT_RNG_SEED, STREAMS
 
 
 def get_sourcedata(sub, stream, data_dir):
@@ -98,7 +98,7 @@ def prepare_raw_from_source(sub, data_dir, analysis_dir):
     `DAYSBACK.json` is not shared publicly.
     """
     raws = []
-    for stream in ["single", "dual"]:
+    for stream in STREAMS:
         vhdr, _ = get_sourcedata(sub, stream, data_dir)
         raw_stream = mne.io.read_raw_brainvision(vhdr, preload=True)
         raws.append(raw_stream)

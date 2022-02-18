@@ -9,13 +9,13 @@ import mne
 import numpy as np
 import pandas as pd
 
-from config import DATA_DIR_EXTERNAL
+from config import DATA_DIR_EXTERNAL, STREAMS
 from utils import get_sourcedata
 
 # %%
 # Load data
 for sub in range(1, 33):
-    for stream in ["single", "dual"]:
+    for stream in STREAMS:
         print(f"Checking {sub}-{stream}")
 
         vhdr, tsv = get_sourcedata(sub, stream, DATA_DIR_EXTERNAL)

@@ -347,7 +347,7 @@ else:
 plot_reg_lines = True
 if plot_reg_lines and not plotgrid:
     _tmp = weightdata.groupby(["stream", "number"])["weight"].mean().reset_index()
-    for _stream, _color in zip(["single", "dual"], ["C0", "C1"]):
+    for _stream, _color in zip(STREAMS, ["C0", "C1"]):
         xy = _tmp[_tmp["stream"] == _stream][["number", "weight"]].to_numpy()
         m, b = np.polyfit(xy[:, 0], xy[:, 1], 1)
         ax.plot(np.arange(9), m * xy[:, 0] + b, color=_color)

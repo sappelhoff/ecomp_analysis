@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from config import ANALYSIS_DIR_LOCAL, NUMBERS
+from config import ANALYSIS_DIR_LOCAL, NUMBERS, STREAMS
 
 # %%
 # Settings
@@ -52,8 +52,6 @@ pointcapwidth = 0.1
 
 labelpad = 12
 
-stream_order = ["single", "dual"]
-
 subj_line_settings = dict(color="black", alpha=0.1, linewidth=0.75)
 
 panel_letter_kwargs = dict(
@@ -71,7 +69,7 @@ with sns.plotting_context(**plotting_context):
 
     # Accuracies
     x = "stream"
-    order = stream_order
+    order = STREAMS
     colname = "accuracy"
     ax = ax1
     data = accdata
@@ -113,8 +111,8 @@ with sns.plotting_context(**plotting_context):
     locs2 = ax.get_children()[idx1].get_offsets()
 
     # before plotting, we need to sort so that the data points correspond
-    sort_idxs1 = np.argsort(data[data["stream"] == stream_order[0]]["acc"].to_numpy())
-    sort_idxs2 = np.argsort(data[data["stream"] == stream_order[1]]["acc"].to_numpy())
+    sort_idxs1 = np.argsort(data[data["stream"] == STREAMS[0]]["acc"].to_numpy())
+    sort_idxs2 = np.argsort(data[data["stream"] == STREAMS[1]]["acc"].to_numpy())
     locs2_sorted = locs2[sort_idxs2.argsort()][sort_idxs1]
 
     for i in range(locs1.shape[0]):
@@ -123,7 +121,7 @@ with sns.plotting_context(**plotting_context):
         ax.plot(_x, _y, **subj_line_settings)
 
     ax.yaxis.set_major_locator(plt.MaxNLocator(5))
-    ax.set_xticklabels([i.capitalize() for i in stream_order])
+    ax.set_xticklabels([i.capitalize() for i in STREAMS])
 
     # model vals
     ax2.plot(

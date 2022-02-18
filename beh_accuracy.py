@@ -8,7 +8,7 @@ import pingouin
 import seaborn as sns
 from scipy.stats import sem
 
-from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, SUBJS
+from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, STREAMS, SUBJS
 from utils import get_sourcedata
 
 # %%
@@ -23,7 +23,7 @@ data = dict(subject=[], stream=[], accuracy=[])
 for sub in SUBJS:
 
     nambigs = 0
-    for stream in ["single", "dual"]:
+    for stream in STREAMS:
         _, tsv = get_sourcedata(sub, stream, DATA_DIR_LOCAL)
         df = pd.read_csv(tsv, sep="\t")
 
@@ -62,8 +62,6 @@ pointcapwidth = 0.1
 
 labelpad = 12
 
-stream_order = ["single", "dual"]
-
 subj_line_settings = dict(color="black", alpha=0.1, linewidth=0.75)
 
 panel_letter_kwargs = dict(
@@ -79,7 +77,7 @@ with sns.plotting_context(**plotting_context):
     fig, ax = plt.subplots(figsize=(5, 5))
 
     x = "stream"
-    order = stream_order
+    order = STREAMS
     colname = "accuracy"
     ax = ax
     data = df_acc
@@ -121,12 +119,8 @@ with sns.plotting_context(**plotting_context):
     locs2 = ax.get_children()[idx1].get_offsets()
 
     # before plotting, we need to sort so that the data points correspond
-    sort_idxs1 = np.argsort(
-        data[data["stream"] == stream_order[0]]["accuracy"].to_numpy()
-    )
-    sort_idxs2 = np.argsort(
-        data[data["stream"] == stream_order[1]]["accuracy"].to_numpy()
-    )
+    sort_idxs1 = np.argsort(data[data["stream"] == STREAMS[0]]["accuracy"].to_numpy())
+    sort_idxs2 = np.argsort(data[data["stream"] == STREAMS[1]]["accuracy"].to_numpy())
     locs2_sorted = locs2[sort_idxs2.argsort()][sort_idxs1]
 
     for i in range(locs1.shape[0]):
@@ -135,7 +129,7 @@ with sns.plotting_context(**plotting_context):
         ax.plot(_x, _y, **subj_line_settings)
 
     ax.yaxis.set_major_locator(plt.MaxNLocator(5))
-    ax.set_xticklabels([i.capitalize() for i in stream_order])
+    ax.set_xticklabels([i.capitalize() for i in STREAMS])
 
     sns.despine(fig)
     fname = analysis_dir / "figures" / "accs.jpg"

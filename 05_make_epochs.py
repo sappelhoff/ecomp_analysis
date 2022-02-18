@@ -36,7 +36,13 @@ import numpy as np
 import pandas as pd
 from mne_faster import find_bad_epochs
 
-from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_EXTERNAL, FASTER_THRESH
+from config import (
+    ANALYSIS_DIR_LOCAL,
+    BAD_SUBJS,
+    DATA_DIR_EXTERNAL,
+    FASTER_THRESH,
+    STREAMS,
+)
 from utils import get_first_task, get_sourcedata, parse_overwrite
 
 # %%
@@ -100,7 +106,7 @@ fname_faster = savedir / f"sub-{sub:02}_faster_bad_epos.json"
 # %%
 # Read behavioral data to use as metadata
 dfs = []
-for stream in ["single", "dual"]:
+for stream in STREAMS:
     _, tsv = get_sourcedata(sub, stream, data_dir)
     dfs += [pd.read_csv(tsv, sep="\t")]
 

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import binomtest
 
-from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_LOCAL
+from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_LOCAL, STREAMS, SUBJS
 from utils import get_sourcedata
 
 # %%
@@ -21,7 +21,7 @@ data_dir = DATA_DIR_LOCAL
 timeout_data = dict(sub=[], ntimeouts=[])
 for sub in range(1, 33):
     ntimeouts = 0
-    for stream in ["single", "dual"]:
+    for stream in STREAMS:
         _, tsv = get_sourcedata(sub, stream, data_dir)
         df = pd.read_csv(tsv, sep="\t")
         validity_sum = df["validity"].to_numpy().sum()
@@ -47,7 +47,7 @@ data = {key: [] for key in keys}
 for sub in range(1, 33):
 
     infos = []
-    for stream in ["single", "dual"]:
+    for stream in STREAMS:
 
         fname = (
             data_dir
@@ -108,7 +108,7 @@ print(f"On average there were {_}% timouts per participant.")
 # %%
 # Compute Binomial tests for bad subjects
 for sub in BAD_SUBJS:
-    for stream in ["single", "dual"]:
+    for stream in STREAMS:
         _, tsv = get_sourcedata(sub, stream, data_dir)
         df = pd.read_csv(tsv, sep="\t")
 
@@ -121,3 +121,7 @@ for sub in BAD_SUBJS:
         print(sub, stream, res, "\n")
 
 # %%
+# Response time for subjects
+for sub in SUBJS:
+    for stream in STREAMS:
+        sub, stream
