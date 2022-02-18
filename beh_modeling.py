@@ -552,7 +552,7 @@ with sns.plotting_context("poster"):
 fig, axs = plot_estim_res(
     df_specific, plot_single_subj=True, param_names=[i + "0" for i in param_names]
 )
-fig.suptitle(
+_ = fig.suptitle(
     "Best fitting initial values over subjects\n"
     f"y-limits indicate ranges from which\n{df_x0s['ix0'].max()} "
     "initial values were tried out per subj and stream",
@@ -562,7 +562,7 @@ fig.suptitle(
 # %%
 # plot distribution of estimated params based on best fitting initial start values
 fig, axs = plot_estim_res(df_specific, plot_single_subj=True, param_names=param_names)
-fig.suptitle("Parameter estimates based on best fitting initial values", y=1.05)
+_ = fig.suptitle("Parameter estimates based on best fitting initial values", y=1.05)
 
 # %%
 # Work on stats for estimated params ("specific")

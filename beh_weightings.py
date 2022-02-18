@@ -38,6 +38,8 @@ minimize_method = "Nelder-Mead"
 analysis_dir = ANALYSIS_DIR_LOCAL
 data_dir = DATA_DIR_LOCAL
 
+fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
+
 # %%
 # Define function to calculate weights
 
@@ -356,11 +358,15 @@ if plot_reg_lines and not plotgrid:
 
 # optional horizontal, vertical, and diagonal (=linear weights) reference lines
 plot_ref_lines = False
+refline_kwargs = dict(linestyle="--", color="black", lw=0.5)
 if plot_ref_lines and not plotgrid:
-    ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
-    ax.axvline(4, linestyle="--", color="black", lw=0.5)
-    ax.plot(np.arange(9), np.linspace(0, 1, 9), linestyle="--", color="black", lw=0.5)
+    ax.axhline(0.5, **refline_kwargs)
+    ax.axvline(4, **refline_kwargs)
     fname = str(fname).replace(".jpg", "_reflines.jpg")
+if plot_ref_lines and plotgrid:
+    for col_val, ax in g.axes_dict.items():
+        ax.axhline(0.5, **refline_kwargs)
+        ax.axvline(4, **refline_kwargs)
 
 fname = analysis_dir / "figures" / "weights.jpg"
 if plotgrid:
@@ -370,6 +376,37 @@ if plotgrid:
 else:
     sns.despine(fig)
     fig.savefig(fname)
+
+# %%
+# Plot single subj fits
+df_estimates = pd.read_csv(fname_estimates, sep="\t")
+
+for stream in STREAMS:
+    with sns.plotting_context("poster"):
+        g = sns.catplot(
+            x="number",
+            y="weight",
+            data=weightdata[weightdata["stream"] == stream],
+            dodge=False,
+            ci=68,
+            hue="weight_type",
+            col="subject",
+            col_wrap=6,
+            kind="point",
+        )
+    _ = g.fig.suptitle(stream, y=1.05, fontsize=40)
+
+    for col_val, ax in g.axes_dict.items():
+        _df = df_estimates[
+            (df_estimates["x0_type"] == x0_type)
+            & (df_estimates["subject"] == col_val)
+            & (df_estimates["stream"] == stream)
+        ]
+        b, k = _df[["bias", "kappa"]].to_numpy().flatten()
+        title = ax.get_title()
+        ax.set_title(f"b: {b:.2f}, k: {k:.2f}", fontsize=30)
+        ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
+
 
 # %%
 # plot weights over positions: numbers as hue
