@@ -142,6 +142,7 @@ def prepare_raw_from_source(sub, data_dir, analysis_dir):
 @click.option("--t_min_max_epochs", type=(float, float), help="t_min_max_epochs")
 @click.option("--recompute_faster", default=False, type=bool, help="recompute_faster")
 @click.option("--rdm_size", type=str, help="rdm_size")
+@click.option("--do_plot", default=True, type=bool, help="do_plot")
 def get_inputs(
     sub,
     data_dir,
@@ -156,6 +157,7 @@ def get_inputs(
     t_min_max_epochs,
     recompute_faster,
     rdm_size,
+    do_plot,
 ):
     """Parse inputs in case script is run from command line.
 
@@ -182,6 +184,7 @@ def get_inputs(
         t_min_max_epochs=t_min_max_epochs,
         recompute_faster=recompute_faster,
         rdm_size=rdm_size,
+        do_plot=do_plot,
     )
 
     return inputs

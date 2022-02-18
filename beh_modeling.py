@@ -54,6 +54,10 @@ data_dir = DATA_DIR_LOCAL
 
 overwrite = False
 
+do_plot = True
+
+do_fit_singlefx = False
+
 # for plotting
 SUBJ_LINE_SETTINGS = dict(color="black", alpha=0.1, linewidth=0.75)
 
@@ -65,6 +69,7 @@ if not hasattr(sys, "ps1"):
         analysis_dir=analysis_dir,
         data_dir=data_dir,
         overwrite=overwrite,
+        do_plot=do_plot,
     )
 
     defaults = parse_overwrite(defaults)
@@ -72,6 +77,7 @@ if not hasattr(sys, "ps1"):
     analysis_dir = defaults["analysis_dir"]
     data_dir = defaults["data_dir"]
     overwrite = defaults["overwrite"]
+    do_plot = defaults["do_plot"]
 
 # %%
 # Prepare file paths
@@ -151,39 +157,40 @@ for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
                 data[param].append(x)
 # %%
 # Plot accuracy simulation results
-dfs = {}
-with sns.plotting_context("talk"):
-    fig, axs = plt.subplots(2, 2, figsize=(15, 10), sharey=True)
-    for i, param in enumerate(simulation):
+if do_plot:
+    dfs = {}
+    with sns.plotting_context("talk"):
+        fig, axs = plt.subplots(2, 2, figsize=(15, 10), sharey=True)
+        for i, param in enumerate(simulation):
 
-        ax = axs.flat[i]
+            ax = axs.flat[i]
 
-        # Get data and turn into df
-        data, _, kwargs = simulation[param]
-        kwargs.pop(param, None)
-        df = pd.DataFrame.from_dict(data)
-        dfs[param] = df
+            # Get data and turn into df
+            data, _, kwargs = simulation[param]
+            kwargs.pop(param, None)
+            df = pd.DataFrame.from_dict(data)
+            dfs[param] = df
 
-        # plot
-        sns.pointplot(
-            x=param,
-            y="accuracy",
-            hue="stream",
-            data=df,
-            ci=68,
-            ax=ax,
-            scale=0.5,
-            dodge=True,
-        )
-        ax.set_title(json.dumps(kwargs)[1:-1])
+            # plot
+            sns.pointplot(
+                x=param,
+                y="accuracy",
+                hue="stream",
+                data=df,
+                ci=68,
+                ax=ax,
+                scale=0.5,
+                dodge=True,
+            )
+            ax.set_title(json.dumps(kwargs)[1:-1])
 
-        if i > 0:
-            ax.get_legend().remove()
+            if i > 0:
+                ax.get_legend().remove()
 
-    fig.suptitle("Model run on participant data (N=30)", y=1.01)
+        fig.suptitle("Model run on participant data (N=30)", y=1.01)
 
-sns.despine(fig)
-fig.tight_layout()
+    sns.despine(fig)
+    fig.tight_layout()
 
 # %%
 # Simulate change in accuracy depending on noise and kappa parameters
@@ -249,56 +256,59 @@ for ignorm_type, gnorm_type in enumerate(tqdm(gnorm_types)):
 
 # %%
 # Plot "change in accuracy" simulations
-with sns.plotting_context("talk"):
-    fig, axs = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
+if do_plot:
+    with sns.plotting_context("talk"):
+        fig, axs = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
 
-    for ignorm_type, gnorm_type in enumerate(gnorm_types):
-        ax = axs.flat[ignorm_type]
+        for ignorm_type, gnorm_type in enumerate(gnorm_types):
+            ax = axs.flat[ignorm_type]
 
-        grid_norm = (
-            acc_grid[..., ignorm_type].T - acc_grid[..., idx_kappa_one, ignorm_type]
-        ).T
+            grid_norm = (
+                acc_grid[..., ignorm_type].T - acc_grid[..., idx_kappa_one, ignorm_type]
+            ).T
 
-        # Trace maximum values using np.nan (inserts white cells)
-        grid_norm[np.arange(n), np.argmax(grid_norm, axis=1)] = np.nan
+            # Trace maximum values using np.nan (inserts white cells)
+            grid_norm[np.arange(n), np.argmax(grid_norm, axis=1)] = np.nan
 
-        im = ax.imshow(grid_norm, origin="upper", interpolation="nearest")
+            im = ax.imshow(grid_norm, origin="upper", interpolation="nearest")
 
-        ax.axvline(idx_kappa_one, ls="--", c="w")
-        fig.colorbar(im, ax=ax, label="Δ accuracy", shrink=0.625)
+            ax.axvline(idx_kappa_one, ls="--", c="w")
+            fig.colorbar(im, ax=ax, label="Δ accuracy", shrink=0.625)
 
-        # Set ticklabels
-        ax.xaxis.set_major_locator(plt.MaxNLocator(6))
-        ax.yaxis.set_major_locator(plt.MaxNLocator(6))
-        xticklabels = (
-            [""]
-            + [f"{i:.2f}" for i in kappas[(ax.get_xticks()[1:-1]).astype(int)]]
-            + [""]
-        )
-        yticklabels = (
-            [""]
-            + [f"{i:.1f}" for i in noises[(ax.get_yticks()[1:-1]).astype(int)]]
-            + [""]
-        )
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
+            # Set ticklabels
+            ax.xaxis.set_major_locator(plt.MaxNLocator(6))
+            ax.yaxis.set_major_locator(plt.MaxNLocator(6))
+            xticklabels = (
+                [""]
+                + [f"{i:.2f}" for i in kappas[(ax.get_xticks()[1:-1]).astype(int)]]
+                + [""]
             )
+            yticklabels = (
+                [""]
+                + [f"{i:.1f}" for i in noises[(ax.get_yticks()[1:-1]).astype(int)]]
+                + [""]
+            )
+
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    category=UserWarning,
+                    message="FixedFormatter .* FixedLocator",
+                )
+
+                ax.set(
+                    xticklabels=xticklabels,
+                    yticklabels=yticklabels,
+                )
 
             ax.set(
-                xticklabels=xticklabels,
-                yticklabels=yticklabels,
+                xlabel="curvature (k)",
+                ylabel="noise (s)",
+                title=f'Gain normalization:\n"{gnorm_type}"',
             )
+            ax.set_ylabel(ax.get_ylabel(), labelpad=10)
 
-        ax.set(
-            xlabel="curvature (k)",
-            ylabel="noise (s)",
-            title=f'Gain normalization:\n"{gnorm_type}"',
-        )
-        ax.set_ylabel(ax.get_ylabel(), labelpad=10)
-
-fig.tight_layout()
+    fig.tight_layout()
 
 # %%
 # Fit model parameters for each subj and stream
@@ -428,8 +438,9 @@ def plot_estim_res(df, plot_single_subj, param_names):
     return fig, axs
 
 
-fig, axs = plot_estim_res(df_fixed, plot_single_subj=True, param_names=param_names)
-fig.suptitle("Parameter estimates based on fixed initial values", y=1.05)
+if do_plot:
+    fig, axs = plot_estim_res(df_fixed, plot_single_subj=True, param_names=param_names)
+    fig.suptitle("Parameter estimates based on fixed initial values", y=1.05)
 
 # %%
 # Run large set of (reasonable) initial guesses per subj to find best ones
@@ -549,20 +560,24 @@ with sns.plotting_context("poster"):
 
 # %%
 # plot distribution of best fitting initial start values
-fig, axs = plot_estim_res(
-    df_specific, plot_single_subj=True, param_names=[i + "0" for i in param_names]
-)
-_ = fig.suptitle(
-    "Best fitting initial values over subjects\n"
-    f"y-limits indicate ranges from which\n{df_x0s['ix0'].max()} "
-    "initial values were tried out per subj and stream",
-    y=1.15,
-)
+if do_plot:
+    fig, axs = plot_estim_res(
+        df_specific, plot_single_subj=True, param_names=[i + "0" for i in param_names]
+    )
+    _ = fig.suptitle(
+        "Best fitting initial values over subjects\n"
+        f"y-limits indicate ranges from which\n{df_x0s['ix0'].max()} "
+        "initial values were tried out per subj and stream",
+        y=1.15,
+    )
 
 # %%
 # plot distribution of estimated params based on best fitting initial start values
-fig, axs = plot_estim_res(df_specific, plot_single_subj=True, param_names=param_names)
-_ = fig.suptitle("Parameter estimates based on best fitting initial values", y=1.05)
+if do_plot:
+    fig, axs = plot_estim_res(
+        df_specific, plot_single_subj=True, param_names=param_names
+    )
+    _ = fig.suptitle("Parameter estimates based on best fitting initial values", y=1.05)
 
 # %%
 # Work on stats for estimated params ("specific")
@@ -678,17 +693,18 @@ for x0_type in ["fixed", "specific"]:
 df_corrs = pd.concat(outs).reset_index(drop=True)
 
 # plots
-_data = pd.DataFrame.from_dict(_data)
-with sns.plotting_context("talk"):
-    g = sns.lmplot(
-        x="single",
-        y="dual",
-        col="parameter",
-        row="x0_type",
-        data=_data,
-        sharex=False,
-        sharey=False,
-    )
+if do_plot:
+    _data = pd.DataFrame.from_dict(_data)
+    with sns.plotting_context("talk"):
+        g = sns.lmplot(
+            x="single",
+            y="dual",
+            col="parameter",
+            row="x0_type",
+            data=_data,
+            sharex=False,
+            sharey=False,
+        )
 
 print("Within-subject correlations: Single vs Dual")
 df_corrs
@@ -766,10 +782,9 @@ for sub in SUBJS:
 df_single_sub = pd.concat(df_single_sub).reset_index(drop=True)
 
 # go through different initial values per stream
-do_fit = False
 results = np.full((len(_x0s), len(STREAMS), len(param_names)), np.nan)
 for istream, stream in enumerate(STREAMS):
-    if not do_fit:
+    if not do_fit_singlefx:
         continue
 
     X, categories, y, y_true, ambiguous = prep_model_inputs(
@@ -802,7 +817,7 @@ for istream, stream in enumerate(STREAMS):
 
 # %%
 # plot single subj "fixed effects" results
-if not do_fit:
+if not do_fit_singlefx:
     print("skipping ...")
 else:
     # Turn results into DataFrame
