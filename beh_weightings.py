@@ -1,6 +1,8 @@
 """Analyze weights."""
 # %%
 # Imports
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -436,13 +438,17 @@ with sns.plotting_context("talk"):
             )
 
         handles, labels = ax.get_legend_handles_labels()
-        sns.move_legend(
-            ax,
-            loc="center left",
-            bbox_to_anchor=(1, 0.5),
-            handles=reversed(handles),
-            labels=reversed(labels),
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, message="You have mixed positional .*"
+            )
+            sns.move_legend(
+                ax,
+                loc="center left",
+                bbox_to_anchor=(1, 0.5),
+                handles=reversed(handles),
+                labels=reversed(labels),
+            )
         if istream == 1:
             ax.set_ylabel("")
             ax.get_legend().remove()
