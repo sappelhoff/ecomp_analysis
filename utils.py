@@ -302,11 +302,12 @@ def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
     gnorm : bool
         Whether or not to apply gain normalization.
     leakage : float
-        The leakage parameter in the range [0, 1], where ``0`` means
+        The leakage parameter in the range [-1, 1], where ``0`` means
         that each sample in the sequence of length `seq_length` receives
         a weight of ``1`` (no recency); and ``1`` means that all samples
         except the last in the sequence receive a weight of ``0``, and
         the last receives a weight of ``1`` (strongest possible recency).
+        Values lower than ``0`` indicate primacy (the opposite of recency).
     seq_length : int
         The length of the sample sequence. Defaults to 10, which was
         the sample sequence length in the eComp experiment.
@@ -571,7 +572,7 @@ def psychometric_model(
             - kappa : float
                 The kappa parameter (`k`) in range [0, 20].
             -leakage : float
-                The leakage parameter (`l`) in range [0, 1].
+                The leakage parameter (`l`) in range [-1, 1].
             - noise : float
                 The noise parameter (`s`) in range [0.01, 8].
     X : np.ndarray, shape(n, 10)

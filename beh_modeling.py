@@ -45,8 +45,8 @@ minimize_method_opts = {
 param_names = ["bias", "kappa", "leakage", "noise"]
 
 # parameter bounds (in order of param_names)
-lower = np.array([-1, 0, 0, 0.01], dtype=float)
-upper = np.array([1, 5, 1, 3], dtype=float)
+lower = np.array([-0.5, 0, -0.5, 0.01], dtype=float)
+upper = np.array([0.5, 5, 1, 3], dtype=float)
 bounds = Bounds(lower, upper)
 
 analysis_dir = ANALYSIS_DIR_LOCAL
@@ -437,9 +437,9 @@ fig.suptitle("Parameter estimates based on fixed initial values", y=1.05)
 #       ... could be sped up significantly through parallelization.
 
 # Draw random initial values for the parameters from "reasonable" ranges
-bias0s = np.arange(-5, 6) / 10
+bias0s = np.arange(-4, 5) / 10
 kappa0s = np.arange(0.2, 2.2, 0.2)
-leakage0s = np.arange(0, 1.25, 0.25)
+leakage0s = np.arange(-0.25, 1, 0.25)
 noise0s = np.arange(0.1, 1.1, 0.1)
 
 if not fname_x0s.exists() or overwrite:
@@ -612,9 +612,6 @@ df_estimates = pd.concat([df_fixed, df_specific]).reset_index(drop=True)
 assert len(df_estimates) == len(SUBJS) * len(STREAMS) * 2
 
 # Save the data
-if fname_estimates.exists():
-    df_estimates_prev = pd.read_csv(fname_estimates, sep="\t")
-    pd.testing.assert_frame_equal(df_estimates, df_estimates_prev)
 df_estimates.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 
 # %%
