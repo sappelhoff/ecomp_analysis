@@ -3,8 +3,10 @@
 # Imports
 import json
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from scipy.stats import binomtest
 
 from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_LOCAL, STREAMS, SUBJS
@@ -122,6 +124,35 @@ for sub in BAD_SUBJS:
 
 # %%
 # Response time for subjects
+dfs = []
 for sub in SUBJS:
     for stream in STREAMS:
-        sub, stream
+        _, tsv = get_sourcedata(sub, stream, data_dir)
+        df = pd.read_csv(tsv, sep="\t")
+        df.insert(0, "subject", sub)
+        dfs.append(df)
+
+df = pd.concat(dfs).reset_index(drop=True)
+assert len(df) == len(SUBJS) * len(STREAMS) * 300
+
+# Print summary
+print(
+    "Response times by stream:\n\n",
+    df.groupby("stream")["rt"].describe().round(2),
+    "\n\nResponse times overall:\n\n",
+    df["rt"].describe().round(2),
+)
+
+# plot
+with sns.plotting_context("talk"):
+
+    # distributions
+    sns.displot(x="rt", data=df, hue="stream")
+
+    # means
+    fig, ax = plt.subplots()
+    sns.pointplot(x="stream", y="rt", data=df, ci=68, ax=ax)
+    sns.despine(fig)
+
+
+# %%
