@@ -565,6 +565,48 @@ fig, axs = plot_estim_res(df_specific, plot_single_subj=True, param_names=param_
 fig.suptitle("Parameter estimates based on best fitting initial values", y=1.05)
 
 # %%
+# Work on stats for estimated params ("specific")
+print("Means and standard errors:\n------------------------------------")
+for param in param_names:
+    for stream in STREAMS:
+        vals = df_specific[df_specific["stream"] == stream][param].to_numpy()
+        m = np.mean(vals)
+        se = scipy.stats.sem(vals)
+        print(f"{param},{stream} --> {m:.2f} +- {se:.2f}")
+
+# 1-samp tests vs "mu"
+print("\n\n1-samp ttests vs mu\n------------------------------------------")
+stats_params = []
+for param, mu in [("bias", 0), ("kappa", 1), ("leakage", 0)]:
+    for stream in STREAMS:
+        x = df_specific[df_specific["stream"] == stream][param].to_numpy()
+        alt = "two-sided"
+        if param == "kappa":
+            alt = "greater" if stream == "dual" else "less"
+        p, t = scipy.stats.wilcoxon(x - mu, alternative=alt)
+        print(param, stream, np.round(p, 3), np.round(t, 3))
+        pstats = pingouin.ttest(x, y=mu, alternative=alt)
+        pstats["stream"] = stream
+        pstats["parameter"] = param
+        pstats["mu"] = mu
+        stats_params.append(pstats)
+
+stats_params = pd.concat(stats_params).reset_index(drop=True)
+print(
+    "\n",
+    stats_params[
+        ["T", "dof", "alternative", "p-val", "cohen-d", "stream", "parameter", "mu"]
+    ].round(3),
+)
+
+# paired test for noise
+print("\n\npaired ttests noise\n------------------------------------------")
+x = df_specific[df_specific["stream"] == "single"]["noise"].to_numpy()
+y = df_specific[df_specific["stream"] == "dual"]["noise"].to_numpy()
+stats_paired = pingouin.ttest(x, y, paired=True)
+print("\n", stats_paired.round(3))
+
+# %%
 # Concatenate fixed and specific estimates and save
 df_estimates = pd.concat([df_fixed, df_specific]).reset_index(drop=True)
 assert len(df_estimates) == len(SUBJS) * len(STREAMS) * 2

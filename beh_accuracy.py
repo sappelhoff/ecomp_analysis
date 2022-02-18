@@ -138,7 +138,7 @@ with sns.plotting_context(**plotting_context):
 
 # %%
 # print descriptives
-descr = df_acc.groupby("stream")["accuracy"].agg([np.mean, sem]).round(3)
+descr = df_acc.groupby("stream")["accuracy"].agg([np.mean, sem]).round(3) * 100
 descr
 
 # %%
@@ -148,7 +148,7 @@ tstats = pingouin.ttest(
     df_acc[df_acc["stream"] == "dual"]["accuracy"],
     paired=True,
 )
-tstats
+tstats.round(3)
 
 # %%
 # print acc range
