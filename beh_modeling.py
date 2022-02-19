@@ -591,12 +591,13 @@ for param in param_names:
 
 # 1-samp tests vs "mu"
 print("\n\n1-samp ttests vs mu\n------------------------------------------")
+use_one_sided = False
 stats_params = []
 for param, mu in [("bias", 0), ("kappa", 1), ("leakage", 0)]:
     for stream in STREAMS:
         x = df_specific[df_specific["stream"] == stream][param].to_numpy()
         alt = "two-sided"
-        if param == "kappa":
+        if param == "kappa" and use_one_sided:
             alt = "greater" if stream == "dual" else "less"
         p, t = scipy.stats.wilcoxon(x - mu, alternative=alt)
         print(param, stream, np.round(p, 3), np.round(t, 3))

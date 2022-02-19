@@ -146,7 +146,9 @@ def calc_nonp_weights(df, nsamples=10):
     return weights, position_weights
 
 
-def calc_CP_weights(sub, stream, x0_type, data_dir, analysis_dir, minimize_method):
+def calc_CP_weights(
+    sub, stream, x0_type, data_dir, analysis_dir, minimize_method, params=[]
+):
     """Calculate decision weights based on model output `CP`.
 
     Each weight is the mean of its associated CP values.
@@ -166,6 +168,15 @@ def calc_CP_weights(sub, stream, x0_type, data_dir, analysis_dir, minimize_metho
         The path to the analysis directory.
     minimize_method : {"Neldar-Mead", "L-BFGS-B", "Powell"}
         The method with which the parameters were estimated.
+    params : list
+        Can be an empty list to use the subject and stream specific
+        estimated parameters as read from file (default).
+        Can be a list of four floats corresponding to bias, kappa,
+        leakage, and noise in that order. If one of the four list
+        entries is None, the estimated parameters as read from file
+        are used instead.
+        Can be helpful to fit CP_weights based on mean estimated params.
+        Or to plot model outputs at kappa=1.
 
     Returns
     -------
@@ -189,6 +200,13 @@ def calc_CP_weights(sub, stream, x0_type, data_dir, analysis_dir, minimize_metho
 
     # Get estimated parameters and predicted choices
     parameters = get_estim_params(sub, stream, x0_type, minimize_method, analysis_dir)
+    if params != []:
+        # replace some or all parameters
+        assert len(params) == 4
+        none_idxs = [i for i, p in enumerate(params) if p is None]
+        for idx in none_idxs:
+            params[idx] = parameters.tolist()[idx]
+        parameters = np.asarray(params, dtype=float)
 
     _, CP = psychometric_model(
         parameters, X, categories, y, return_val="G", gain=None, gnorm=False
@@ -256,8 +274,13 @@ def calc_CP_weights(sub, stream, x0_type, data_dir, analysis_dir, minimize_metho
 
 # Take model parameter estimates based on "fixed" or "specific" initial guesses
 x0_type = "specific"
-
-wtypes = ["data", "model"]
+model_kwargs = dict(
+    x0_type=x0_type,
+    data_dir=data_dir,
+    analysis_dir=analysis_dir,
+    minimize_method=minimize_method,
+)
+wtypes = ["data", "model", "model_k1"]
 weight_dfs = []
 posweight_dfs = []
 for sub in SUBJS:
@@ -273,10 +296,11 @@ for sub in SUBJS:
                 weights, position_weights = calc_CP_weights(
                     sub,
                     stream,
-                    x0_type,
-                    data_dir,
-                    analysis_dir,
-                    minimize_method,
+                    **model_kwargs,
+                )
+            elif wtype == "model_k1":
+                weights, position_weights = calc_CP_weights(
+                    sub, stream, **model_kwargs, params=[None, 1, None, None]
                 )
             else:
                 raise RuntimeError("unrecognized `wtype`")
@@ -310,8 +334,6 @@ posweightdata = pd.concat(posweight_dfs).reset_index(drop=True)
 # %%
 # save to files
 # (save only nonp weights for now)
-
-
 fname = analysis_dir / "derived_data" / "weights.tsv"
 weightdata[weightdata["weight_type"] == "data"].to_csv(
     fname, columns=weightdata.columns[:-1], sep="\t", na_rep="n/a", index=False
@@ -406,6 +428,47 @@ for stream in STREAMS:
         title = ax.get_title()
         ax.set_title(f"b: {b:.2f}, k: {k:.2f}", fontsize=30)
         ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
+
+# %%
+# Plot fit based on mean estimates parameters
+param_names = ["bias", "kappa", "leakage", "noise"]
+_df_mean = df_estimates.groupby(["x0_type", "stream"])[param_names].mean().reset_index()
+
+
+weight_dfs = []
+for sub in SUBJS:
+    for stream in STREAMS:
+
+        _, tsv = get_sourcedata(sub, stream, data_dir)
+        df = pd.read_csv(tsv, sep="\t")
+
+        params = (
+            _df_mean[(_df_mean["x0_type"] == x0_type) & (_df_mean["stream"] == stream)][
+                param_names
+            ]
+            .to_numpy()
+            .squeeze()
+            .tolist()
+        )
+
+        weights, _ = calc_CP_weights(
+            sub, stream, x0_type, data_dir, analysis_dir, minimize_method, params=params
+        )
+
+        # save in DF
+        wdf = pd.DataFrame.from_dict(
+            dict(
+                subject=sub,
+                stream=stream,
+                number=NUMBERS,
+                weight=weights,
+                weight_type="model_mean",
+            )
+        )
+        weight_dfs.append(wdf)
+weightdata_mean = pd.concat(weight_dfs).reset_index(drop=True)
+if "model_mean" not in weightdata["weight_type"]:
+    weightdata = pd.concat([weightdata, weightdata_mean]).reset_index(drop=True)
 
 
 # %%
