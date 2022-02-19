@@ -702,8 +702,7 @@ if do_plot:
             col="parameter",
             row="x0_type",
             data=_data,
-            sharex=False,
-            sharey=False,
+            facet_kws=dict(sharex=False, sharey=False),
         )
 
 print("Within-subject correlations: Single vs Dual")
