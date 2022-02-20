@@ -45,8 +45,8 @@ minimize_method_opts = {
 param_names = ["bias", "kappa", "leakage", "noise"]
 
 # parameter bounds (in order of param_names)
-lower = np.array([-0.5, 0, -0.5, 0.01], dtype=float)
-upper = np.array([0.5, 5, 1, 3], dtype=float)
+lower = np.array([-0.5, 0, 0, 0.01], dtype=float)
+upper = np.array([0.5, 5, 0, 3], dtype=float)
 bounds = Bounds(lower, upper)
 
 analysis_dir = ANALYSIS_DIR_LOCAL
