@@ -450,7 +450,7 @@ if do_plot:
 # Draw random initial values for the parameters from "reasonable" ranges
 bias0s = np.arange(-4, 5) / 10
 kappa0s = np.arange(0.2, 2.2, 0.2)
-leakage0s = np.arange(-0.25, 1, 0.25)
+leakage0s = [0]  # np.arange(-0.25, 1, 0.25)
 noise0s = np.arange(0.1, 1.1, 0.1)
 
 if not fname_x0s.exists() or overwrite:
