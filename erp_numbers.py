@@ -35,7 +35,7 @@ baseline = (None, 0)
 
 mean_times = (0.3, 0.7)
 
-p3_group = [P3_GROUP_CERCOR, P3_GROUP_NHB][0]  # 0 or 1
+p3_group = [P3_GROUP_CERCOR, P3_GROUP_NHB][1]  # 0 or 1
 
 # %%
 # Prepare file paths

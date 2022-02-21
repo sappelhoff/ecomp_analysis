@@ -35,12 +35,18 @@ data_dir = DATA_DIR_EXTERNAL
 analysis_dir = ANALYSIS_DIR_LOCAL
 
 grid_res = 101
-if False:
+opt = 2
+if opt == 0:
     kappas = np.linspace(0.4, 4.0, grid_res)
     biases = np.linspace(-1.0, 1.0, int(grid_res))
-else:
+elif opt == 1:
     kappas = np.linspace(0.5, 10.0, grid_res)
     biases = np.linspace(-0.75, 0.75, int(grid_res))
+elif opt == 2:
+    kappas = np.linspace(0.5, 10.0, grid_res)
+    biases = np.linspace(-0.5, 0.5, int(grid_res))
+else:
+    raise RuntimeError(f"unknown 'opt': {opt}")
 
 bias_kappa_combis = list(itertools.product(biases, kappas))
 
