@@ -102,3 +102,11 @@ with sns.plotting_context("talk"):
 
 # %%
 # panels c and d - weightings
+
+
+# %%
+# panels e, f, g - kappa, bias, noise
+
+
+# %%
+# Save the figure
