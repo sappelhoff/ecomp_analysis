@@ -25,11 +25,16 @@ pointerrwidth = 3
 pointlinewidth = axhline_args["linewidth"]
 pointcapwidth = 0.1
 swarmsize = 2
+
+minimize_method = "Nelder-Mead"
+x0_type = "specific"
 # %%
 # File paths
 fname_accs = analysis_dir / "derived_data" / "accuracies.tsv"
 
 fname_weights = analysis_dir / "derived_data" / "weights.tsv"
+
+fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
 
 fname_fig1 = analysis_dir / "figures" / "fig1b+.pdf"
 # %%
@@ -39,7 +44,7 @@ fname_fig1 = analysis_dir / "figures" / "fig1b+.pdf"
 
 # figure layout
 with sns.plotting_context("talk"):
-    fig, axs = plt.subplots(2, 3, figsize=(12, 8))
+    fig, axs = plt.subplots(2, 3, figsize=(12, 10))
     fig.tight_layout()
 # %%
 # panel b - accuracies
@@ -61,7 +66,7 @@ with sns.plotting_context("talk"):
             ci=ci,
             ax=ax,
             markers=pointmarkers,
-            scale=pointscale,
+            scale=1,
             errwidth=pointerrwidth,
             capsize=pointcapwidth,
             color="black",
@@ -147,6 +152,8 @@ with sns.plotting_context("talk"):
             lw=0.5,
         )
 
+        ax.axhline(0.5, **axhline_args)
+
         # make a legend
         if istream == 0:
             handles = [
@@ -197,6 +204,80 @@ fig.savefig(fname_fig1, bbox_inches="tight")
 
 # %%
 # panels e, f, g - kappa, bias, noise
+df_estims = pd.read_csv(fname_estimates, sep="\t")
+df_estims = df_estims[df_estims["x0_type"] == x0_type]
+param_names = ["kappa", "bias", "noise"]
+df_estims = df_estims[["subject", "stream"] + param_names].melt(
+    id_vars=["subject", "stream"], var_name="parameter"
+)
+
+order = STREAMS
+x = "stream"
+colname = "value"
+hlines = dict(kappa=1, bias=0, noise=0)
+with sns.plotting_context("talk"):
+
+    for iparam, param in enumerate(param_names):
+        ax = axs[1, iparam]
+
+        data = df_estims[df_estims["parameter"] == param]
+
+        sns.pointplot(
+            data=data,
+            x=x,
+            order=order,
+            y=colname,
+            ci=68,
+            ax=ax,
+            markers=pointmarkers,
+            scale=1,
+            errwidth=pointerrwidth,
+            capsize=pointcapwidth,
+            color="black",
+        )
+
+        sns.swarmplot(
+            x=x,
+            order=order,
+            y=colname,
+            data=data,
+            ax=ax,
+            size=swarmsize,
+        )
+
+        # connect subj dots with lines
+        # https://stackoverflow.com/a/51157346/5201771
+        idx0 = 1
+        idx1 = 2
+        locs1 = ax.get_children()[idx0].get_offsets()
+        locs2 = ax.get_children()[idx1].get_offsets()
+
+        # before plotting, we need to sort so that the data points correspond
+        sort_idxs1 = np.argsort(data[data["stream"] == STREAMS[0]][colname].to_numpy())
+        sort_idxs2 = np.argsort(data[data["stream"] == STREAMS[1]][colname].to_numpy())
+        locs2_sorted = locs2[sort_idxs2.argsort()][sort_idxs1]
+
+        for i in range(locs1.shape[0]):
+            _x = [locs1[i, 0], locs2_sorted[i, 0]]
+            _y = [locs1[i, 1], locs2_sorted[i, 1]]
+            ax.plot(_x, _y, **subj_line_settings)
+
+        ax.axhline(hlines[param], **axhline_args)
+        sns.despine(ax=ax)
+
+        ax.text(
+            x=0.5,
+            y=0.9,
+            s=param.capitalize(),
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+
+# Save the figure
+fig.savefig(fname_fig1, bbox_inches="tight")
+
+# %%
 
 
 # %%
