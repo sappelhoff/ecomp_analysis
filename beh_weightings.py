@@ -33,6 +33,8 @@ positions = np.arange(10)
 
 minimize_method = "Nelder-Mead"
 
+x0_type = "specific"
+
 # %%
 # Prepare file paths
 analysis_dir = ANALYSIS_DIR_LOCAL
@@ -272,8 +274,7 @@ def calc_CP_weights(
 # %%
 # calculate weights over subjects
 
-# Take model parameter estimates based on "fixed" or "specific" initial guesses
-x0_type = "specific"
+# Take model parameter estimates based on "fixed" or "specific" initial guess (x0_type)
 model_kwargs = dict(
     x0_type=x0_type,
     data_dir=data_dir,
@@ -310,19 +311,21 @@ for sub in SUBJS:
                 dict(
                     subject=sub,
                     stream=stream,
+                    weight_type=wtype,
                     number=NUMBERS,
                     weight=weights,
-                    weight_type=wtype,
+                    x0_type=x0_type,
                 )
             )
             pwdf = pd.DataFrame.from_dict(
                 dict(
                     subject=sub,
                     stream=stream,
-                    number=np.tile(NUMBERS, len(positions)),
-                    position=np.repeat(positions, len(NUMBERS)),
-                    weight=position_weights.flatten(),  # shape(pos X weight)
                     weight_type=wtype,
+                    position=np.repeat(positions, len(NUMBERS)),
+                    number=np.tile(NUMBERS, len(positions)),
+                    weight=position_weights.flatten(),  # shape(pos X weight)
+                    x0_type=x0_type,
                 )
             )
 
@@ -331,18 +334,6 @@ for sub in SUBJS:
 
 weightdata = pd.concat(weight_dfs).reset_index(drop=True)
 posweightdata = pd.concat(posweight_dfs).reset_index(drop=True)
-# %%
-# save to files
-# (save only nonp weights for now)
-fname = analysis_dir / "derived_data" / "weights.tsv"
-weightdata[weightdata["weight_type"] == "data"].to_csv(
-    fname, columns=weightdata.columns[:-1], sep="\t", na_rep="n/a", index=False
-)
-
-fname = analysis_dir / "derived_data" / "posweights.tsv"
-posweightdata[posweightdata["weight_type"] == "data"].to_csv(
-    fname, columns=posweightdata.columns[:-1], sep="\t", na_rep="n/a", index=False
-)
 
 # %%
 # plot weights
@@ -379,6 +370,7 @@ if plot_reg_lines and not plotgrid:
         ax.plot(np.arange(9), m * xy[:, 0] + b, color=_color)
 
 # optional horizontal, vertical, and diagonal (=linear weights) reference lines
+fname = analysis_dir / "figures" / "weights.jpg"
 plot_ref_lines = False
 refline_kwargs = dict(linestyle="--", color="black", lw=0.5)
 if plot_ref_lines and not plotgrid:
@@ -390,7 +382,6 @@ if plot_ref_lines and plotgrid:
         ax.axhline(0.5, **refline_kwargs)
         ax.axvline(4, **refline_kwargs)
 
-fname = analysis_dir / "figures" / "weights.jpg"
 if plotgrid:
     sns.despine(g.fig)
     g.fig.suptitle(f"Model based on initial guesses of type '{x0_type}'", y=1.05)
@@ -460,9 +451,10 @@ for sub in SUBJS:
             dict(
                 subject=sub,
                 stream=stream,
+                weight_type="model_mean",
                 number=NUMBERS,
                 weight=weights,
-                weight_type="model_mean",
+                x0_type=x0_type,
             )
         )
         weight_dfs.append(wdf)
@@ -564,8 +556,6 @@ with sns.plotting_context("talk"):
 
 sns.despine(fig)
 fig.tight_layout()
-# %%
-
 
 # %%
 # plot weights over positions: positions as hue
@@ -586,6 +576,19 @@ g = sns.catplot(
 g.fig.suptitle(f"Model based on initial guesses of type '{x0_type}'", y=1.05)
 fname = analysis_dir / "figures" / "posweights_positionhue.jpg"
 g.fig.savefig(fname)
+
+# %%
+# save weights to files
+sortby = ["subject", "stream", "weight_type", "number"]
+weightdata = weightdata.sort_values(by=sortby)
+posweightdata = posweightdata.sort_values(by=sortby[:-1] + ["position", "number"])
+
+
+fname = analysis_dir / "derived_data" / "weights.tsv"
+weightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
+
+fname = analysis_dir / "derived_data" / "posweights.tsv"
+posweightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
 # %%
 # Plotting over- and underweighting according to model

@@ -28,6 +28,7 @@ swarmsize = 2
 # File paths
 fname_accs = analysis_dir / "derived_data" / "accuracies.tsv"
 
+fname_fig1 = analysis_dir / "figures" / "fig1b+.pdf"
 # %%
 # Figure 1b+
 # Figure 1a is created in LibreOffice Draw
@@ -110,3 +111,6 @@ with sns.plotting_context("talk"):
 
 # %%
 # Save the figure
+fig.savefig(fname_fig1)
+
+# %%
