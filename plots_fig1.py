@@ -19,7 +19,7 @@ ci = 68
 
 subj_line_settings = dict(color="black", alpha=0.1, linewidth=0.75)
 axhline_args = dict(color="black", linestyle="--", linewidth=1)
-pointscale = 3
+pointscale = 1
 pointmarkers = "."  # for pointplot which marker style
 pointerrwidth = 3
 pointlinewidth = axhline_args["linewidth"]
@@ -44,8 +44,8 @@ fname_fig1 = analysis_dir / "figures" / "fig1b+.pdf"
 
 # figure layout
 with sns.plotting_context("talk"):
-    fig, axs = plt.subplots(2, 3, figsize=(12, 10))
-    fig.tight_layout()
+    fig, axs = plt.subplots(2, 3, figsize=(12, 8))
+    fig.tight_layout(h_pad=1.25)
 # %%
 # panel b - accuracies
 df_accs = pd.read_csv(fname_accs, sep="\t")
@@ -66,7 +66,7 @@ with sns.plotting_context("talk"):
             ci=ci,
             ax=ax,
             markers=pointmarkers,
-            scale=1,
+            scale=pointscale,
             errwidth=pointerrwidth,
             capsize=pointcapwidth,
             color="black",
@@ -107,9 +107,6 @@ with sns.plotting_context("talk"):
     ax.set_xticklabels([i.capitalize() for i in STREAMS])
 
     sns.despine(ax=ax)
-
-# Save the figure
-fig.savefig(fname_fig1, bbox_inches="tight")
 
 # %%
 # panels c and d - weightings
@@ -198,9 +195,6 @@ for ax in axs[0, 1:]:
         )
     )
 
-# Save the figure
-fig.savefig(fname_fig1, bbox_inches="tight")
-
 
 # %%
 # panels e, f, g - kappa, bias, noise
@@ -230,7 +224,7 @@ with sns.plotting_context("talk"):
             ci=68,
             ax=ax,
             markers=pointmarkers,
-            scale=1,
+            scale=pointscale,
             errwidth=pointerrwidth,
             capsize=pointcapwidth,
             color="black",
@@ -274,10 +268,13 @@ with sns.plotting_context("talk"):
             transform=ax.transAxes,
         )
 
-# Save the figure
-fig.savefig(fname_fig1, bbox_inches="tight")
+        ax.set(xlabel="", ylabel="")
 
 # %%
+# Final settings and save
+fig.align_labels()
 
+# Save the figure
+fig.savefig(fname_fig1, bbox_inches="tight")
 
 # %%
