@@ -10,6 +10,7 @@ TODO:
 import matplotlib.pyplot as plt
 import mne
 import pandas as pd
+import pingouin
 import seaborn as sns
 from tqdm.auto import tqdm
 
@@ -181,5 +182,12 @@ for stream, dict_numbers in dict_streams.items():
             if fname.exists() and not overwrite:
                 continue
             evoked.save(fname, overwrite)
+
+# %%
+# Repeated measures anova
+stats_rm = pingouin.rm_anova(
+    data=df_mean_amps, dv="mean_amp", within=["stream", "number"], subject="subject"
+)
+stats_rm.round(3)
 
 # %%
