@@ -1,4 +1,4 @@
-"""Publication plots."""
+"""Figure 1 plot - paradigm figure and behavior."""
 
 # %%
 # Imports
@@ -45,7 +45,7 @@ fname_fig1 = analysis_dir / "figures" / "fig1b+.pdf"
 # figure layout
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(2, 3, figsize=(12, 8))
-    fig.tight_layout(h_pad=1.25)
+    fig.tight_layout(h_pad=2.25)
 # %%
 # panel b - accuracies
 df_accs = pd.read_csv(fname_accs, sep="\t")
@@ -168,7 +168,7 @@ with sns.plotting_context("talk"):
 
             ax.legend(
                 handles=handles,
-                labels=["data", "model", "model (k=1)"],
+                labels=["Data", "Model", "Model (k=1)"],
                 loc="lower right",
                 ncol=1,
                 frameon=False,
@@ -177,7 +177,7 @@ with sns.plotting_context("talk"):
 
         # other settings
         sns.despine(ax=ax)
-        ax.set(xlabel="")
+        ax.set(xlabel="", ylabel="Decision weight")
         ax.text(
             x=0.5,
             y=0.9,
@@ -269,6 +269,7 @@ with sns.plotting_context("talk"):
         )
 
         ax.set(xlabel="", ylabel="")
+        ax.set_xticklabels([i.capitalize() for i in STREAMS])
 
 # %%
 # Final settings and save

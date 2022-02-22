@@ -5,6 +5,9 @@ __pycache__
 
 figures/*.jpg
 figures/*.pdf
+figures/*.aux
+figures/*.log
+figures/*.out
 
 nohup.out
 
