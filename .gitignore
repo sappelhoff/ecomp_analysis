@@ -14,3 +14,5 @@ nohup.out
 x0s_*.npy
 
 *.py*.ipynb
+
+derived_data/rsa_timecourses.tsv

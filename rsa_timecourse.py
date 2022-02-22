@@ -12,6 +12,7 @@
 """
 # %%
 # Imports
+import json
 import warnings
 
 import matplotlib.pyplot as plt
@@ -56,6 +57,8 @@ mahal_dir = data_dir / "derivatives" / "rsa" / rdm_size / "rdms_mahalanobis"
 fname_rdm_template = str(mahal_dir / "sub-{:02}_stream-{}_rdm-mahal.npy")
 fname_times = mahal_dir / "times.npy"
 
+fname_rsa = analysis_dir / "derived_data" / "rsa_timecourses.tsv"
+fname_perm = analysis_dir / "derived_data" / "rsa_perm_results.json"
 # %%
 # Get times for RDM timecourses
 times = np.load(fname_times)
@@ -166,6 +169,10 @@ assert len(df_rsa) == ntimes * len(SUBJS) * len(STREAMS) * nmodels * 2
 assert not np.isnan(rdm_times_streams_subjs).any()
 
 # %%
+# Save RSA results
+df_rsa.to_csv(fname_rsa, sep="\t", na_rep="n/a", index=False)
+
+# %%
 # Cluster based permutation testing
 # Run 1-sample ttests for each model and stream
 # Run paired ttests (single vs. dual) for each model, which is equivalent
@@ -222,6 +229,12 @@ for test_model in test_models:
     dfs.append(df_distr)
 
 df_distr = pd.concat(dfs).reset_index(drop=True)
+
+# %%
+# Save permutation results
+with open(fname_perm, "w") as fout:
+    json.dump(permdistr_dict, fout, indent=4, sort_keys=True)
+    fout.write("\n")
 
 # %%
 # Plot permutation distributions
