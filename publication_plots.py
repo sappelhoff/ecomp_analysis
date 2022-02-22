@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib.lines import Line2D
 
 from config import ANALYSIS_DIR_LOCAL, STREAMS
 
@@ -28,6 +29,8 @@ swarmsize = 2
 # File paths
 fname_accs = analysis_dir / "derived_data" / "accuracies.tsv"
 
+fname_weights = analysis_dir / "derived_data" / "weights.tsv"
+
 fname_fig1 = analysis_dir / "figures" / "fig1b+.pdf"
 # %%
 # Figure 1b+
@@ -37,11 +40,10 @@ fname_fig1 = analysis_dir / "figures" / "fig1b+.pdf"
 # figure layout
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(2, 3, figsize=(12, 8))
-
+    fig.tight_layout()
 # %%
 # panel b - accuracies
 df_accs = pd.read_csv(fname_accs, sep="\t")
-df_accs
 with sns.plotting_context("talk"):
 
     x = "stream"
@@ -101,16 +103,100 @@ with sns.plotting_context("talk"):
 
     sns.despine(ax=ax)
 
+# Save the figure
+fig.savefig(fname_fig1, bbox_inches="tight")
+
 # %%
 # panels c and d - weightings
+df_ws = pd.read_csv(fname_weights, sep="\t")
+df_ws = df_ws[df_ws["weight_type"].isin(["data", "model", "model_k1"])]
+
+with sns.plotting_context("talk"):
+
+    for istream, stream in enumerate(STREAMS):
+        data = df_ws[df_ws["stream"] == stream]
+
+        x = "number"
+        colname = "weight"
+        ax = axs[0, 1 + istream]
+
+        sns.pointplot(
+            data=data[data["weight_type"] == "data"],
+            x=x,
+            y=colname,
+            ax=ax,
+            color=f"C{istream}",
+        )
+
+        sns.pointplot(
+            data=data[data["weight_type"] == "model"],
+            x=x,
+            y=colname,
+            ax=ax,
+            ci=None,
+            color="black",
+            join=False,
+            scale=0.5,
+        )
+        plt.setp(ax.collections, zorder=100, label="")
+
+        k1 = ax.plot(
+            np.arange(9),
+            data[data["weight_type"] == "model_k1"].groupby("number")["weight"].mean(),
+            color="black",
+            lw=0.5,
+        )
+
+        # make a legend
+        if istream == 0:
+            handles = [
+                Line2D([0], [0], color=f"C{istream}", marker="o", lw=4),
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color="white",
+                    markerfacecolor="black",
+                    markersize=8,
+                ),
+                Line2D([0], [0], color="black"),
+            ]
+
+            ax.legend(
+                handles=handles,
+                labels=["data", "model", "model (k=1)"],
+                loc="lower right",
+                ncol=1,
+                frameon=False,
+                fontsize=12,
+            )
+
+        # other settings
+        sns.despine(ax=ax)
+        ax.set(xlabel="")
+        ax.text(
+            x=0.5,
+            y=0.9,
+            s=stream.capitalize(),
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+
+for ax in axs[0, 1:]:
+    ax.set_ylim(
+        (
+            min(axs[0, 1].get_ylim()[0], axs[0, 2].get_ylim()[0]),
+            max(axs[0, 1].get_ylim()[1], axs[0, 2].get_ylim()[1]),
+        )
+    )
+
+# Save the figure
+fig.savefig(fname_fig1, bbox_inches="tight")
 
 
 # %%
 # panels e, f, g - kappa, bias, noise
 
-
-# %%
-# Save the figure
-fig.savefig(fname_fig1)
 
 # %%
