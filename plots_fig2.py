@@ -26,6 +26,8 @@ rsa_colors = {
     "numberline": "C9",
 }
 
+plotting_context = dict(context="poster", font_scale=1.025)
+
 # %%
 # File paths
 fname_rsa = analysis_dir / "derived_data" / "rsa_timecourses.tsv"
@@ -41,7 +43,8 @@ nmodels = len(modelnames)
 models_dict = get_models_dict(rdm_size, modelnames, orth=False)
 
 # %%
-with sns.plotting_context("poster"):
+# Start figure 2
+with sns.plotting_context(**plotting_context):
     mosaic = """
     aaaabbbbcccc
     aaaabbbbcccc
@@ -62,7 +65,7 @@ with sns.plotting_context("poster"):
 # %%
 # Plot model RDMS
 
-with sns.plotting_context("poster"):
+with sns.plotting_context(**plotting_context):
     for model, panel in zip(modelnames, ("a", "b", "c")):
         toplot = models_dict["no_orth"][model]
         ax = axd[panel]
@@ -76,7 +79,8 @@ with sns.plotting_context("poster"):
         else:
             cbar = plt.colorbar(im, cax=cax)
 
-        ax.set_title(model.capitalize(), color=rsa_colors[model], fontweight="bold")
+        title = model.capitalize() if model != "numberline" else "Numerical distance"
+        ax.set_title(title, color=rsa_colors[model], fontweight="bold")
         ax.xaxis.set_major_locator(plt.MaxNLocator(18))
         ax.yaxis.set_major_locator(plt.MaxNLocator(18))
 
@@ -121,7 +125,7 @@ sortby = [
 ]
 df_rsa = df_rsa.sort_values(by=sortby)[sortby + ["similarity"]]
 
-with sns.plotting_context("poster"):
+with sns.plotting_context(**plotting_context):
     for panel, stream in zip(("d", "e", "f"), ["single", "dual", "diff"]):
         ax = axd[panel]
 
@@ -154,12 +158,16 @@ with sns.plotting_context("poster"):
             ax.get_legend().remove()
         else:
             handles, labels = ax.get_legend_handles_labels()
+            labels = [
+                lab.capitalize() if lab != "numberline" else "Numerical distance"
+                for lab in labels
+            ]
             ax.legend(
                 loc="upper left",
                 bbox_to_anchor=(1, 1),
                 frameon=False,
                 handles=handles,
-                labels=[lab.capitalize() for lab in labels],
+                labels=labels,
             )
 
         ax.axhline(0, **axhline_args)
