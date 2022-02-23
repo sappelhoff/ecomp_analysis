@@ -115,7 +115,8 @@ biases, kappas = np.load(fname_bs_ks)[np.array([0, 1]), ...]
 idx_bias_zero = (np.abs(biases - 0.0)).argmin()
 idx_kappa_one = (np.abs(kappas - 1.0)).argmin()
 
-
+rotate = True
+log = False
 with sns.plotting_context("talk"):
     for istream, stream in enumerate(STREAMS):
         ax = axs[1, istream]
@@ -123,26 +124,40 @@ with sns.plotting_context("talk"):
         idxs = np.array([(0, 1), (2, 3)][istream])
         grid_mean, mask = grids[idxs, ...]
         _xs, _ys = scatters[idxs, ...]
+        if rotate:
+            _xs, _ys = _ys, _xs
+
+        # rotate
+        origin = "upper"
+        if rotate:
+            grid_mean = grid_mean.T
+            mask = mask.T
+            origin = "lower"
+
+        if log:
+            ax.set_xscale("log")
 
         _ = ax.imshow(
             grid_mean,
-            origin="upper",
+            origin=origin,
             interpolation="nearest",
             vmin=vmin,
             vmax=vmax,
             alpha=mask,
             cmap="magma",
+            aspect="auto",
         )
 
         # tweak to get colorbar without alpha mask
         _, tweak_ax = plt.subplots()
         im = tweak_ax.imshow(
             grid_mean,
-            origin="upper",
+            origin=origin,
             interpolation="nearest",
             vmin=vmin,
             vmax=vmax,
             cmap="magma",
+            aspect="auto",
         )
         plt.close(_)
 
@@ -179,37 +194,69 @@ with sns.plotting_context("talk"):
         )
 
         # lines
-        ax.axvline(idx_bias_zero, color="white", ls="--")
-        ax.axhline(idx_kappa_one, color="white", ls="--")
+        if rotate:
+            ax.axhline(idx_bias_zero, color="white", ls="--")
+            ax.axvline(idx_kappa_one, color="white", ls="--")
+        else:
+            ax.axvline(idx_bias_zero, color="white", ls="--")
+            ax.axhline(idx_kappa_one, color="white", ls="--")
 
         # settings
-        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
-        ax.yaxis.set_major_locator(plt.MaxNLocator(6))
-        xticklabels = (
-            [""]
-            + [f"{i:.2f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]]
-            + [""]
-        )
-        yticklabels = (
-            [""]
-            + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]]
-            + [""]
-        )
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
+        if rotate:
+            ax.yaxis.set_major_locator(plt.MaxNLocator(5))
+            ax.xaxis.set_major_locator(plt.MaxNLocator(6))
+            yticklabels = (
+                [""]
+                + [f"{i:.2f}" for i in biases[(ax.get_yticks()[1:-1]).astype(int)]]
+                + [""]
             )
-            ax.set(
-                title=stream.capitalize(),
-                xticklabels=xticklabels,
-                yticklabels=yticklabels,
-                xlabel="Bias (b)",
-                ylabel="Kappa (k)",
+            xticklabels = (
+                [""]
+                + [f"{i:.1f}" for i in kappas[(ax.get_xticks()[1:-1]).astype(int)]]
+                + [""]
             )
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    category=UserWarning,
+                    message="FixedFormatter .* FixedLocator",
+                )
+                ax.set(
+                    title=stream.capitalize(),
+                    xticklabels=xticklabels,
+                    yticklabels=yticklabels,
+                    ylabel="Bias (b)",
+                    xlabel="Kappa (k)",
+                )
+        else:
+            ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+            ax.yaxis.set_major_locator(plt.MaxNLocator(6))
+            xticklabels = (
+                [""]
+                + [f"{i:.2f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]]
+                + [""]
+            )
+            yticklabels = (
+                [""]
+                + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]]
+                + [""]
+            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    category=UserWarning,
+                    message="FixedFormatter .* FixedLocator",
+                )
+                ax.set(
+                    title=stream.capitalize(),
+                    xticklabels=xticklabels,
+                    yticklabels=yticklabels,
+                    xlabel="Bias (b)",
+                    ylabel="Kappa (k)",
+                )
 
 # %%
 # Final settings and save
 fig.savefig(fname_fig3, bbox_inches="tight")
-
 
 # %%
