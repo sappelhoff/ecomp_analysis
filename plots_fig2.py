@@ -2,11 +2,13 @@
 # %%
 # Imports
 import json
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from config import ANALYSIS_DIR_LOCAL, STREAMS
 from model_rdms import get_models_dict
@@ -17,6 +19,12 @@ analysis_dir = ANALYSIS_DIR_LOCAL
 rdm_size = "18x18"
 
 axhline_args = dict(color="black", linestyle="--", linewidth=1)
+
+rsa_colors = {
+    "digit": "C0",
+    "color": "C3",
+    "numberline": "C4",
+}
 
 # %%
 # File paths
@@ -50,15 +58,48 @@ with sns.plotting_context("poster"):
     """
     fig = plt.figure(figsize=(20, 20))
     axd = fig.subplot_mosaic(mosaic)
-    fig.tight_layout()
+    fig.tight_layout(h_pad=3, w_pad=2)
 # %%
 # Plot model RDMS
 
 with sns.plotting_context("poster"):
     for model, panel in zip(modelnames, ("a", "b", "c")):
         toplot = models_dict["no_orth"][model]
+        ax = axd[panel]
+        im = ax.imshow(toplot, cmap="viridis")
 
-        axd[panel].imshow(toplot, cmap="viridis")
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.25)
+
+        if panel != "c":
+            cax.axis("off")
+        else:
+            cbar = plt.colorbar(im, cax=cax)
+
+        ax.set_title(model, color=rsa_colors[model])
+        ax.xaxis.set_major_locator(plt.MaxNLocator(18))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(18))
+
+        xy_ticklabels = [ax.get_xticklabels(), ax.get_yticklabels()]
+        for ticklabels in xy_ticklabels:
+            for itick, tick in enumerate(ticklabels):
+                color = "red"
+                count = itick
+                if itick > 9:
+                    color = "blue"
+                    count -= 9
+                tick.set_color(color)
+                tick.set_text(str(count))
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                category=UserWarning,
+                message="FixedFormatter .* FixedLocator",
+            )
+            ax.set_xticklabels(ax.get_xticklabels())
+            ax.set_yticklabels(ax.get_yticklabels())
+
 
 # %%
 # plot timecourses
@@ -79,11 +120,6 @@ sortby = [
     "rdm_size",
 ]
 df_rsa = df_rsa.sort_values(by=sortby)[sortby + ["similarity"]]
-rsa_colors = {
-    "digit": "C0",
-    "color": "C3",
-    "numberline": "C4",
-}
 
 with sns.plotting_context("poster"):
     for panel, stream in zip(("d", "e", "f"), ["single", "dual", "diff"]):
