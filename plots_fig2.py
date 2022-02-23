@@ -31,7 +31,7 @@ rsa_colors = {
 fname_rsa = analysis_dir / "derived_data" / "rsa_timecourses.tsv"
 fname_perm = analysis_dir / "derived_data" / "rsa_perm_results.json"
 
-fname_fig2 = analysis_dir / "figures" / "fig2.pdf"
+fname_fig2 = analysis_dir / "figures" / "fig2_pre.pdf"
 
 
 # %%
