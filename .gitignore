@@ -16,3 +16,5 @@ x0s_*.npy
 *.py*.ipynb
 
 derived_data/rsa_timecourses.tsv
+derived_data/rdm_*.npy
+derived_data/neurometrics_*.npy

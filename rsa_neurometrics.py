@@ -90,6 +90,13 @@ fname_times = mahal_dir / "times.npy"
 
 fname_params = analysis_dir / "derived_data" / "neurometrics_params.tsv"
 
+fname_grids = analysis_dir / "derived_data" / "neurometrics_grids.npy"
+fname_scatters = analysis_dir / "derived_data" / "neurometrics_scatters.npy"
+fname_bs_ks = analysis_dir / "derived_data" / "neurometrics_bs_ks.npy"
+# %%
+# save biases, kappas
+np.save(fname_bs_ks, np.stack([biases, kappas]))
+
 # %%
 # Get times for RDM timecourses
 times = np.load(fname_times)
@@ -188,6 +195,8 @@ for istream, stream in enumerate(STREAMS):
 
 # %%
 # Plot grid per stream
+grids = []
+scatters = []
 max_coords_xy = np.full((2, len(STREAMS), len(SUBJS)), np.nan)
 fig, axs = plt.subplots(1, 2, figsize=(8, 4))
 fig.tight_layout()
@@ -216,6 +225,7 @@ for istream, stream in enumerate(STREAMS):
     grid_mean = np.mean(grid_streams_subjs[..., istream, :], axis=-1)
     mask = sig_masks_streams[..., istream]
     mask[grid_mean <= 0] = alpha_val_mask
+    grids.append((grid_mean, mask))
     _ = ax.imshow(
         grid_mean,
         origin="upper",
@@ -247,9 +257,12 @@ for istream, stream in enumerate(STREAMS):
         cbar.ax.set_xticklabels(["<=0"] + [f"{i:.2}" for i in cbar_ticks[1:]])
 
     # plot subj maxima
+    _xs = max_coords_xy[..., istream, :][0]
+    _ys = max_coords_xy[..., istream, :][1]
+    scatters.append((_xs, _ys))
     ax.scatter(
-        max_coords_xy[..., istream, :][0],
-        max_coords_xy[..., istream, :][1],
+        _xs,
+        _ys,
         color="red",
         s=4,
         zorder=10,
@@ -302,6 +315,19 @@ for istream, stream in enumerate(STREAMS):
     fig.suptitle(title, y=1.15)
 
 # %%
+# Save for publication plots
+# single grid, single mask, dual grid, dual mask
+savegrids = np.stack([grids[0][0], grids[0][1], grids[1][0], grids[1][1]])
+np.save(fname_grids, savegrids)
+
+# single xs, single ys, dual xs, dual ys
+savescatters = np.stack(
+    [scatters[0][0], scatters[0][1], scatters[1][0], scatters[1][1]]
+)
+np.save(fname_scatters, savescatters)
+
+
+# %%
 # Plot single subj maps
 for stream in STREAMS:
     istream = STREAMS.index(stream)
@@ -310,10 +336,11 @@ for stream in STREAMS:
         grid = grid_streams_subjs[..., istream, isub]
         ax = axs.flat[isub]
         ax.imshow(grid)
-
+        _xs = max_coords_xy[..., istream, isub][0]
+        _ys = max_coords_xy[..., istream, isub][1]
         ax.scatter(
-            max_coords_xy[..., istream, isub][0],
-            max_coords_xy[..., istream, isub][1],
+            _xs,
+            _ys,
             color="red",
             s=4,
             zorder=10,

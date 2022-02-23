@@ -59,6 +59,8 @@ fname_times = mahal_dir / "times.npy"
 
 fname_rsa = analysis_dir / "derived_data" / "rsa_timecourses.tsv"
 fname_perm = analysis_dir / "derived_data" / "rsa_perm_results.json"
+
+fname_mean_rdm_template = str(analysis_dir / "derived_data" / "rdm_{}.npy")
 # %%
 # Get times for RDM timecourses
 times = np.load(fname_times)
@@ -279,7 +281,7 @@ min_clu_len = 0
 min_clu_len_ms = ((1 / 250) * min_clu_len) * 1000
 
 # representative windows, look at figure
-window_sels = [(0.075, 0.19), (0.21, 0.6)]
+window_sels = [(0.075, 0.19), (0.2, 0.6)]
 
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(2, 1, figsize=(10, 10))
@@ -403,7 +405,7 @@ g = sns.relplot(
 )
 
 # %%
-# Show mean RDMs in selected time windows
+# Show mean RDMs in selected time windows and save
 for window_sel in window_sels:
 
     # find measured time closest to our selection
@@ -422,6 +424,12 @@ for window_sel in window_sels:
         # mean over time
         rdm_subtimemean = np.mean(rdm_submean[..., idx_start:idx_stop], axis=-1)
         mean_rdms[stream] = rdm_subtimemean
+
+        # save for publication plots
+        fname = fname_mean_rdm_template.format(
+            stream + "_" + "_".join([str(i) for i in window_sel])
+        )
+        np.save(fname, rdm_subtimemean)
 
     with sns.plotting_context("talk"):
         fig, axs = plt.subplots(
