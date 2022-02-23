@@ -21,9 +21,9 @@ rdm_size = "18x18"
 axhline_args = dict(color="black", linestyle="--", linewidth=1)
 
 rsa_colors = {
-    "digit": "C0",
-    "color": "C3",
-    "numberline": "C4",
+    "digit": "C2",
+    "color": "C4",
+    "numberline": "C9",
 }
 
 # %%
@@ -76,7 +76,7 @@ with sns.plotting_context("poster"):
         else:
             cbar = plt.colorbar(im, cax=cax)
 
-        ax.set_title(model, color=rsa_colors[model])
+        ax.set_title(model.capitalize(), color=rsa_colors[model], fontweight="bold")
         ax.xaxis.set_major_locator(plt.MaxNLocator(18))
         ax.yaxis.set_major_locator(plt.MaxNLocator(18))
 
@@ -143,15 +143,24 @@ with sns.plotting_context("poster"):
             x="time",
             y="similarity",
             hue="model",
-            ci=None,
+            hue_order=modelnames,
+            ci=68,
             ax=ax,
             palette=rsa_colors,
         )
 
+        # legend
         if stream in STREAMS:
             ax.get_legend().remove()
         else:
-            ax.legend(loc="upper left", bbox_to_anchor=(1, 1), frameon=False)
+            handles, labels = ax.get_legend_handles_labels()
+            ax.legend(
+                loc="upper left",
+                bbox_to_anchor=(1, 1),
+                frameon=False,
+                handles=handles,
+                labels=[lab.capitalize() for lab in labels],
+            )
 
         ax.axhline(0, **axhline_args)
         ax.axvline(0, **axhline_args)
@@ -159,6 +168,16 @@ with sns.plotting_context("poster"):
         ax.set(ylabel="Pearson's r", xlabel="Time (s)")
         ax.axvspan(*window_sel, color="black", alpha=0.1)
         sns.despine(ax=ax)
+
+        # title
+        ax.text(
+            x=0.5,
+            y=0.95,
+            s=stream.capitalize() if stream != "diff" else "Dual - Single",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
 
         # plot significance bars
         for model in modelnames:
@@ -169,6 +188,14 @@ with sns.plotting_context("poster"):
             for clu in clusters:
                 ax.plot(times[clu], [y] * len(clu), c=rsa_colors[model], ls="-")
 
+    # adjust ylims
+    ylims = (
+        min(axd["d"].get_ylim()[0], axd["e"].get_ylim()[0]),
+        max(axd["d"].get_ylim()[1], axd["e"].get_ylim()[1]),
+    )
+    axd["d"].set_ylim(ylims)
+    axd["e"].set_ylim(ylims)
+    axd["f"].set_ylim((axd["f"].get_ylim()[0], axd["f"].get_ylim()[1] * 1.1))
 
 # %%
 # Final settings and save
