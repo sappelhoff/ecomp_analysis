@@ -18,3 +18,4 @@ x0s_*.npy
 derived_data/rsa_timecourses.tsv
 derived_data/rdm_*.npy
 derived_data/neurometrics_*.npy
+derived_data/erps.tsv

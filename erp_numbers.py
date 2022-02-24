@@ -46,6 +46,9 @@ erp_dir = derivatives / "erps" / f"{baseline}-{mean_times}"
 erp_dir.mkdir(exist_ok=True, parents=True)
 fname_template_erp = "sub-{:02}_stream-{}_number-{}_ave.fif.gz"
 
+fname_erps = analysis_dir / "derived_data" / "erps.tsv"
+fname_amps = analysis_dir / "derived_data" / "erp_amps.tsv"
+
 
 # %%
 # Helper functions to get data
@@ -146,6 +149,28 @@ for stream in STREAMS:
         )
 
 # %%
+# Save plot data as DF
+df_erps = []
+for stream in STREAMS:
+    for number in NUMBERS:
+        for isub, subj in enumerate(SUBJS):
+            _ = (
+                dict_streams[stream][f"{number}"][isub]
+                .to_data_frame(picks=p3_group, long_format=True, time_format=None)
+                .groupby("time")
+                .mean()
+                .reset_index()
+            )
+            _.insert(0, "number", number)
+            _.insert(0, "stream", stream)
+            _.insert(0, "subject", subj)
+            _["baseline"] = [baseline] * len(_)
+            _["p3_group"] = [p3_group] * len(_)
+            df_erps.append(_)
+df_erps = pd.concat(df_erps)
+assert len(df_erps) == len(SUBJS) * len(STREAMS) * len(NUMBERS) * 251  # 251 timepoints
+df_erps.to_csv(fname_erps, sep="\t", na_rep="n/a", index=False)
+# %%
 # Gather mean amplitude data into DataFrame
 all_dfs = []
 for stream in STREAMS:
@@ -163,7 +188,14 @@ for stream in STREAMS:
 
 df_mean_amps = pd.concat(all_dfs).reset_index(drop=True)
 assert df_mean_amps.shape[0] == len(subjects) * len(NUMBERS) * len(STREAMS)
-df_mean_amps
+
+df_mean_amps["baseline"] = [baseline] * len(df_mean_amps)
+df_mean_amps["mean_times"] = [mean_times] * len(df_mean_amps)
+df_mean_amps["p3_group"] = [p3_group] * len(df_mean_amps)
+
+# %%
+# Save mean amps
+df_mean_amps.to_csv(fname_amps, sep="\t", na_rep="n/a", index=False)
 
 # %%
 # Plot mean amps
