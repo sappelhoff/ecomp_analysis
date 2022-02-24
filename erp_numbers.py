@@ -167,7 +167,7 @@ for stream in STREAMS:
             _["baseline"] = [baseline] * len(_)
             _["p3_group"] = [p3_group] * len(_)
             df_erps.append(_)
-df_erps = pd.concat(df_erps)
+df_erps = pd.concat(df_erps).reset_index(drop=True)
 assert len(df_erps) == len(SUBJS) * len(STREAMS) * len(NUMBERS) * 251  # 251 timepoints
 df_erps.to_csv(fname_erps, sep="\t", na_rep="n/a", index=False)
 # %%
@@ -234,7 +234,7 @@ for i, b in enumerate(bs):
     ax = axs.flat[i]
     ax.plot(
         np.linspace(-1, 1, 9),
-        eq1(np.abs(numbers_rescaled), bias=0, kappa=1),
+        np.abs(eq1(numbers_rescaled, bias=0, kappa=1)),
         color="k",
         marker="o",
         label="b=0, k=1",
@@ -244,7 +244,7 @@ for i, b in enumerate(bs):
     for k in ks:
         ax.plot(
             np.linspace(-1, 1, 1000),
-            eq1(np.abs(np.linspace(-1, 1, 1000)), b, k),
+            np.abs(eq1(np.linspace(-1, 1, 1000), b, k)),
             color=cmap(k / ks.max()),
             label=f"k={k:.2f}",
         )
