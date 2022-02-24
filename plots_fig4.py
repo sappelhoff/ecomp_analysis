@@ -41,7 +41,7 @@ info.set_montage(montage)
 # Start figure
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(2, 2, figsize=(15, 10))
-    fig.tight_layout()
+    fig.tight_layout(h_pad=2)
 
 # %%
 # plot ERPs
@@ -66,6 +66,7 @@ with sns.plotting_context("talk"):
         ax.set(xlabel="Time (s)", ylabel=ylabel)
         ax.axhline(0, **axhline_args)
         ax.axvline(0, **axhline_args)
+        ax.axvspan(*mean_times, color="black", alpha=0.1)
 
         if istream == 1:
             handles = []
@@ -95,17 +96,47 @@ with sns.plotting_context("talk"):
         )
         mne.viz.plot_sensors(info, kind="topomap", title="", axes=axins, show=False)
 
+        ax.text(
+            x=0.5,
+            y=0.9,
+            s=stream.capitalize(),
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+
     for ax in axs[0, ...]:
         ax.set_ylim(
             (
-                min(axs[0, 0].get_ylim()[0], axs[0, 1].get_ylim()[0]),
-                max(axs[0, 0].get_ylim()[1], axs[0, 1].get_ylim()[1]),
+                min(axs[0, 0].get_ylim()[0], 1.1 * axs[0, 1].get_ylim()[0]),
+                max(axs[0, 0].get_ylim()[1], 1.1 * axs[0, 1].get_ylim()[1]),
             )
         )
 
 # %%
 # plot mean amplitudes
-pass
+with sns.plotting_context("talk"):
+    ax = axs[1, 0]
+    sns.pointplot(
+        x="number", y="mean_amp", hue="stream", data=df_amps, ci=68, ax=ax, dodge=True
+    )
+    sns.despine(ax=ax)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(
+        title=None,
+        handles=handles,
+        labels=[i.capitalize() for i in labels],
+        frameon=False,
+    )
+    ax.set(ylabel="Amplitude (µV)", xlabel="")
+    ax.text(
+        x=0.5,
+        y=0.9,
+        s=f"{mean_times[0]} - {mean_times[1]} s",
+        ha="center",
+        va="center",
+        transform=ax.transAxes,
+    )
 
 
 # %%
