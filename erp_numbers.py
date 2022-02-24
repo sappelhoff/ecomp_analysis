@@ -1,14 +1,10 @@
-"""Compute and plot ERPs over subjects.
-
-TODO:
-- use timewindow based on some stats?
-
-"""
+"""Compute and plot ERPs over subjects."""
 # %%
 # Imports
 
 import matplotlib.pyplot as plt
 import mne
+import numpy as np
 import pandas as pd
 import pingouin
 import seaborn as sns
@@ -23,6 +19,7 @@ from config import (
     STREAMS,
     SUBJS,
 )
+from utils import eq1
 
 # %%
 # Settings
@@ -37,6 +34,8 @@ baseline = (None, 0)
 mean_times = (0.3, 0.7)
 
 p3_group = [P3_GROUP_CERCOR, P3_GROUP_NHB][1]  # 0 or 1
+
+numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1, +1))
 
 # %%
 # Prepare file paths
@@ -189,5 +188,40 @@ stats_rm = pingouin.rm_anova(
     data=df_mean_amps, dv="mean_amp", within=["stream", "number"], subject="subject"
 )
 stats_rm.round(3)
+
+# %%
+# Quantify (anti-)compression
+cmap = sns.color_palette("crest_r", as_cmap=True)
+
+bs = np.linspace(-1, 1, 7)
+ks = np.array([0.3, 0.7, 2, 3, 0])
+
+
+fig, axs = plt.subplots(1, len(bs), figsize=(10, 5), sharex=True, sharey=True)
+for i, b in enumerate(bs):
+    ax = axs.flat[i]
+    ax.plot(
+        np.linspace(-1, 1, 9),
+        eq1(np.abs(numbers_rescaled), bias=0, kappa=1),
+        color="k",
+        marker="o",
+        label="b=0, k=1",
+    )
+    ax.set(title=f"bias={b:.2}", ylabel="decision weight", xlabel="X")
+
+    for k in ks:
+        ax.plot(
+            np.linspace(-1, 1, 1000),
+            eq1(np.abs(np.linspace(-1, 1, 1000)), b, k),
+            color=cmap(k / ks.max()),
+            label=f"k={k:.2f}",
+        )
+
+    ax.axhline(0, color="k", linestyle="--")
+    ax.axvline(0, color="k", linestyle="--")
+    if i == 0:
+        ax.legend()
+
+fig.tight_layout()
 
 # %%

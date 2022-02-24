@@ -17,7 +17,6 @@ from config import (
     SUBJS,
 )
 from utils import (
-    eq1,
     get_estim_params,
     get_sourcedata,
     prep_model_inputs,
@@ -27,8 +26,6 @@ from utils import (
 
 # %%
 # Settings
-numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1, +1))
-
 positions = np.arange(10)
 
 minimize_method = "Nelder-Mead"
@@ -589,40 +586,5 @@ weightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
 fname = analysis_dir / "derived_data" / "posweights.tsv"
 posweightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
-
-# %%
-# Plotting over- and underweighting according to model
-# numberline
-cmap = sns.color_palette("crest_r", as_cmap=True)
-
-bs = np.linspace(-1, 1, 7)
-ks = np.linspace(0.4, 3, 5)
-
-fig, axs = plt.subplots(1, len(bs), figsize=(10, 5), sharex=True, sharey=True)
-for i, b in enumerate(bs):
-    ax = axs.flat[i]
-    ax.plot(
-        np.linspace(-1, 1, 9),
-        eq1(numbers_rescaled, bias=0, kappa=1),
-        color="k",
-        marker="o",
-        label="b=0, k=1",
-    )
-    ax.set(title=f"bias={b:.2}", ylabel="decision weight", xlabel="X")
-
-    for k in ks:
-        ax.plot(
-            np.linspace(-1, 1, 1000),
-            eq1(np.linspace(-1, 1, 1000), b, k),
-            color=cmap(k / ks.max()),
-            label=f"k={k:.2f}",
-        )
-
-    ax.axhline(0, color="k", linestyle="--")
-    ax.axvline(0, color="k", linestyle="--")
-    if i == 0:
-        ax.legend()
-
-fig.tight_layout()
 
 # %%
