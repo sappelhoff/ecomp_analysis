@@ -396,9 +396,12 @@ def calc_rdm(vec, normalize):
         arrs.append(np.abs(vec - i))
     rdm = np.stack(arrs, axis=0)
     if normalize:
+        if np.all(rdm == 0):
+            raise RuntimeError("Cannot normalize if all zeros.")
         rdm = rdm / rdm.max()
-        assert np.isclose(rdm.min(), 0)
-        assert np.isclose(rdm.max(), 1)
+        min0 = np.isclose(rdm.min(), 0)
+        max1 = np.isclose(rdm.max(), 1)
+        assert min0 and max1
     return rdm
 
 

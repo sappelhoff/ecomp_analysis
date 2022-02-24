@@ -38,17 +38,17 @@ grid_res = 101
 opt = 3
 if opt == 0:
     kappas = np.linspace(0.4, 4.0, grid_res)
-    biases = np.linspace(-1.0, 1.0, int(grid_res))
+    biases = np.linspace(-1.0, 1.0, grid_res)
 elif opt == 1:
     kappas = np.linspace(0.5, 10.0, grid_res)
-    biases = np.linspace(-0.75, 0.75, int(grid_res))
+    biases = np.linspace(-0.75, 0.75, grid_res)
 elif opt == 2:
     kappas = np.linspace(0.5, 10.0, grid_res)
-    biases = np.linspace(-0.5, 0.5, int(grid_res))
+    biases = np.linspace(-0.5, 0.5, grid_res)
 elif opt == 3:
     grid_res = 131
     kappas = np.linspace(0.0, 6.5, grid_res)
-    biases = np.linspace(-0.5, 0.5, int(grid_res))
+    biases = np.linspace(-0.5, 0.5, grid_res)
 else:
     raise RuntimeError(f"unknown 'opt': {opt}")
 

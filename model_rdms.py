@@ -24,7 +24,7 @@ MODELS = {
 }
 
 
-def get_models_dict(rdm_size, modelnames, orth, bias=None, kappa=None):
+def get_models_dict(rdm_size, modelnames, orth, bias=None, kappa=None, abs_dv=False):
     """Get a dict of models and their orthogonalized versions.
 
     Parameters
@@ -39,6 +39,10 @@ def get_models_dict(rdm_size, modelnames, orth, bias=None, kappa=None):
         The bias and kappa parameters, ignored if None. If specified,
         both must be specified, and numbers will be passed through
         `eq1` before RDMs are formed.
+    abs_dv : bool
+        Whether or not to take the absolute of ``dv``, i.e., the output
+        of the eq1 model (only if bias and kappa are specified). Defaults
+        to False - only useful when trying to run neurometrics on ERPs.
 
     Returns
     -------
@@ -56,6 +60,8 @@ def get_models_dict(rdm_size, modelnames, orth, bias=None, kappa=None):
             NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1.0, 1.0)
         )
         numbers = eq1(numbers_rescaled, bias=bias, kappa=kappa)
+        if abs_dv:
+            numbers = np.abs(numbers)
     else:
         numbers = NUMBERS
 

@@ -3,12 +3,14 @@
 # Imports
 import matplotlib.pyplot as plt
 import mne
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.lines import Line2D
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from config import ANALYSIS_DIR_LOCAL, NUMBERS, STREAMS
+from utils import eq1
 
 # %%
 # Settings
@@ -16,17 +18,21 @@ analysis_dir = ANALYSIS_DIR_LOCAL
 
 axhline_args = dict(color="black", linestyle="--", linewidth=1)
 
+numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1, +1))
+
 # %%
 # Prepare file paths
 fname_fig4 = analysis_dir / "figures" / "fig4_pre.pdf"
 
 fname_erps = analysis_dir / "derived_data" / "erps.tsv"
 fname_amps = analysis_dir / "derived_data" / "erp_amps.tsv"
+fname_adm = analysis_dir / "derived_data" / "erp_adm.tsv"
 
 # %%
 # Load data
 df_erps = pd.read_csv(fname_erps, sep="\t")
 df_amps = pd.read_csv(fname_amps, sep="\t")
+df_adm = pd.read_csv(fname_adm, sep="\t")
 
 baseline = eval(df_amps["baseline"][0])
 mean_times = eval(df_amps["mean_times"][0])
@@ -41,7 +47,7 @@ info.set_montage(montage)
 # Start figure
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(2, 2, figsize=(15, 10))
-    fig.tight_layout(h_pad=2)
+    fig.tight_layout(h_pad=3, w_pad=3)
 
 # %%
 # plot ERPs
@@ -118,7 +124,7 @@ with sns.plotting_context("talk"):
 with sns.plotting_context("talk"):
     ax = axs[1, 0]
     sns.pointplot(
-        x="number", y="mean_amp", hue="stream", data=df_amps, ci=68, ax=ax, dodge=True
+        x="number", y="mean_amp", hue="stream", data=df_amps, ci=68, ax=ax, dodge=False
     )
     sns.despine(ax=ax)
     handles, labels = ax.get_legend_handles_labels()
@@ -140,8 +146,34 @@ with sns.plotting_context("talk"):
 
 
 # %%
-# switch axis off (placeholder)
-axs[1, 1].axis("off")
+# Plot ADM
+with sns.plotting_context("talk"):
+    ax = axs[1, 1]
+    data = df_adm
+    sns.pointplot(
+        x="number", y="dv_abs", hue="stream", data=data, ci=68, ax=ax, dodge=False
+    )
+
+    meanb = df_adm["bias"].mean()
+    vals = np.abs(eq1(numbers_rescaled, bias=meanb, kappa=1))
+    ax.plot(
+        NUMBERS - 1,
+        vals,
+        color="black",
+        ls="--",
+        zorder=10,
+        label=f"b={meanb:.2f}, k=1",
+    )
+
+    sns.despine(ax=ax)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(
+        title=None,
+        handles=handles,
+        labels=[i.capitalize() if not i.startswith("b") else i for i in labels],
+        frameon=False,
+    )
+    ax.set(ylabel="Abs. decision weight", xlabel="")
 
 # %%
 # Final settings and save
