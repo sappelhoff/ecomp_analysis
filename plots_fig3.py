@@ -1,4 +1,4 @@
-"""Figure 4 plot - neurometrics."""
+"""Figure 3 plot - neurometrics."""
 # %%
 # Imports
 import warnings
@@ -115,8 +115,6 @@ biases, kappas = np.load(fname_bs_ks)[np.array([0, 1]), ...]
 idx_bias_zero = (np.abs(biases - 0.0)).argmin()
 idx_kappa_one = (np.abs(kappas - 1.0)).argmin()
 
-rotate = True
-log = False
 with sns.plotting_context("talk"):
     for istream, stream in enumerate(STREAMS):
         ax = axs[1, istream]
@@ -124,18 +122,12 @@ with sns.plotting_context("talk"):
         idxs = np.array([(0, 1), (2, 3)][istream])
         grid_mean, mask = grids[idxs, ...]
         _xs, _ys = scatters[idxs, ...]
-        if rotate:
-            _xs, _ys = _ys, _xs
 
-        # rotate
-        origin = "upper"
-        if rotate:
-            grid_mean = grid_mean.T
-            mask = mask.T
-            origin = "lower"
-
-        if log:
-            ax.set_xscale("log")
+        # we rotate the map and axes as if "tipping it to the left"
+        _xs, _ys = _ys, _xs
+        grid_mean = grid_mean.T
+        mask = mask.T
+        origin = "lower"
 
         _ = ax.imshow(
             grid_mean,
@@ -177,7 +169,7 @@ with sns.plotting_context("talk"):
             _xs,
             _ys,
             color="red",
-            s=4,
+            s=8,
             zorder=10,
         )
 
@@ -188,72 +180,27 @@ with sns.plotting_context("talk"):
             mean_max_xy[0],
             mean_max_xy[1],
             color="red",
-            s=24,
+            s=40,
             marker="d",
             zorder=10,
         )
 
         # lines
-        if rotate:
-            ax.axhline(idx_bias_zero, color="white", ls="--")
-            ax.axvline(idx_kappa_one, color="white", ls="--")
-        else:
-            ax.axvline(idx_bias_zero, color="white", ls="--")
-            ax.axhline(idx_kappa_one, color="white", ls="--")
+        ax.axhline(idx_bias_zero, color="white", ls="--")
+        ax.axvline(idx_kappa_one, color="white", ls="--")
 
         # settings
-        if rotate:
-            ax.yaxis.set_major_locator(plt.MaxNLocator(5))
-            ax.xaxis.set_major_locator(plt.MaxNLocator(6))
-            yticklabels = (
-                [""]
-                + [f"{i:.2f}" for i in biases[(ax.get_yticks()[1:-1]).astype(int)]]
-                + [""]
+        if len(kappas) == 131:
+            xticks = np.arange(0, 131, 20).tolist()
+            yticks = np.arange(0, 131, 26).tolist()
+            ax.set(
+                yticks=yticks,
+                yticklabels=np.round(biases[np.array(yticks)], 1),
+                ylabel="Bias (b)",
+                xticks=xticks,
+                xticklabels=kappas[np.array(xticks)],
+                xlabel="Kappa (k)",
             )
-            xticklabels = (
-                [""]
-                + [f"{i:.1f}" for i in kappas[(ax.get_xticks()[1:-1]).astype(int)]]
-                + [""]
-            )
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    category=UserWarning,
-                    message="FixedFormatter .* FixedLocator",
-                )
-                ax.set(
-                    title=stream.capitalize(),
-                    xticklabels=xticklabels,
-                    yticklabels=yticklabels,
-                    ylabel="Bias (b)",
-                    xlabel="Kappa (k)",
-                )
-        else:
-            ax.xaxis.set_major_locator(plt.MaxNLocator(5))
-            ax.yaxis.set_major_locator(plt.MaxNLocator(6))
-            xticklabels = (
-                [""]
-                + [f"{i:.2f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]]
-                + [""]
-            )
-            yticklabels = (
-                [""]
-                + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]]
-                + [""]
-            )
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    category=UserWarning,
-                    message="FixedFormatter .* FixedLocator",
-                )
-                ax.set(
-                    title=stream.capitalize(),
-                    xticklabels=xticklabels,
-                    yticklabels=yticklabels,
-                    xlabel="Bias (b)",
-                    ylabel="Kappa (k)",
-                )
 
 # %%
 # Final settings and save
