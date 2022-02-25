@@ -1,6 +1,8 @@
 """Figure 4 plot - CPP/P3."""
 # %%
 # Imports
+import warnings
+
 import matplotlib.pyplot as plt
 import mne
 import numpy as np
@@ -47,7 +49,7 @@ info.set_montage(montage)
 # Start figure
 with sns.plotting_context("talk"):
     fig, axs = plt.subplots(2, 2, figsize=(15, 10))
-    fig.tight_layout(h_pad=3, w_pad=3)
+    fig.tight_layout(h_pad=4, w_pad=3)
 
 # %%
 # plot ERPs
@@ -62,7 +64,7 @@ with sns.plotting_context("talk"):
             y="value",
             hue="number",
             data=data,
-            ci=None,
+            ci=68,
             ax=ax,
             palette=palette,
         )
@@ -121,6 +123,7 @@ with sns.plotting_context("talk"):
 
 # %%
 # plot mean amplitudes
+use_smalltitle = False
 with sns.plotting_context("talk"):
     ax = axs[1, 0]
     sns.pointplot(
@@ -134,46 +137,118 @@ with sns.plotting_context("talk"):
         labels=[i.capitalize() for i in labels],
         frameon=False,
     )
-    ax.set(ylabel="Amplitude (µV)", xlabel="")
-    ax.text(
-        x=0.5,
-        y=0.9,
-        s=f"{mean_times[0]} - {mean_times[1]} s",
-        ha="center",
-        va="center",
-        transform=ax.transAxes,
-    )
+    ax.set(ylabel="Amplitude (µV)", xlabel="Sample")
+
+    if use_smalltitle:
+        ax.text(
+            x=0.5,
+            y=0.9,
+            s=f"CPP/P3 amplitudes\n{mean_times[0]} - {mean_times[1]} s",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+    else:
+        title = "CPP/P3 amplitudes"
+        ax.set_title(title, fontweight="bold")
+        ax.text(
+            x=0.5,
+            y=0.9,
+            s=f"{mean_times[0]} - {mean_times[1]} s",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
 
 
 # %%
 # Plot ADM
+draw_subjs_d = False
 with sns.plotting_context("talk"):
     ax = axs[1, 1]
     data = df_adm
-    sns.pointplot(
-        x="number", y="dv_abs", hue="stream", data=data, ci=68, ax=ax, dodge=False
-    )
+    if draw_subjs_d:
+        sns.pointplot(
+            x="number", y="dv_abs", hue="stream", data=data, ci=68, ax=ax, dodge=False
+        )
+    else:
+        for istream, stream in enumerate(STREAMS):
+            b = df_adm[df_adm["stream"] == stream]["mapmax_bias"].to_numpy()[0]
+            k = df_adm[df_adm["stream"] == stream]["mapmax_kappa"].to_numpy()[0]
+            vals = np.abs(eq1(numbers_rescaled, bias=b, kappa=k))
+            ax.plot(NUMBERS - 1, vals, marker="o")
 
-    meanb = df_adm["bias"].mean()
-    vals = np.abs(eq1(numbers_rescaled, bias=meanb, kappa=1))
-    ax.plot(
-        NUMBERS - 1,
-        vals,
-        color="black",
-        ls="--",
-        zorder=10,
-        label=f"b={meanb:.2f}, k=1",
-    )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
+            )
+            ax.set_xticklabels([""] + NUMBERS.tolist())
+
+    draw_inset_d = True
+    if draw_inset_d:
+        size = 1.75
+        anchor = (0.08, 1)
+        if not use_smalltitle:
+            anchor = (0.25, 1)
+            size = 2
+        axins = inset_axes(
+            ax,
+            width=size,
+            height=size,
+            loc="upper left",
+            bbox_to_anchor=anchor,
+            bbox_transform=ax.transAxes,
+        )
+        _ = df_adm[["subject", "stream", "bias", "kappa"]].melt(
+            id_vars=["subject", "stream"], var_name="parameter"
+        )
+        order = ["kappa", "bias"]
+        sns.barplot(
+            x="parameter", order=order, y="value", hue="stream", data=_, ci=68, ax=axins
+        )
+        axins.set(ylabel="", xlabel="")
+        axins.get_legend().remove()
+        axins.axhline(1, xmax=0.5, **axhline_args)
+        sns.despine(ax=axins)
+        axins.set_xticklabels([i.capitalize() for i in order])
+
+    draw_k1_d = False
+    if draw_k1_d:
+        meanb = df_adm["bias"].mean()
+        vals = np.abs(eq1(numbers_rescaled, bias=meanb, kappa=1))
+        ax.plot(
+            NUMBERS - 1,
+            vals,
+            color="black",
+            ls="--",
+            zorder=10,
+            label=f"b={meanb:.2f}, k=1",
+        )
 
     sns.despine(ax=ax)
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend(
-        title=None,
-        handles=handles,
-        labels=[i.capitalize() if not i.startswith("b") else i for i in labels],
-        frameon=False,
-    )
-    ax.set(ylabel="Abs. decision weight", xlabel="")
+    legend_d = False
+    if legend_d:
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(
+            title=None,
+            handles=handles,
+            labels=[i.capitalize() if not i.startswith("b") else i for i in labels],
+            frameon=False,
+        )
+
+    ax.set(ylabel=r"$|dv|$", xlabel="Sample")
+
+    if use_smalltitle:
+        ax.text(
+            x=0.5,
+            y=0.9,
+            s="Model",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+    else:
+        ax.set_title("Model", fontweight="bold")
 
 # %%
 # Final settings and save

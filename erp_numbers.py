@@ -564,17 +564,23 @@ with sns.plotting_context("talk"):
 
 df_adm.groupby("stream")[["bias", "kappa"]].describe()
 
+# Add map maxima
+df_adm["mapmax_bias"] = np.nan
+df_adm["mapmax_kappa"] = np.nan
+for istream, stream in enumerate(STREAMS):
+    x, y = mean_max_xys[istream]
+    df_adm.loc[df_adm["stream"] == stream, "mapmax_bias"] = biases[x]
+    df_adm.loc[df_adm["stream"] == stream, "mapmax_kappa"] = kappas[y]
+
 # Save ADM df
 df_adm.to_csv(fname_adm, sep="\t", na_rep="n/a", index=False)
 
 # %%
 # Plot map maxima standalone
 fig, ax = plt.subplots()
-valss = []
 for istream, stream in enumerate(STREAMS):
-    x, y = mean_max_xys[istream]
-    vals = np.abs(eq1(np.linspace(-1, 1, 9), bias=biases[x], kappa=kappas[y]))
-    valss += [vals]
-    ax.plot(np.arange(9), vals)
+    b = df_adm[df_adm["stream"] == stream]["mapmax_bias"].to_numpy()[0]
+    k = df_adm[df_adm["stream"] == stream]["mapmax_kappa"].to_numpy()[0]
+    ax.plot(NUMBERS - 1, np.abs(eq1(numbers_rescaled, bias=b, kappa=k)))
 
 # %%
