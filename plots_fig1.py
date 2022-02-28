@@ -268,7 +268,8 @@ with sns.plotting_context("talk"):
             transform=ax.transAxes,
         )
 
-        ax.set(xlabel="", ylabel="")
+        ylabel = dict(kappa="$k$", bias="$b$", noise="$s$")[param]
+        ax.set(xlabel="", ylabel=ylabel)
         ax.set_xticklabels([i.capitalize() for i in STREAMS])
 
 # %%
