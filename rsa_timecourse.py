@@ -483,3 +483,15 @@ for window_sel in window_sels:
         )
 
 # %%
+# Extract and report stats
+for test in tests:
+    for model in modelnames:
+        clusters = permdistr_dict[model][test]["sig_clusters"]
+        pvals = permdistr_dict[model][test]["pvals"]
+        for i, (clu, p) in enumerate(zip(clusters, pvals)):
+            start = times[clu[0]]
+            stop = times[clu[-1]]
+            print(f"{test}, {model}, {i}: {start}-{stop}, {p}")
+
+    print("")
+# %%
