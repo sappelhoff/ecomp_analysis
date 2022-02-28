@@ -163,8 +163,8 @@ with sns.plotting_context(**plotting_context):
                 for lab in labels
             ]
             ax.legend(
-                loc="upper left",
-                bbox_to_anchor=(1, 1),
+                loc="upper right",
+                bbox_to_anchor=(-0.2, 1.1),
                 frameon=False,
                 handles=handles,
                 labels=labels,
@@ -173,7 +173,8 @@ with sns.plotting_context(**plotting_context):
         ax.axhline(0, **axhline_args)
         ax.axvline(0, **axhline_args)
         assert np.unique(data["method"])[0] == "pearson"
-        ax.set(ylabel="Pearson's r", xlabel="Time (s)")
+        ylabel = "Pearson's r" if panel in "de" else "Δ r"
+        ax.set(ylabel=ylabel, xlabel="Time (s)")
         ax.axvspan(*window_sel, color="black", alpha=0.1)
         sns.despine(ax=ax)
 
