@@ -189,6 +189,19 @@ with sns.plotting_context("talk"):
         ax.axhline(idx_bias_zero, color="white", ls="--")
         ax.axvline(idx_kappa_one, color="white", ls="--")
 
+        add_topline = True
+        if add_topline:
+            for x, label in zip([0.15, 0.5, 0.85], ["$k<1$", "$k=1$", "$k>1$"]):
+                ax.text(
+                    x=x,
+                    y=1.05,
+                    s=label,
+                    ha="center",
+                    va="center",
+                    fontsize=15,
+                    transform=ax.transAxes,
+                )
+
         # settings
         if len(kappas) == 131:
             # if not log scale, use: xticks = np.arange(0, 131, 20).tolist()
