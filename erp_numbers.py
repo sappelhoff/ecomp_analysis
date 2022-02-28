@@ -286,9 +286,13 @@ assert not np.isnan(rdms_obs).any()
 rdm_size = "9x9"
 modelnames = ["numberline"]
 grid_res = 101
-opt = 0
+opt = 1
 if opt == 0:
     kappas = np.linspace(0.1, 6.5, grid_res)
+    biases = np.linspace(-0.5, 0.5, grid_res)
+if opt == 1:
+    grid_res = 131
+    kappas = np.exp(np.linspace(-2, 2, grid_res))
     biases = np.linspace(-0.5, 0.5, grid_res)
 else:
     raise RuntimeError(f"unknown 'opt': {opt}")
@@ -460,32 +464,50 @@ for istream, stream in enumerate(STREAMS):
     ax.axvline(idx_bias_zero, color="white", ls="--")
     ax.axhline(idx_kappa_one, color="white", ls="--")
 
-    # settings
-    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
-    ax.yaxis.set_major_locator(plt.MaxNLocator(6))
-    xticklabels = (
-        [""] + [f"{i:.2f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]] + [""]
+    # titles
+    xlabel = "b" if opt == 1 else "bias (b)"
+    ylabel = "log(k)" if opt == 1 else "kappa (k)"
+    ax.set(
+        title=stream,
+        xlabel=xlabel,
+        ylabel=ylabel,
     )
-    yticklabels = (
-        [""] + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]] + [""]
-    )
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
-        )
-        ax.set(
-            title=stream,
-            xticklabels=xticklabels,
-            yticklabels=yticklabels,
-            xlabel="bias (b)",
-            ylabel="kappa (k)",
-        )
 
     title = f"Transparent mask shows significant values at p={pthresh} (FDR corrected)"
     title = "Improved model correlation relative to linear model (b=0, k=1)\n" + title
     title = f"rdm_size={rdm_size}, orth=False\n" + title
 
     fig.suptitle(title, y=1.15)
+
+    # ticks
+    if opt == 1:
+        xticks = [0, 65, 130]
+        ax.set_xticks(ticks=xticks)
+        ax.set_xticklabels(biases[np.array(xticks)])
+        yticks = [0, 65, 130]
+        ax.set_yticks(ticks=yticks)
+        ax.set_yticklabels(np.log(kappas)[np.array(yticks)])
+    else:
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(6))
+        xticklabels = (
+            [""]
+            + [f"{i:.2f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]]
+            + [""]
+        )
+        yticklabels = (
+            [""]
+            + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]]
+            + [""]
+        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
+            )
+            ax.set(
+                xticklabels=xticklabels,
+                yticklabels=yticklabels,
+            )
 
 # %%
 # plot model curves - ADM: Amplitude Difference Matrix
@@ -586,5 +608,40 @@ for istream, stream in enumerate(STREAMS):
     b = df_adm[df_adm["stream"] == stream]["mapmax_bias"].to_numpy()[0]
     k = df_adm[df_adm["stream"] == stream]["mapmax_kappa"].to_numpy()[0]
     ax.plot(NUMBERS - 1, np.abs(eq1(numbers_rescaled, bias=b, kappa=k)))
+
+# %%
+# Examine bias and kappa estimates
+df = df_adm[["subject", "stream", "bias", "kappa"]].drop_duplicates(
+    ["subject", "stream"]
+)
+
+# %%
+# One sample against 0 or 1
+df_stats_onsesamp = []
+for param, y in zip(["bias", "kappa"], [0, 1]):
+    for istream, stream in enumerate(STREAMS):
+        x = df[df["stream"] == stream][param]
+        _ = pingouin.ttest(x, y)
+        _["param"] = param
+        _["stream"] = stream
+        _["y"] = y
+        df_stats_onsesamp.append(_)
+
+df_stats_onsesamp = pd.concat(df_stats_onsesamp)
+df_stats_onsesamp.round(3)
+
+
+# %%
+# paired
+df_stats_paired = []
+for param in ["bias", "kappa"]:
+    x = df[df["stream"] == STREAMS[0]][param]
+    y = df[df["stream"] == STREAMS[1]][param]
+    _ = pingouin.ttest(x, y, paired=True)
+    _["param"] = param
+    df_stats_paired.append(_)
+
+df_stats_paired = pd.concat(df_stats_paired)
+df_stats_paired.round(3)
 
 # %%

@@ -191,15 +191,15 @@ with sns.plotting_context("talk"):
 
         # settings
         if len(kappas) == 131:
-            # xticks = [0, 65, 130]#np.arange(0, 131, 20).tolist()
-            yticks = np.arange(0, 131, 26).tolist()
-            labs = [f"{i:.1f}" for i in np.log(kappas)[yticks]]
+            # if not log scale, use: xticks = np.arange(0, 131, 20).tolist()
+            ticks = np.arange(0, 131, 26).tolist()
+            xlabels = [f"{i:.1f}" for i in np.log(kappas)[ticks]]
             ax.set(
-                yticks=yticks,
-                yticklabels=np.round(biases[np.array(yticks)], 1),
+                yticks=ticks,
+                yticklabels=np.round(biases[np.array(ticks)], 1),
                 ylabel="b",
-                xticks=yticks,
-                xticklabels=labs,
+                xticks=ticks,
+                xticklabels=xlabels,
                 xlabel="log(k)",
             )
 

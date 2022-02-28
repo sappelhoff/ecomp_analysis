@@ -487,28 +487,15 @@ for istream, stream in enumerate(tqdm(STREAMS)):
     ax.axvline(idx_bias_zero, color="white", ls="--")
     ax.axhline(idx_kappa_one, color="white", ls="--")
 
-    # settings
-    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
-    ax.yaxis.set_major_locator(plt.MaxNLocator(6))
-    xticklabels = (
-        [""] + [f"{i:.2f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]] + [""]
+    # titles
+    ylabel = "log (k)" if opt == 4 else "kappa (k)"
+    ax.set(
+        title=stream,
+        xlabel="bias (b)",
+        ylabel=ylabel,
     )
-    yticklabels = (
-        [""] + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]] + [""]
-    )
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
-        )
-        ax.set(
-            title=stream,
-            xticklabels=xticklabels,
-            yticklabels=yticklabels,
-            xlabel="bias (b)",
-            ylabel="kappa (k)",
-        )
 
-    title = "Based on grand mean RDMs"
+    title = f"Transparent mask shows significant values at p={pthresh} (FDR corrected)"
     if subtract_maps:
         title = (
             "Improved model correlation relative to linear model (b=0, k=1)\n" + title
@@ -516,9 +503,44 @@ for istream, stream in enumerate(tqdm(STREAMS)):
     title = f"rdm_size={rdm_size}, orth={orth}\n" + title
 
     fig.suptitle(title, y=1.15)
+
+    # ticks
+    if opt == 4:
+        xticks = [0, 65, 130]
+        ax.set_xticks(ticks=xticks)
+        ax.set_xticklabels(biases[np.array(xticks)])
+        yticks = [0, 65, 130]
+        ax.set_yticks(ticks=yticks)
+        ax.set_yticklabels(np.log(kappas)[np.array(yticks)])
+    else:
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(6))
+        xticklabels = (
+            [""]
+            + [f"{i:.2f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]]
+            + [""]
+        )
+        yticklabels = (
+            [""]
+            + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]]
+            + [""]
+        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
+            )
+            ax.set(
+                xticklabels=xticklabels,
+                yticklabels=yticklabels,
+            )
+
 # %%
-# Examine stats
-# Map mean values
+# Examine bias and kappa estimates
+# map max
+print("map max pvals:\n\n", df.groupby("stream")["mapmax_pval"].mean(), "\n-----")
+
+# %%
+# One sample against 0 or 1
 df_stats_onsesamp = []
 for param, y in zip(["bias", "kappa"], [0, 1]):
     for istream, stream in enumerate(STREAMS):
@@ -534,6 +556,7 @@ df_stats_onsesamp.round(3)
 
 
 # %%
+# paired
 df_stats_paired = []
 for param in ["bias", "kappa"]:
     x = df[df["stream"] == STREAMS[0]][param]

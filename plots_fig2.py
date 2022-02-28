@@ -173,7 +173,7 @@ with sns.plotting_context(**plotting_context):
         ax.axhline(0, **axhline_args)
         ax.axvline(0, **axhline_args)
         assert np.unique(data["method"])[0] == "pearson"
-        ylabel = "Pearson's r" if panel in "de" else "Δ r"
+        ylabel = "Pearson's r" if panel in "de" else "Δ Pearson's r"
         ax.set(ylabel=ylabel, xlabel="Time (s)")
         ax.axvspan(*window_sel, color="black", alpha=0.1)
         sns.despine(ax=ax)
