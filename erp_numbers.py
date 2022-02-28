@@ -337,10 +337,14 @@ for isub, sub in enumerate(tqdm(SUBJS)):
         corr_ref = grid_streams_subjs[idx_kappa_one, idx_bias_zero, istream, isub]
         grid_streams_subjs[..., istream, isub] -= corr_ref
 
-        # don't make the b=0, k=1 cell zero for all subjs. Add tiny amount
-        # of random noise, so that down-the-line tests don't run into NaN problems
-        noise = rng.normal() * 1e-5
-        grid_streams_subjs[idx_kappa_one, idx_bias_zero, istream, isub] += noise
+        # subtracting the value at k=1, b=0 from the map will make the k=1 row 0.
+        # This is because when k=1, different biases will not result in different
+        # numdist RDMs.
+        # Solution: Add tiny amount of random noise to that row,
+        # so that down-the-line tests don't run into NaN problems
+        noise = rng.normal(size=grid_res) * 1e-8
+        grid_streams_subjs[idx_kappa_one, :, istream, isub] += noise
+
 
 # %%
 # Calculate 1 samp t-tests against 0 for each cell to test significance

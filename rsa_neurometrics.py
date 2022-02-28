@@ -20,6 +20,7 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pingouin
 import scipy.stats
 import statsmodels.stats.multitest
 from scipy.spatial.distance import squareform
@@ -35,7 +36,7 @@ data_dir = DATA_DIR_EXTERNAL
 analysis_dir = ANALYSIS_DIR_LOCAL
 
 grid_res = 101
-opt = 3
+opt = 4
 if opt == 0:
     kappas = np.linspace(0.4, 4.0, grid_res)
     biases = np.linspace(-1.0, 1.0, grid_res)
@@ -48,6 +49,10 @@ elif opt == 2:
 elif opt == 3:
     grid_res = 131
     kappas = np.linspace(0.0, 6.5, grid_res)
+    biases = np.linspace(-0.5, 0.5, grid_res)
+elif opt == 4:
+    grid_res = 131
+    kappas = np.exp(np.linspace(-2, 2, grid_res))
     biases = np.linspace(-0.5, 0.5, grid_res)
 else:
     raise RuntimeError(f"unknown 'opt': {opt}")
@@ -164,10 +169,13 @@ if subtract_maps:
             corr_ref = grid_streams_subjs[idx_kappa_one, idx_bias_zero, istream, isub]
             grid_streams_subjs[..., istream, isub] -= corr_ref
 
-            # don't make the b=0, k=1 cell zero for all subjs. Add tiny amount
-            # of random noise, so that down-the-line tests don't run into NaN problems
-            noise = rng.normal() * 1e-5
-            grid_streams_subjs[idx_kappa_one, idx_bias_zero, istream, isub] += noise
+            # subtracting the value at k=1, b=0 from the map will make the k=1 row 0.
+            # This is because when k=1, different biases will not result in different
+            # numdist RDMs.
+            # Solution: Add tiny amount of random noise to that row,
+            # so that down-the-line tests don't run into NaN problems
+            noise = rng.normal(size=grid_res) * 1e-8
+            grid_streams_subjs[idx_kappa_one, :, istream, isub] += noise
 
 # %%
 # Calculate 1 samp t-tests against 0 for each cell to test significance
@@ -176,21 +184,29 @@ for istream, stream in enumerate(STREAMS):
     data = grid_streams_subjs[..., istream, :]
     _, pvals = scipy.stats.ttest_1samp(a=data, popmean=0, axis=-1, nan_policy="raise")
     pval_maps_streams[..., istream] = pvals
+    assert not np.isnan(pvals).any()
 
 # %%
 # Create a mask for plotting the significant values in grid
 # use B/H FDR correction
 alpha_val_mask = 0.75
 sig_masks_streams = np.full_like(pval_maps_streams, np.nan)
+corrected_pval_maps_streams = np.full_like(pval_maps_streams, np.nan)
 for istream, stream in enumerate(STREAMS):
     pvals = pval_maps_streams[..., istream]
-    sig, _ = statsmodels.stats.multitest.fdrcorrection(pvals.flatten(), alpha=pthresh)
+    sig, corrected = statsmodels.stats.multitest.fdrcorrection(
+        pvals.flatten(), alpha=pthresh
+    )
     sig = sig.reshape(pvals.shape)
+    corrected = corrected.reshape(pvals.shape)
 
     # all non-significant values have a lower "alpha value" in the plot
     mask_alpha_vals = sig.copy().astype(float)
     mask_alpha_vals[mask_alpha_vals == 0] = alpha_val_mask
     sig_masks_streams[..., istream] = mask_alpha_vals
+
+    # save pvals for reporting
+    corrected_pval_maps_streams[..., istream] = corrected
 
     # NOTE: Need to lower alpha values of cells with corr <= 0
     #       that are still significant before plotting
@@ -199,11 +215,14 @@ for istream, stream in enumerate(STREAMS):
 
 # %%
 # Plot grid per stream
+mean_max_xys = []
+mean_max_pvals = []
 grids = []
 scatters = []
 max_coords_xy = np.full((2, len(STREAMS), len(SUBJS)), np.nan)
 fig, axs = plt.subplots(1, 2, figsize=(8, 4))
 fig.tight_layout()
+aspect = "equal"
 for istream, stream in enumerate(STREAMS):
 
     ax = axs.flat[istream]
@@ -237,12 +256,18 @@ for istream, stream in enumerate(STREAMS):
         vmin=vmin,
         vmax=vmax,
         alpha=mask,
+        aspect=aspect,
     )
 
     # tweak to get colorbar without alpha mask
     _, tweak_ax = plt.subplots()
     im = tweak_ax.imshow(
-        grid_mean, origin="upper", interpolation="nearest", vmin=vmin, vmax=vmax
+        grid_mean,
+        origin="upper",
+        interpolation="nearest",
+        vmin=vmin,
+        vmax=vmax,
+        aspect=aspect,
     )
     plt.close(_)
 
@@ -274,10 +299,12 @@ for istream, stream in enumerate(STREAMS):
 
     # plot mean maximum
     mean_max_xy = np.unravel_index(np.argmax(grid_mean), grid_mean.shape)[::-1]
-
+    mean_max_xys += [mean_max_xy]
+    mean_max_x, mean_max_y = mean_max_xy
+    mean_max_pvals += [corrected_pval_maps_streams[mean_max_x, mean_max_y, istream]]
     ax.scatter(
-        mean_max_xy[0],
-        mean_max_xy[1],
+        mean_max_x,
+        mean_max_y,
         color="red",
         s=24,
         marker="d",
@@ -288,26 +315,13 @@ for istream, stream in enumerate(STREAMS):
     ax.axvline(idx_bias_zero, color="white", ls="--")
     ax.axhline(idx_kappa_one, color="white", ls="--")
 
-    # settings
-    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
-    ax.yaxis.set_major_locator(plt.MaxNLocator(6))
-    xticklabels = (
-        [""] + [f"{i:.2f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]] + [""]
+    # titles
+    ylabel = "log (k)" if opt == 4 else "kappa (k)"
+    ax.set(
+        title=stream,
+        xlabel="bias (b)",
+        ylabel=ylabel,
     )
-    yticklabels = (
-        [""] + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]] + [""]
-    )
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
-        )
-        ax.set(
-            title=stream,
-            xticklabels=xticklabels,
-            yticklabels=yticklabels,
-            xlabel="bias (b)",
-            ylabel="kappa (k)",
-        )
 
     title = f"Transparent mask shows significant values at p={pthresh} (FDR corrected)"
     if subtract_maps:
@@ -317,6 +331,36 @@ for istream, stream in enumerate(STREAMS):
     title = f"rdm_size={rdm_size}, orth={orth}\n" + title
 
     fig.suptitle(title, y=1.15)
+
+    # ticks
+    if opt == 4:
+        xticks = [0, 65, 130]
+        ax.set_xticks(ticks=xticks)
+        ax.set_xticklabels(biases[np.array(xticks)])
+        yticks = [0, 65, 130]
+        ax.set_yticks(ticks=yticks)
+        ax.set_yticklabels(np.log(kappas)[np.array(yticks)])
+    else:
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(6))
+        xticklabels = (
+            [""]
+            + [f"{i:.2f}" for i in biases[(ax.get_xticks()[1:-1]).astype(int)]]
+            + [""]
+        )
+        yticklabels = (
+            [""]
+            + [f"{i:.1f}" for i in kappas[(ax.get_yticks()[1:-1]).astype(int)]]
+            + [""]
+        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, message="FixedFormatter .* FixedLocator"
+            )
+            ax.set(
+                xticklabels=xticklabels,
+                yticklabels=yticklabels,
+            )
 
 # %%
 # Save for publication plots
@@ -373,10 +417,17 @@ df["subtract_maps"] = subtract_maps
 df["orth"] = orth
 df["corr_method"] = corr_method
 
-if fname_params.exists() and not overwrite:
-    print("Params file exists and overwrite is set to False, not saving anything.")
-else:
-    df.to_csv(fname_params, sep="\t", na_rep="n/a", index=False)
+df.insert(2, "mapmax_pval", np.nan)
+df.insert(2, "mapmax_bias", np.nan)
+df.insert(2, "mapmax_kappa", np.nan)
+for istream, stream in enumerate(STREAMS):
+    pval = mean_max_pvals[istream]
+    x, y = mean_max_xys[istream]
+    df.loc[df["stream"] == stream, "mapmax_pval"] = pval
+    df.loc[df["stream"] == stream, "mapmax_bias"] = biases[x]
+    df.loc[df["stream"] == stream, "mapmax_kappa"] = kappas[y]
+
+df.to_csv(fname_params, sep="\t", na_rep="n/a", index=False)
 
 # %%
 # Plot maps based on grand mean RDMs -- no stats possible
@@ -465,4 +516,33 @@ for istream, stream in enumerate(tqdm(STREAMS)):
     title = f"rdm_size={rdm_size}, orth={orth}\n" + title
 
     fig.suptitle(title, y=1.15)
+# %%
+# Examine stats
+# Map mean values
+df_stats_onsesamp = []
+for param, y in zip(["bias", "kappa"], [0, 1]):
+    for istream, stream in enumerate(STREAMS):
+        x = df[df["stream"] == stream][param]
+        _ = pingouin.ttest(x, y)
+        _["param"] = param
+        _["stream"] = stream
+        _["y"] = y
+        df_stats_onsesamp.append(_)
+
+df_stats_onsesamp = pd.concat(df_stats_onsesamp)
+df_stats_onsesamp.round(3)
+
+
+# %%
+df_stats_paired = []
+for param in ["bias", "kappa"]:
+    x = df[df["stream"] == STREAMS[0]][param]
+    y = df[df["stream"] == STREAMS[1]][param]
+    _ = pingouin.ttest(x, y, paired=True)
+    _["param"] = param
+    df_stats_paired.append(_)
+
+df_stats_paired = pd.concat(df_stats_paired)
+df_stats_paired.round(3)
+
 # %%
