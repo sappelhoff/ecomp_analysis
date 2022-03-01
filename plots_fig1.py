@@ -149,7 +149,7 @@ with sns.plotting_context("talk"):
             lw=0.5,
         )
 
-        ax.axhline(0.5, **axhline_args)
+        ax.axhline(0.5, xmax=0.95, **axhline_args)
 
         # make a legend
         if istream == 0:
@@ -256,7 +256,7 @@ with sns.plotting_context("talk"):
             _y = [locs1[i, 1], locs2_sorted[i, 1]]
             ax.plot(_x, _y, **subj_line_settings)
 
-        ax.axhline(hlines[param], **axhline_args)
+        ax.axhline(hlines[param], xmax=0.95, **axhline_args)
         sns.despine(ax=ax)
 
         ax.text(
@@ -269,12 +269,12 @@ with sns.plotting_context("talk"):
         )
 
         ylabel = dict(kappa="$k$", bias="$b$", noise="$s$")[param]
-        ax.set(xlabel="", ylabel=ylabel)
+        ax.set_xlabel("")
+        ax.set_ylabel(ylabel)
         ax.set_xticklabels([i.capitalize() for i in STREAMS])
 
 # %%
 # Final settings and save
-fig.align_labels()
 
 # Save the figure
 fig.savefig(fname_fig1, bbox_inches="tight")
