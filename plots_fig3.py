@@ -191,7 +191,7 @@ with sns.plotting_context("talk"):
 
         add_topline = True
         if add_topline:
-            for x, label in zip([0.15, 0.5, 0.85], ["$k<1$", "$k=1$", "$k>1$"]):
+            for x, label in zip([0.25, 0.5, 0.75], ["$k<1$", "$k=1$", "$k>1$"]):
                 ax.text(
                     x=x,
                     y=1.05,
