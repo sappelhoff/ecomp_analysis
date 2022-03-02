@@ -2,6 +2,7 @@
 # %%
 # Imports
 import itertools
+import json
 import warnings
 
 import matplotlib.pyplot as plt
@@ -15,6 +16,7 @@ import statsmodels.stats.multitest
 from scipy.spatial.distance import squareform
 from tqdm.auto import tqdm
 
+from clusterperm import get_max_stat, get_significance, perm_df_anovarm, return_clusters
 from config import (
     ANALYSIS_DIR_LOCAL,
     DATA_DIR_EXTERNAL,
@@ -55,6 +57,9 @@ fname_template_erp = "sub-{:02}_stream-{}_number-{}_ave.fif.gz"
 fname_erps = analysis_dir / "derived_data" / "erps.tsv"
 fname_amps = analysis_dir / "derived_data" / "erp_amps.tsv"
 fname_adm = analysis_dir / "derived_data" / "erp_adm.tsv"
+
+fname_permdistr_erps = analysis_dir / "derived_data" / "permdistr_erps.tsv"
+fname_permres_erps = analysis_dir / "derived_data" / "erp_perm_results.json"
 
 
 # %%
@@ -134,29 +139,8 @@ else:
             for number in dict_numbers:
                 dict_streams[stream][number] += _dstream[stream][number]
 
-# Get mean amps
-dict_mean_amps = _get_mean_amps(dict_streams, mean_times, p3_group)
-
 # %%
-# Plot
-cmap = sns.color_palette("crest_r", as_cmap=True)
-for stream in STREAMS:
-    fig, ax = plt.subplots()
-    ax.axvspan(*mean_times, color="black", alpha=0.1)
-    with mne.utils.use_log_level(False):
-        mne.viz.plot_compare_evokeds(
-            dict_streams[stream],
-            picks=p3_group,
-            combine="mean",
-            show_sensors=True,
-            cmap=cmap,
-            ci=0.68,
-            axes=ax,
-            title=stream,
-        )
-
-# %%
-# Save plot data as DF
+# Save data as DF
 df_erps = []
 for stream in STREAMS:
     for number in NUMBERS:
@@ -176,9 +160,146 @@ for stream in STREAMS:
             df_erps.append(_)
 df_erps = pd.concat(df_erps).reset_index(drop=True)
 assert len(df_erps) == len(SUBJS) * len(STREAMS) * len(NUMBERS) * 251  # 251 timepoints
+df_erps = df_erps.sort_values(by=["subject", "stream", "number", "time"]).reset_index(
+    drop=True
+)
 df_erps.to_csv(fname_erps, sep="\t", na_rep="n/a", index=False)
+
+# %%
+# Cluster permutation testing
+times = np.unique(df_erps["time"])
+ntimes = len(times)
+rng = np.random.default_rng(1337)
+niterations = 101
+thresh = 0.01
+clusterthresh = 0.01
+clusterstat = "length"
+overwrite_permdistr = False
+
+# Generate permutation distribution (only if not already present)
+if not fname_permdistr_erps.exists() or overwrite_permdistr:
+    distr = np.full((len(STREAMS), niterations), np.nan)
+    for iteration in tqdm(range(niterations)):
+
+        # permute data
+        perm_df = perm_df_anovarm(df_erps, rng)
+
+        # run ANOVAs over timepoints (for each stream separately)
+        fvals = np.full((len(STREAMS), ntimes), np.nan)
+        pvals = np.full((len(STREAMS), ntimes), np.nan)
+        for istream, stream in enumerate(STREAMS):
+            dat_s = perm_df[perm_df["stream"] == stream]
+
+            for it, t in enumerate(times):
+                dat_s_t = dat_s[dat_s["time"] == t]
+                stats = pingouin.rm_anova(
+                    data=dat_s_t, dv="value_perm", within="number", subject="subject"
+                )
+                fvals[istream, it], pvals[istream, it] = (
+                    stats["F"][0],
+                    stats["p-unc"][0],
+                )
+
+            clusters = return_clusters(pvals[istream] < thresh)
+            distr[istream, iteration] = get_max_stat(clusters, clusterstat, fvals)
+
+    # Save permutation distributions as DataFrame
+    df_distr = pd.DataFrame(distr).T
+    df_distr.columns = STREAMS
+    df_distr = df_distr.melt(var_name="stream", value_name="max_stat")
+    df_distr.to_csv(fname_permdistr_erps, sep="\t", na_rep="n/a", index=False)
+else:
+    df_distr = pd.read_csv(fname_permdistr_erps, sep="\t")
+    distr = np.full((len(STREAMS), niterations), np.nan)
+    for istream, stream in enumerate(STREAMS):
+        distr[istream, ...] = df_distr[df_distr["stream"] == stream][
+            "max_stat"
+        ].to_numpy()
+
+# Get observed values and evaluate significance
+permdistr_dict = {stream: {} for stream in STREAMS}
+fvals_obs = np.full((len(STREAMS), ntimes), np.nan)
+pvals_obs = np.full((len(STREAMS), ntimes), np.nan)
+for istream, stream in enumerate(STREAMS):
+    dat_s = df_erps[df_erps["stream"] == stream]
+    for it, t in enumerate(times):
+        dat_s_t = dat_s[dat_s["time"] == t]
+        stats = pingouin.rm_anova(
+            data=dat_s_t, dv="value", within="number", subject="subject"
+        )
+        fvals_obs[istream, it], pvals_obs[istream, it] = (
+            stats["F"][0],
+            stats["p-unc"][0],
+        )
+
+    clusters_obs = return_clusters(pvals_obs[istream] < thresh)
+
+    (
+        permdistr_dict[stream]["clusterthresh_stat"],
+        permdistr_dict[stream]["cluster_stats"],
+        permdistr_dict[stream]["sig_clusters"],
+        permdistr_dict[stream]["pvals"],
+    ) = get_significance(
+        distr[istream], clusterstat, clusters_obs, fvals_obs[istream], clusterthresh
+    )
+
+# save permutation results (for later plotting)
+with open(fname_permres_erps, "w") as fout:
+    json.dump(permdistr_dict, fout, indent=4, sort_keys=True)
+    fout.write("\n")
+
+# %%
+# Plot permutation distributions
+g = sns.displot(
+    data=df_distr,
+    x="max_stat",
+    col="stream",
+    kind="kde",
+    cut=0,
+    facet_kws=dict(sharex=False, sharey=False),
+)
+
+for col_val, ax in g.axes_dict.items():
+    clusterthresh_stat = permdistr_dict[col_val]["clusterthresh_stat"]
+    ax.axvline(clusterthresh_stat, color="blue", zorder=0)
+
+    cluster_stats = permdistr_dict[col_val]["cluster_stats"]
+    for stat in cluster_stats:
+        ax.axvline(stat, color="red", ls="--", zorder=1)
+
+# %%
+# Plot data
+cmap = sns.color_palette("crest_r", as_cmap=True)
+for stream in STREAMS:
+    fig, ax = plt.subplots()
+    ax.axvspan(*mean_times, color="black", alpha=0.1)
+    with mne.utils.use_log_level(False):
+        mne.viz.plot_compare_evokeds(
+            dict_streams[stream],
+            picks=p3_group,
+            combine="mean",
+            show_sensors=True,
+            cmap=cmap,
+            ci=0.68,
+            axes=ax,
+            title=stream,
+            show=False,
+        )
+
+    # plot significance bars (if present)
+    clusters = permdistr_dict[stream]["sig_clusters"]
+    if len(clusters) == 0:
+        continue
+    y = ax.get_ylim()[0] + 0.05
+    for clu in clusters:
+        ax.plot(times[clu], [y] * len(clu), c="red", ls="-")
+
 # %%
 # Gather mean amplitude data into DataFrame
+
+# Get mean amps
+dict_mean_amps = _get_mean_amps(dict_streams, mean_times, p3_group)
+
 all_dfs = []
 for stream in STREAMS:
     df_mean_amps = pd.DataFrame.from_dict(dict_mean_amps[stream])

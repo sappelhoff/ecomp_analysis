@@ -577,8 +577,10 @@ g.fig.savefig(fname)
 # %%
 # save weights to files
 sortby = ["subject", "stream", "weight_type", "number"]
-weightdata = weightdata.sort_values(by=sortby)
-posweightdata = posweightdata.sort_values(by=sortby[:-1] + ["position", "number"])
+weightdata = weightdata.sort_values(by=sortby).reset_index(drop=True)
+posweightdata = posweightdata.sort_values(
+    by=sortby[:-1] + ["position", "number"]
+).reset_index(drop=True)
 
 
 fname = analysis_dir / "derived_data" / "weights.tsv"
