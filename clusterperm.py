@@ -60,29 +60,19 @@ def perm_X_1samp(X, rng):
 
 
 def perm_df_anovarm(df, rng):
-    """Permute a "value" column in `df` for a repeated measures anova.
+    """Permute the "number" within subject.
 
     We randomly change the number labels for each subject and provide
-    the permuted data in a "value_perm" column.
+    the permuted data in a "number_perm" column.
     """
-    # create the subject specific permutation indices
-    idxs = {sub: rng.permutation(len(NUMBERS)) for sub in SUBJS}
+    n_num = len(NUMBERS)
+    df["number_perm"] = df["number"].to_numpy()
+    for sub in SUBJS:
+        subidx = df["subject"] == sub
+        switchmap = dict(zip(np.arange(n_num) + 1, rng.permutation(n_num) + 1))
+        permvals = df.loc[subidx, "number_perm"].map(switchmap).to_numpy()
+        df.loc[subidx, "number_perm"] = permvals
 
-    # Go through the data and re-index the values
-    perm_idx = np.full(len(df), np.nan)
-    count = 0
-    for stream, grp_stream in df.groupby("stream"):
-        for subj, grp_subj in grp_stream.groupby("subject"):
-            for time, grp_time in grp_subj.groupby("time"):
-                # down at this level, the grp_time dataframe has 9 rows,
-                # one for each number (ordered 1-9).
-                # Shuffle the indices using our pre-generated permutation
-                # index for this subject
-                perm_idx[count : count + len(NUMBERS)] = (
-                    grp_time.index.to_numpy()[idxs[subj]]
-                ).tolist()
-                count += len(NUMBERS)
-    df["value_perm"] = df.loc[perm_idx, "value"].to_numpy()
     return df
 
 

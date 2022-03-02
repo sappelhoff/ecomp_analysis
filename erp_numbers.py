@@ -181,7 +181,7 @@ if not fname_permdistr_erps.exists() or overwrite_permdistr:
     distr = np.full((len(STREAMS), niterations), np.nan)
     for iteration in tqdm(range(niterations)):
 
-        # permute data
+        # permute data, see "number_perm" column
         perm_df = perm_df_anovarm(df_erps, rng)
 
         # run ANOVAs over timepoints (for each stream separately)
@@ -193,7 +193,7 @@ if not fname_permdistr_erps.exists() or overwrite_permdistr:
             for it, t in enumerate(times):
                 dat_s_t = dat_s[dat_s["time"] == t]
                 stats = pingouin.rm_anova(
-                    data=dat_s_t, dv="value_perm", within="number", subject="subject"
+                    data=dat_s_t, dv="value", within="number_perm", subject="subject"
                 )
                 fvals[istream, it], pvals[istream, it] = (
                     stats["F"][0],
