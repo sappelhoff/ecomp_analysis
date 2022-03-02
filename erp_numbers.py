@@ -170,13 +170,15 @@ df_erps.to_csv(fname_erps, sep="\t", na_rep="n/a", index=False)
 times = np.unique(df_erps["time"])
 ntimes = len(times)
 rng = np.random.default_rng(1337)
-niterations = 101
+niterations = 1000
 thresh = 0.01
 clusterthresh = 0.01
 clusterstat = "length"
 overwrite_permdistr = False
 
 # Generate permutation distribution (only if not already present)
+# NOTE: This takes a long time (2.5 hours for 1000 iterations on my machine,
+#       Intel® Core™ i7-8650U CPU @ 1.90GHz × 8 with 32GB RAM)
 if not fname_permdistr_erps.exists() or overwrite_permdistr:
     distr = np.full((len(STREAMS), niterations), np.nan)
     for iteration in tqdm(range(niterations)):

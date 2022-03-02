@@ -3,9 +3,9 @@
         "cluster_stats": [
             138
         ],
-        "clusterthresh_stat": 7,
+        "clusterthresh_stat": 20,
         "pvals": [
-            0.00980392156862745
+            0.000999000999000999
         ],
         "sig_clusters": [
             [
@@ -155,10 +155,10 @@
             14,
             107
         ],
-        "clusterthresh_stat": 6,
+        "clusterthresh_stat": 13,
         "pvals": [
-            0.00980392156862745,
-            0.00980392156862745
+            0.006993006993006993,
+            0.000999000999000999
         ],
         "sig_clusters": [
             [
