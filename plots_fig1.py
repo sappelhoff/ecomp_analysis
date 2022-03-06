@@ -135,6 +135,7 @@ with sns.plotting_context("talk"):
             x=x,
             y=colname,
             ax=ax,
+            ci=68,
             color=f"C{istream}",
         )
 
@@ -178,6 +179,18 @@ with sns.plotting_context("talk"):
         sns.despine(ax=axins)
         axins.set_xticks([])
         axins.set_yticks([])
+
+        # inset label
+        axins.text(
+            x=0.175,
+            y=0.675,
+            s=f"$k = {kappa:.2f}$",
+            ha="left",
+            va="center",
+            transform=ax.transAxes,
+            fontsize=12,
+            zorder=100,
+        )
 
         # make a legend
         if istream == 0:
