@@ -174,7 +174,7 @@ with sns.plotting_context("talk"):
             bbox_transform=ax.transAxes,
         )
         axins.plot(xs, ys, color=f"C{STREAMS.index(stream)}")
-        axins.axhline(0, lw=0.1)
+        axins.axhline(0, lw=0.1, color="black")
         sns.despine(ax=axins)
         axins.set_xticks([])
         axins.set_yticks([])
@@ -207,14 +207,6 @@ with sns.plotting_context("talk"):
         sns.despine(ax=ax)
         ax.set(xlabel="", ylabel="Decision weight")
         ax.set_title(stream.capitalize())
-        # ax.text(
-        #    x=0.5,
-        #    y=0.9,
-        #    s=stream.capitalize(),
-        #    ha="center",
-        #    va="center",
-        #    transform=ax.transAxes,
-        # )
 
 for ax in axs[0, 1:]:
     ax.set_ylim(
@@ -289,7 +281,7 @@ with sns.plotting_context("talk"):
         ax.text(
             x=0.5,
             y=0.9,
-            s=param.capitalize(),
+            s=param,
             ha="center",
             va="center",
             transform=ax.transAxes,
@@ -302,7 +294,8 @@ with sns.plotting_context("talk"):
 
 # %%
 # Final settings and save
-
+# axs[1, 0].set_yscale("log")
+# axs[1, 0].set_ylim(0.2, None)
 # Save the figure
 fig.savefig(fname_fig1, bbox_inches="tight")
 
