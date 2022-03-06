@@ -739,6 +739,15 @@ df = df_adm[["subject", "stream", "bias", "kappa"]].drop_duplicates(
 )
 
 # %%
+# Print descriptives
+for param in ["kappa", "bias"]:
+    print(
+        "\n\n",
+        param,
+        "\n-----\n",
+        df.groupby("stream")[param].agg([np.mean, scipy.stats.sem]).round(2),
+    )
+# %%
 # One sample against 0 or 1
 df_stats_onsesamp = []
 for param, y in zip(["bias", "kappa"], [0, 1]):

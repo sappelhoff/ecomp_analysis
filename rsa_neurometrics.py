@@ -24,6 +24,7 @@ import pingouin
 import scipy.stats
 import statsmodels.stats.multitest
 from scipy.spatial.distance import squareform
+from scipy.stats import sem
 from tqdm.auto import tqdm
 
 from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, STREAMS, SUBJS
@@ -538,6 +539,16 @@ for istream, stream in enumerate(tqdm(STREAMS)):
 # Examine bias and kappa estimates
 # map max
 print("map max pvals:\n\n", df.groupby("stream")["mapmax_pval"].mean(), "\n-----")
+
+# %%
+# Print descriptives
+for param in ["kappa", "bias"]:
+    print(
+        "\n\n",
+        param,
+        "\n-----\n",
+        df.groupby("stream")[param].agg([np.mean, sem]).round(2),
+    )
 
 # %%
 # One sample against 0 or 1
