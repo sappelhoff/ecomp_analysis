@@ -87,6 +87,7 @@ fname_estimates.parent.mkdir(parents=True, exist_ok=True)
 fname_x0s = analysis_dir / "derived_data" / f"x0s_{minimize_method}.npy"
 
 fname_neurometrics = analysis_dir / "derived_data" / "neurometrics_params.tsv"
+fname_neurometrics_erp = analysis_dir / "derived_data" / "erp_adm.tsv"
 # %%
 # Simulate accuracies over parameter ranges
 
@@ -715,17 +716,45 @@ df_corrs
 
 # %%
 # Correlate behavioral modelling and neurometrics "kappa" and "bias" parameters
-if not fname_neurometrics.exists():
-    print(f"neurometrics params not found ... skipping.\n\n({fname_neurometrics})")
-else:
-    df_neurom = pd.read_csv(fname_neurometrics, sep="\t")
-    if "kappa_neuro" not in df_estimates.columns:
+# do for RSA neurometrics and ERP neurometrics
+for neurom_type in ["rsa", "erp"]:
+    if neurom_type == "rsa":
+        fname = fname_neurometrics
+    else:
+        assert neurom_type == "erp"
+        fname = fname_neurometrics_erp
+
+    if not fname.exists():
+        print(f"neurometrics params not found ... skipping.\n\n({fname})")
+        continue
+    else:
+        print(f"\n{neurom_type}\n---------\n\n")
+
+    df_neurom = pd.read_csv(fname, sep="\t")
+
+    # preprocess ERP data
+    if neurom_type == "erp":
+        df_neurom = df_neurom.drop_duplicates(["subject", "stream"]).reset_index(
+            drop=True
+        )[["subject", "stream", "bias", "kappa"]]
+
+    if f"kappa_neuro_{neurom_type}" not in df_estimates.columns:
         df_estimates = df_estimates.merge(
-            df_neurom, on=["subject", "stream"], suffixes=(None, "_neuro")
+            df_neurom,
+            on=["subject", "stream"],
+            suffixes=(None, f"_neuro_{neurom_type}"),
         )
 
     _df = df_estimates[
-        ["subject", "stream", "bias", "kappa", "bias_neuro", "kappa_neuro", "x0_type"]
+        [
+            "subject",
+            "stream",
+            "bias",
+            "kappa",
+            f"bias_neuro_{neurom_type}",
+            f"kappa_neuro_{neurom_type}",
+            "x0_type",
+        ]
     ]
     _df = _df.melt(id_vars=["subject", "stream", "x0_type"], var_name="parameter")
 
@@ -744,7 +773,7 @@ else:
                 y = _df[
                     (_df["stream"] == stream)
                     & (_df["x0_type"] == x0_type)
-                    & (_df["parameter"] == f"{param}_neuro")
+                    & (_df["parameter"] == f"{param}_neuro_{neurom_type}")
                 ]["value"]
                 assert len(x) == len(y)
                 assert len(x) == len(SUBJS)
@@ -752,11 +781,22 @@ else:
                 m, b = np.polyfit(x, y, 1)
                 ax.plot(x, m * x + b, color="r")
                 ax.set_title(f"{stream}")
-                ax.set(xlabel=param, ylabel=param + "_neuro")
+                ax.set(xlabel=param, ylabel=param + f"_neuro_{neurom_type}")
+
+                print(f"{stream}: {param} ~ {param}_neuro_{neurom_type}")
+                # means
+                print(f"means: {x.mean():.2f}, {y.mean():.2f}")
 
                 # correlation
                 r, p = scipy.stats.pearsonr(x, y)
-                print(f"{stream}: {param} ~ {param}_neuro --> r={r:.3f}, p={p:.3f}")
+                print(f"corr: r={r:.3f}, p={p:.3f}")
+
+                # paired t-test
+                _stat = pingouin.ttest(x=x, y=y, paired=True)
+                print(
+                    f"paired ttest: t({_stat['dof'][0]})={_stat['T'][0]:.3f}, "
+                    f"p={_stat['p-val'][0]:.3f}, d={_stat['cohen-d'][0]:.3f}\n"
+                )
 
         sns.despine(fig)
         fig.tight_layout()
