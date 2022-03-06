@@ -35,6 +35,7 @@ x0_type = "specific"
 fname_accs = analysis_dir / "derived_data" / "accuracies.tsv"
 
 fname_weights = analysis_dir / "derived_data" / "weights.tsv"
+fname_weights_k1 = analysis_dir / "derived_data" / "x0s_k1" / "weights_k1.tsv"
 
 fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
 
@@ -121,6 +122,9 @@ with sns.plotting_context("talk"):
 df_ws = pd.read_csv(fname_weights, sep="\t")
 df_ws = df_ws[df_ws["weight_type"].isin(["data", "model", "model_k1"])]
 
+df_ws_k1 = pd.read_csv(fname_weights_k1, sep="\t")
+df_ws_k1 = df_ws_k1[df_ws_k1["weight_type"].isin(["data", "model", "model_k1"])]
+
 with sns.plotting_context("talk"):
 
     for istream, stream in enumerate(STREAMS):
@@ -151,12 +155,26 @@ with sns.plotting_context("talk"):
         )
         plt.setp(ax.collections, zorder=100, label="")
 
-        k1 = ax.plot(
-            np.arange(9),
-            data[data["weight_type"] == "model_k1"].groupby("number")["weight"].mean(),
-            color="black",
-            lw=0.5,
-        )
+        plot_k1_fitted = True  # whether to plot "fitted" k1, or by just setting k=1
+        if plot_k1_fitted:
+            ____ = df_ws_k1[df_ws_k1["stream"] == stream]
+            k1_true = ax.plot(
+                np.arange(9),
+                ____[____["weight_type"] == "model_k1"]
+                .groupby("number")["weight"]
+                .mean(),
+                color="black",
+                lw=0.5,
+            )
+        else:
+            k1 = ax.plot(
+                np.arange(9),
+                data[data["weight_type"] == "model_k1"]
+                .groupby("number")["weight"]
+                .mean(),
+                color="black",
+                lw=0.5,
+            )
 
         ax.axhline(0.5, xmax=0.95, **axhline_args)
 
@@ -184,7 +202,7 @@ with sns.plotting_context("talk"):
         axins.text(
             x=0.175,
             y=0.675,
-            s=f"$k = {kappa:.2f}$",
+            s=r"$\widehat{k}$" + f"$ = {kappa:.2f}$",
             ha="left",
             va="center",
             transform=ax.transAxes,

@@ -1,0 +1,2 @@
+The derivatives in here are based on fixing k to be 1 in beh_modeling.py,
+and then running beh_weightings.py.
