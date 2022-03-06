@@ -7,8 +7,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.lines import Line2D
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from config import ANALYSIS_DIR_LOCAL, STREAMS
+from utils import eq1
 
 # %%
 # Settings
@@ -37,6 +39,12 @@ fname_weights = analysis_dir / "derived_data" / "weights.tsv"
 fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
 
 fname_fig1 = analysis_dir / "figures" / "fig1b+.pdf"
+
+# %%
+# Load param estimates
+df_estims = pd.read_csv(fname_estimates, sep="\t")
+df_estims = df_estims[df_estims["x0_type"] == x0_type]
+
 # %%
 # Figure 1b+
 # Figure 1a is created in LibreOffice Draw
@@ -151,6 +159,26 @@ with sns.plotting_context("talk"):
 
         ax.axhline(0.5, xmax=0.95, **axhline_args)
 
+        # plot insets
+        # bias = df_estims[df_estims["stream"] == stream]["bias"].mean()
+        kappa = df_estims[df_estims["stream"] == stream]["kappa"].mean()
+        xs = np.linspace(-1, 1, 9)  # "numbers_rescaled"
+        ys = eq1(X=xs, bias=0, kappa=kappa)
+        size = 1.0
+        axins = inset_axes(
+            ax,
+            width=size,
+            height=size,
+            loc="upper left",
+            bbox_to_anchor=(0.02, 1),
+            bbox_transform=ax.transAxes,
+        )
+        axins.plot(xs, ys, color=f"C{STREAMS.index(stream)}")
+        axins.axhline(0, lw=0.1)
+        sns.despine(ax=axins)
+        axins.set_xticks([])
+        axins.set_yticks([])
+
         # make a legend
         if istream == 0:
             handles = [
@@ -178,14 +206,15 @@ with sns.plotting_context("talk"):
         # other settings
         sns.despine(ax=ax)
         ax.set(xlabel="", ylabel="Decision weight")
-        ax.text(
-            x=0.5,
-            y=0.9,
-            s=stream.capitalize(),
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-        )
+        ax.set_title(stream.capitalize())
+        # ax.text(
+        #    x=0.5,
+        #    y=0.9,
+        #    s=stream.capitalize(),
+        #    ha="center",
+        #    va="center",
+        #    transform=ax.transAxes,
+        # )
 
 for ax in axs[0, 1:]:
     ax.set_ylim(
@@ -198,8 +227,6 @@ for ax in axs[0, 1:]:
 
 # %%
 # panels e, f, g - kappa, bias, noise
-df_estims = pd.read_csv(fname_estimates, sep="\t")
-df_estims = df_estims[df_estims["x0_type"] == x0_type]
 param_names = ["kappa", "bias", "noise"]
 df_estims = df_estims[["subject", "stream"] + param_names].melt(
     id_vars=["subject", "stream"], var_name="parameter"
