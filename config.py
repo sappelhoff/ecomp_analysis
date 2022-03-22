@@ -7,6 +7,9 @@ import numpy as np
 # Path definitions
 # -----------------------------------------------------------------------------
 
+# if several external hard drives are used, pick the correct one by changing the index
+external_name = {0: "LinuxDataAppelho", 1: "StefanBackupLinu"}[1]
+
 # The directory in which sourcedata, BIDS rawdata, and derivatives are nested
 # - DATA_DIR_REMOTE_LOCAL is the directory on the server, accessed via ssh from local pc
 # - DATA_DIR_LOCAL is the directory on the local pc
@@ -14,7 +17,7 @@ import numpy as np
 # - DATA_DIR_REMOTE is the directory on the server
 DATA_DIR_LOCAL = Path("/home/stefanappelhoff/Desktop/eComp")
 DATA_DIR_EXTERNAL = Path(
-    "/media/stefanappelhoff/LinuxDataAppelho/eeg_compression/ecomp_data/"
+    f"/media/stefanappelhoff/{external_name}/eeg_compression/ecomp_data/"
 )
 DATA_DIR_REMOTE = Path(
     "/home/appelhoff/Projects/ARC-Studies/eeg_compression/ecomp_data/"
@@ -29,7 +32,7 @@ DATA_DIR_REMOTE_LOCAL = Path(
 # same naming conventions as for DATA_DIR_* above
 ANALYSIS_DIR_LOCAL = Path("/home/stefanappelhoff/Desktop/eComp/ecomp_analysis")
 ANALYSIS_DIR_EXTERNAL = Path(
-    "/media/stefanappelhoff/LinuxDataAppelho/eeg_compression/ecomp_data/"
+    f"/media/stefanappelhoff/{external_name}/eeg_compression/ecomp_data/"
 )
 ANALYSIS_DIR_REMOTE = Path(
     "/home/appelhoff/Projects/ARC-Studies/eeg_compression/ecomp_data/code/ecomp_analysis/"  # noqa: E501

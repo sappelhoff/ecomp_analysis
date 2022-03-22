@@ -303,7 +303,7 @@ if do_plot:
                 )
 
             ax.set(
-                xlabel="curvature (k)",
+                xlabel="kappa (k)",
                 ylabel="noise (s)",
                 title=f'Gain normalization:\n"{gnorm_type}"',
             )

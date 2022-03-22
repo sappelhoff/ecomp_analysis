@@ -123,6 +123,21 @@ with sns.plotting_context("talk"):
 fig.tight_layout()
 
 # %%
+# Prepare plot to visualize different model RDMs based on different "k" params
+fig, axs = plt.subplots(2, 2, figsize=(5, 5))
+for i, k in enumerate([1, 0.4, 0.1, 3]):
+    ax = axs.flat[i]
+    _model = get_models_dict("9x9", ["numberline"], False, bias=0, kappa=k)["no_orth"][
+        "numberline"
+    ]
+    ax.imshow(_model)
+    ax.axis("off")
+    ax.set_title(f"k={k}")
+
+fig.tight_layout()
+
+
+# %%
 # Calculate RSA per subj and stream
 nconditions = int(rdm_size.split("x")[0])
 df_rsa_list = []
