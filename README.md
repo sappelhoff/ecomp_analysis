@@ -19,18 +19,29 @@ for running the analyses.
 ## Obtaining the data
 
 The code can run with the `mpib_ecomp_sourcedata` dataset:
-https://gin.g-node.org/sappelhoff/mpib_ecomp_sourcedata
+
+- repository: https://gin.g-node.org/sappelhoff/mpib_ecomp_sourcedata
+- doi: forthcoming
 
 However, running the code the first time might take a long time
 in order to produce all derivatives that are not shipped as part of this
 (analysis code) repository.
 Downloading the `mpib_ecomp_derivatives` dataset may speed this step up
 (not required):
-https://gin.g-node.org/sappelhoff/mpib_ecomp_derivatives
 
-Finally, there is a Brain Imaging Data Structure (BIDS) version of the
+- repository: https://gin.g-node.org/sappelhoff/mpib_ecomp_derivatives
+- doi: forthcoming
+
+There is a Brain Imaging Data Structure (BIDS) version of the
 data available:
-https://gin.g-node.org/sappelhoff/mpib_ecomp_dataset
+
+- repository: https://gin.g-node.org/sappelhoff/mpib_ecomp_dataset
+- doi: forthcoming
+
+Finally, there is the experiment code that was used when the data was collected:
+
+- repository: https://github.com/sappelhoff/ecomp_experiment/
+- doi: forthcoming
 
 ## Configuration before running the code
 
