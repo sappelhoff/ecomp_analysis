@@ -22,7 +22,7 @@ dependencies:
 - pytest
 - git-annex
 - pip:
-  - https://github.com/mne-tools/mne-python/zipball/6e312e1254105b9f2546c3b91108b1f96b7f05c3
+  - mne<1.1
   - pooch
   - tqdm
   - python-picard
