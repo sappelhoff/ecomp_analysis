@@ -134,7 +134,6 @@ as code cells that can be individually executed.
 
 - `beh_misc.py`
 - `eeg_misc.py`
-- `miniconf_plots.py`
 
 ### EEG analysis scripts
 
