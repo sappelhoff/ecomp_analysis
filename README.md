@@ -2,6 +2,15 @@
 
 This repository contains the analysis code for the eComp project.
 
+The archived version can be found on Zenodo:
+
+- doi: forthcoming
+
+All important details are reported in the original paper for the project:
+
+- preprint: forthcoming
+- journal article: forthcoming
+
 ## Installation
 
 To install a Python environment suitable to running this analysis code, please:
