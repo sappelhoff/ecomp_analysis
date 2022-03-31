@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/423527863.svg)](https://zenodo.org/badge/latestdoi/423527863)
+
 # ecomp_analysis
 
 This repository contains the analysis code for the eComp project.
