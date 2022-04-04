@@ -52,7 +52,7 @@ data available:
 Finally, there is the experiment code that was used when the data was collected:
 
 - repository: https://github.com/sappelhoff/ecomp_experiment/
-- doi: forthcoming
+- doi: [10.5281/zenodo.6411313](https://doi.org/10.5281/zenodo.6411313)
 
 ## Configuration before running the code
 
