@@ -6,7 +6,7 @@ This repository contains the analysis code for the eComp project.
 
 The archived version can be found on Zenodo:
 
-- doi: forthcoming
+- doi: [10.5281/zenodo.6411287](https://doi.org/10.5281/zenodo.6411287)
 
 All important details are reported in the original paper for the project:
 
