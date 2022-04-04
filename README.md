@@ -10,7 +10,7 @@ The archived version can be found on Zenodo:
 
 All important details are reported in the original paper for the project:
 
-- preprint: forthcoming
+- preprint: [10.1101/2022.03.31.486560](https://doi.org/10.1101/2022.03.31.486560)
 - journal article: forthcoming
 
 ## Installation
