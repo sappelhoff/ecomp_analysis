@@ -8,7 +8,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 
 # if several external hard drives are used, pick the correct one by changing the index
-external_name = {0: "LinuxDataAppelho", 1: "StefanBackupLinu"}[1]
+external_name = {0: "LinuxDataAppelho", 1: "StefanBackupLinu", 2: "backup_stefan"}[2]
 
 # The directory in which sourcedata, BIDS rawdata, and derivatives are nested
 # - DATA_DIR_LOCAL is the directory on the local pc
