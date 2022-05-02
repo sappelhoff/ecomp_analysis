@@ -68,7 +68,7 @@ fname_fif_clean_template = str(
     derivatives / "sub-{sub:02}" / "sub-{sub:02}_clean_raw.fif.gz"
 )
 
-fname_tfr_template = (
+fname_tfr_template = str(
     derivatives / "sub-{sub:02}" / "sub-{sub:02}_stream-{stream}_tfr.h5"
 )
 
@@ -143,7 +143,7 @@ for stream, epo in epo_dict.items():
         use_fft=False,
         picks=["eeg"],
         n_jobs=1,
-        verbose=0,
+        verbose=True,
     )
 
     fname = fname_tfr_template.format(sub=sub, stream=stream)
