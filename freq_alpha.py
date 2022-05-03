@@ -75,7 +75,7 @@ fname_tfr_template = str(
 # %%
 # Read raw
 fname = fname_fif_clean_template.format(sub=sub)
-raw = mne.io.read_raw_fif(fname)
+raw = mne.io.read_raw_fif(fname, preload=True)
 
 # %%
 # Get events: pick only "fixstim offset" in trial
@@ -109,7 +109,7 @@ epochs = mne.Epochs(
     events=events,
     event_id=event_id_human,
     decim=decim,  # based on downsample_freq
-    preload=False,
+    preload=True,
     tmin=tmin,
     tmax=tmax,
     baseline=baseline,
@@ -121,7 +121,7 @@ epochs = mne.Epochs(
 # Distinguish single and dual stream data
 epo_dict = {}
 for stream in STREAMS:
-    epo_dict[stream] = epochs[stream].load_data()
+    epo_dict[stream] = epochs[stream]
 
 
 # %%
@@ -132,9 +132,10 @@ for stream, epo in epo_dict.items():
 
 # %%
 # Do TFR decomposition separately for each stream and save
+tfr_dict = {}
 for stream, epo in epo_dict.items():
 
-    average_tfr = mne.time_frequency.tfr_morlet(
+    tfr_dict[stream] = mne.time_frequency.tfr_morlet(
         epo,
         freqs,
         n_cycles,
@@ -147,4 +148,6 @@ for stream, epo in epo_dict.items():
     )
 
     fname = fname_tfr_template.format(sub=sub, stream=stream)
-    average_tfr.save(fname, overwrite)
+    tfr_dict[stream].save(fname, overwrite)
+
+# %%
