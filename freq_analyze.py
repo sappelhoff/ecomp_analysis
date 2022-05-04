@@ -54,6 +54,10 @@ dual_data = np.stack([np.mean(tfr.data.copy(), 1) for tfr in duals])
 
 
 # %%
+tfr.data = np.mean(np.stack([tfr.data.copy() for tfr in duals]), 0)
+_ = tfr.plot(picks=["Oz"])
+
+# %%
 # Create "fake evoked" for topo plotting
 info = mne.create_info(tfr.ch_names, sfreq=tfr.info["sfreq"], ch_types="eeg")
 info.set_montage("easycap-M1")
