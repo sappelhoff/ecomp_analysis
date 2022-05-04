@@ -32,7 +32,16 @@ overwrite = False
 downsample_freq = 250
 t_min_max_epochs = (-0.5, 3.5)
 
-baseline = (None, 0)
+baseline = (None, 0)  # irrelevant prior to TFR
+
+# TODO
+# cycles: use fixed number for all freqs ... e.g., 7
+# use decim to downsample TFR ... 50ms steps?
+# morlet: is it forwards and backwards? ... check in mne docs
+# baselining: AFTER tfr --> but not needed when single minus dual
+# check peak: what happens in epoch at 0.5s?
+# Make epochs longer, then crop?
+#
 
 # alpha power ~8-14 Hz
 freqs = np.arange(8, 15)
