@@ -27,10 +27,10 @@ dependencies:
 - flake8
 - flake8-docstrings
 - git-annex
-- h5py
-- h5io
 - pip:
   - mne<1.1
+  - h5py
+  - h5io
   - pooch
   - pyopengl
   - pyyaml
