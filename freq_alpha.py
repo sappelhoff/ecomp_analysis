@@ -27,12 +27,13 @@ from utils import parse_overwrite
 # Settings
 data_dir = DATA_DIR_EXTERNAL
 sub = 1
-overwrite = False
+overwrite = True
 
 downsample_freq = 250
-t_min_max_epochs = (-0.5, 3.5)
+t_min_max_epochs = (-1.5, 4.5)
+t_min_max_epochs_crop = (-0.5, 3.5)
 
-baseline = (None, 0)  # irrelevant prior to TFR
+baseline = None  # irrelevant prior to TFR
 
 # TODO
 # cycles: use fixed number for all freqs ... e.g., 7
@@ -46,10 +47,11 @@ baseline = (None, 0)  # irrelevant prior to TFR
 # alpha power ~8-14 Hz
 freqs = np.arange(8, 15)
 
-# make time/freq resolution frequency band dependent
+# make time/freq resolution frequency band dependent: freqs / 2.0
 # see also:
 # https://www.fieldtriptoolbox.org/tutorial/timefrequencyanalysis/#morlet-wavelets
-n_cycles = freqs / 2.0
+# ... or keep fixed at e.g., 7 cycles
+n_cycles = 7
 
 # %%
 # When not in an IPython session, get command line inputs
@@ -154,9 +156,11 @@ for stream, epo in epo_dict.items():
         picks=["eeg"],
         n_jobs=1,
         verbose=True,
+        decim=2,
     )
 
     fname = fname_tfr_template.format(sub=sub, stream=stream)
+    tfr_dict[stream].crop(*t_min_max_epochs_crop)
     tfr_dict[stream].save(fname, overwrite)
 
 # %%
