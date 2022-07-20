@@ -113,26 +113,61 @@ We recommend running them interactively with an editor such as VSCode
 VSCode will pick up on the `# %%` comments, and render parts of the script
 as code cells that can be individually executed.
 
+### General order to run code files
+
+If you **don't** want to use the `mpib_ecomp_derivatives` dataset described above
+to skip some of the computations, you will need to execute all code files.
+The following list is a suggested order, because some code files will depend on others.
+Note that the data in the `derived_data/annotations/` directory is crucial for
+reproducing results because parts of the information therein cannot be automatically provided
+(for example, which ICA components are rejected).
+
+1. `beh_misc.py`
+1. `00_sanity_check.py`
+1. `01_find_bads.py`
+1. `02_inspect_raw.py`
+1. `03_run_ica.py`
+1. `04_inspect_ica.py`
+1. `05_make_epochs.py`
+1. `eeg_misc.py`
+1. `erp_numbers.py`
+1. `rdms_mahalanobis.py`
+1. `rsa_timecourse.py`
+1. `rsa_neurometrics.py`
+1. `beh_accuracy.py`
+1. `beh_modeling.py`
+1. `beh_weightings.py`
+1. `plots_fig1.py`
+1. `plots_fig2.py`
+1. `plots_fig3.py`
+1. `plots_fig4.py`
+1. Use LibreOffice Draw (https://www.libreoffice.org/discover/draw/) to open `figures/paradigm_figure.odg`
+   and export `paradigm_figure.pdf`
+1. Use `xelatex` (for example on a service like https://www.overleaf.com/) and `figures/fig*.tex` to finalize the figures.
+   Note that the `*` stands for 1, 2, 3, or 4.
+
 ## Explanation of files
 
 ### General "infrastructure" files
 
-- `.flake8`
-- `.gitignore`
-- `.pre-commit-config.yaml`
-- `.environment.yml`
-- `pyproject.toml`
-- `README.md`
-- `LICENSE`
+- `.flake8` --> code style configuration (see also `pyproject.toml`)
+- `.gitignore` --> which files to ignore during version control
+- `.pre-commit-config.yaml` --> for enforcing proper coding style
+- `.environment.yml` --> software dependencies, see "Installation"
+- `pyproject.toml` --> code style configuration (see also `.flake8`)
+- `README.md` --> general information about this repository
+- `LICENSE` --> how to use and credit the resources
 
 ### Utility libraries
 
-- `config.py`
-- `utils.py`
-- `clusterperm.py`
-- `model_rdms.py`
+- `config.py` --> general configuration and variables that get re-used across scripts
+- `utils.py` --> general functions that get re-used across scripts
+- `clusterperm.py` --> functions for cluster-based permutation testing
+- `model_rdms.py` --> script to generate model representational dissimilarity matrices
 
 ### EEG preprocessing scripts
+
+Generel preprocessing flow of the EEG data:
 
 - `00_sanity_check.py`
 - `01_find_bads.py`
@@ -143,10 +178,14 @@ as code cells that can be individually executed.
 
 ### Miscellaneous analysis scripts
 
+For example for checking for missing data or rejected EEG epochs:
+
 - `beh_misc.py`
 - `eeg_misc.py`
 
 ### EEG analysis scripts
+
+For both RSA and ERP analyses:
 
 - `rdms_mahalanobis.py`
 - `rsa_neurometrics.py`
@@ -155,37 +194,41 @@ as code cells that can be individually executed.
 
 ### Behavior analysis scripts
 
+For general accuracy and descriptive behavior analyses, as well as modeling:
+
 - `beh_accuracy.py`
 - `beh_modeling.py`
 - `beh_weightings.py`
 
 ### Figure creation scripts
 
+Each producing the figure as found in the manuscript (but see `.tex` files mentioned below):
+
 - `plots_fig1.py`
 - `plots_fig2.py`
 - `plots_fig3.py`
 - `plots_fig4.py`
 
-### Analysis outputs (derivatives)
+### Analysis outputs (`derived_data/` directory)
 
-Generally contains outputs from the scripts above.
+This directory generally contains outputs from the scripts above.
 Importantly, the `annotations` subfolder contains important data from the
 visual screening of the EEG data (cannot be automatically reproduced):
 
-- `*_annotations.txt` saved MNE-Python annotations
-- `*_bad-channels.txt` each non-empty row in the file describes a bad channel
-- `*_bads_pyprep.json` outputs from the `01_find_bads.py` script
-- `*_exclude_ica.json` which ICA components to exclude
-- `*_faster_bad_epos.json` epoch indices rejected through the "FASTER" pipeline
+- `*_annotations.txt` --> saved MNE-Python annotations
+- `*_bad-channels.txt` --> each non-empty row in the file describes a bad channel
+- `*_bads_pyprep.json` --> outputs from the `01_find_bads.py` script
+- `*_exclude_ica.json` --> which ICA components to exclude
+- `*_faster_bad_epos.json` --> epoch indices rejected through the "FASTER" pipeline
 
-### Analysis outputs (figures)
+### Analysis outputs (`figures/` directory)
 
-Generally contains outputs from the scripts above.
+This directory generally contains outputs from the scripts above.
 Exceptions are:
 
-- `paradigm_figure.odg`, to create fig1a, using LibreOffice Draw
+- `paradigm_figure.odg` --> to create fig1a, using LibreOffice Draw
   (https://www.libreoffice.org/discover/draw/)
-- `*.tex` files that are used to put panel letters onto finished figures:
+- `*.tex` --> files that are used to put panel letters onto finished figures:
     - `fig1.tex`
     - `fig2.tex`
     - `fig3.tex`

@@ -57,7 +57,7 @@ overwrite = False
 # which baseline to apply
 baseline = (None, 0)
 
-rdm_size = "9x9"  # 9x9 or 18x18
+rdm_size = "18x18"  # 9x9 or 18x18
 
 # %%
 # When not in an IPython session, get command line inputs
