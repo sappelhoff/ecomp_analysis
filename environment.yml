@@ -21,10 +21,10 @@ dependencies:
 - pytest-sugar
 - pytest
 - git-annex
-- h5py
-- h5io
 - pip:
   - mne<1.1
+  - h5py
+  - h5io
   - pooch
   - tqdm
   - python-picard
