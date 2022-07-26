@@ -400,13 +400,14 @@ for stream in STREAMS:
             dodge=False,
             ci=68,
             hue="weight_type",
+            hue_order=["data", "model", "model_k1"],
             col="subject",
             col_wrap=6,
             kind="point",
         )
     _ = g.fig.suptitle(stream, y=1.05, fontsize=40)
 
-    for col_val, ax in g.axes_dict.items():
+    for isub, (col_val, ax) in enumerate(g.axes_dict.items()):
         _df = df_estimates[
             (df_estimates["x0_type"] == x0_type)
             & (df_estimates["subject"] == col_val)
@@ -414,7 +415,7 @@ for stream in STREAMS:
         ]
         b, k = _df[["bias", "kappa"]].to_numpy().flatten()
         title = ax.get_title()
-        ax.set_title(f"b: {b:.2f}, k: {k:.2f}", fontsize=30)
+        ax.set_title(f"{isub+1}, b: {b:.2f}, k: {k:.2f}", fontsize=30)
         ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
 
 # %%
