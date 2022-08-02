@@ -6,7 +6,9 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pingouin
 import seaborn as sns
+from scipy.stats import sem
 
 from config import (
     ANALYSIS_DIR_LOCAL,
@@ -333,6 +335,47 @@ weightdata = pd.concat(weight_dfs).reset_index(drop=True)
 posweightdata = pd.concat(posweight_dfs).reset_index(drop=True)
 
 # %%
+# Model-free analysis of compression vs. anti-compression
+# we take the weight difference of mean(1-2, 8-9) and mean(4-5, 5-6)
+# a positive value means compression: the slopes at the edges
+# are shallower than in the middle
+# and vice versa: a negative value means anti-compression
+
+for stream in STREAMS:
+    datas = []
+    for num in [1, 2, 8, 9, 4, 5, 6]:
+        datas.append(
+            weightdata[
+                (weightdata["stream"] == stream)
+                & (weightdata["weight_type"] == "data")
+                & (weightdata["number"] == num)
+            ]["weight"].to_numpy()
+        )
+
+    datas = np.stack(datas)
+
+    vals = ((datas[0, :] - datas[1, :]) + (datas[2, :] - datas[3, :])) / 2 - (
+        (datas[4, :] - datas[5, :]) + (datas[5, :] - datas[6, :])
+    ) / 2
+
+    vals = ((datas[2, :] - datas[3, :])) - (
+        (datas[4, :] - datas[5, :]) + (datas[5, :] - datas[6, :])
+    ) / 2
+
+    # ttest against 0
+    _stats = pingouin.ttest(vals, y=0)
+    t = _stats["T"].to_numpy()[0]
+    dof = _stats["dof"].to_numpy()[0]
+    p = _stats["p-val"].to_numpy()[0]
+    d = _stats["cohen-d"].to_numpy()[0]
+
+    print(
+        f"{stream}: t({dof})={t:.2f}, p={p:.3f}, d={d:.2f}, two-tailed;"
+        f" mean: {np.mean(vals):.3f}, SEM: {sem(vals):.3f}"
+    )
+
+
+# %%
 # plot weights
 plotkwargs = dict(
     x="number",
@@ -405,7 +448,7 @@ for stream in STREAMS:
             col_wrap=6,
             kind="point",
         )
-    _ = g.fig.suptitle(stream, y=1.05, fontsize=40)
+    _ = g.fig.suptitle(f'"{stream} stream" task', y=1.05, fontsize=40)
 
     for isub, (col_val, ax) in enumerate(g.axes_dict.items()):
         _df = df_estimates[
@@ -415,8 +458,12 @@ for stream in STREAMS:
         ]
         b, k = _df[["bias", "kappa"]].to_numpy().flatten()
         title = ax.get_title()
-        ax.set_title(f"{isub+1}, b: {b:.2f}, k: {k:.2f}", fontsize=30)
+        ax.set_title(f"sub: {isub+1}\nb: {b:.2f}, k: {k:.2f}", fontsize=30)
         ax.axhline(0.5, linestyle="--", color="black", lw=0.5)
+
+    g.fig.tight_layout()
+    with sns.plotting_context("poster", font_scale=1.5):
+        sns.move_legend(obj=g, loc="upper right", ncol=3, title="")
 
 # %%
 # Plot fit based on mean estimates parameters
