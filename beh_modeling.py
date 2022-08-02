@@ -19,6 +19,7 @@ from tqdm.auto import tqdm
 from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, NUMBERS, STREAMS, SUBJS
 from utils import (
     eq2,
+    find_dot_idxs,
     get_sourcedata,
     parse_overwrite,
     prep_model_inputs,
@@ -414,8 +415,9 @@ def plot_estim_res(df, plot_single_subj, param_names):
                 set1 = df[df["stream"] == STREAMS[0]][param]
                 set2 = df[df["stream"] == STREAMS[1]][param]
 
-                locs1 = ax.get_children()[1].get_offsets()
-                locs2 = ax.get_children()[2].get_offsets()
+                _idx1, _idx2 = find_dot_idxs(ax, int(df_fixed.shape[0] / 2))
+                locs1 = ax.get_children()[_idx1].get_offsets()
+                locs2 = ax.get_children()[_idx2].get_offsets()
 
                 sort_idxs1 = np.argsort(set1)
                 sort_idxs2 = np.argsort(set2)

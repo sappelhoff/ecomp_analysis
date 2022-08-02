@@ -755,3 +755,24 @@ def spm_orth(X, opt="pad"):
         raise ValueError("opt must be one of ['pad', 'norm'].")
 
     return X
+
+
+def find_dot_idxs(ax, n_expected_dots):
+    """Find object in axes corresponding to plotted dots."""
+    # see also https://stackoverflow.com/a/63171175/5201771
+    children = ax.get_children()
+    idxs = []
+    for ichild, child in enumerate(children):
+        try:
+            offsets = child.get_offsets()
+        except AttributeError:
+            continue
+
+        nrows, ncols = offsets.shape
+        if ncols == 2 and nrows == n_expected_dots:
+            idxs.append(ichild)
+
+    if len(idxs) == 2:
+        return idxs
+    else:
+        raise RuntimeError("Encountered problems identifying dots in plot.")
