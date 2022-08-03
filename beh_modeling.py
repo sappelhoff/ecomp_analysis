@@ -50,6 +50,12 @@ lower = np.array([-0.5, 0, 0, 0.01], dtype=float)
 upper = np.array([0.5, 5, 0, 3], dtype=float)
 bounds = Bounds(lower, upper)
 
+# number of free parameters for BIC and AIC calculation
+n_free_params = len(param_names)
+for lo, up in zip(lower, upper):
+    if lo == up:
+        n_free_params -= 1
+
 analysis_dir = ANALYSIS_DIR_LOCAL
 data_dir = DATA_DIR_LOCAL
 
@@ -57,6 +63,7 @@ overwrite = False
 
 do_plot = True
 
+# see section below: "Fit all data as if from single subject"
 do_fit_singlefx = False
 
 # for plotting
@@ -386,6 +393,16 @@ df_fixed["noise0"] = noise0
 df_fixed["x0_type"] = "fixed"
 df_fixed["method"] = minimize_method
 
+# Calculate and add AIC and BIC
+# "loss" is based on G statistic, see `psychometric_model` function in `utils.py`
+aic = 2 * n_free_params + df_fixed["loss"].to_numpy()
+
+n_trials = 300  # per task
+bic = np.log(n_trials) * n_free_params + df_fixed["loss"].to_numpy()
+
+df_fixed.insert(df_fixed.columns.tolist().index("loss") + 1, "AIC", aic)
+df_fixed.insert(df_fixed.columns.tolist().index("loss") + 1, "BIC", bic)
+
 
 # %%
 # Plot estimation results
@@ -546,6 +563,16 @@ df_specific = df_specific[
 ].reset_index(drop=True)
 df_specific["x0_type"] = "specific"
 df_specific["method"] = minimize_method
+
+# Calculate and add AIC and BIC
+# "loss" is based on G statistic, see `psychometric_model` function in `utils.py`
+aic = 2 * n_free_params + df_specific["loss"].to_numpy()
+
+n_trials = 300  # per task
+bic = np.log(n_trials) * n_free_params + df_specific["loss"].to_numpy()
+
+df_specific.insert(df_specific.columns.tolist().index("loss") + 1, "AIC", aic)
+df_specific.insert(df_specific.columns.tolist().index("loss") + 1, "BIC", bic)
 
 # %%
 # Plot info on initial guesses
