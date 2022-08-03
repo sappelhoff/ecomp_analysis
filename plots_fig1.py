@@ -10,7 +10,7 @@ from matplotlib.lines import Line2D
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from config import ANALYSIS_DIR_LOCAL, STREAMS
-from utils import eq1
+from utils import eq1, find_dot_idxs
 
 # %%
 # Settings
@@ -97,10 +97,9 @@ with sns.plotting_context("talk"):
 
     # connect subj dots with lines
     # https://stackoverflow.com/a/51157346/5201771
-    idx0 = 1
-    idx1 = 2
-    locs1 = ax.get_children()[idx0].get_offsets()
-    locs2 = ax.get_children()[idx1].get_offsets()
+    _idx1, _idx2 = find_dot_idxs(ax, int(df_accs.shape[0] / 2))
+    locs1 = ax.get_children()[_idx1].get_offsets()
+    locs2 = ax.get_children()[_idx2].get_offsets()
 
     # before plotting, we need to sort so that the data points correspond
     sort_idxs1 = np.argsort(data[data["stream"] == STREAMS[0]]["accuracy"].to_numpy())
@@ -291,10 +290,9 @@ with sns.plotting_context("talk"):
 
         # connect subj dots with lines
         # https://stackoverflow.com/a/51157346/5201771
-        idx0 = 1
-        idx1 = 2
-        locs1 = ax.get_children()[idx0].get_offsets()
-        locs2 = ax.get_children()[idx1].get_offsets()
+        _idx1, _idx2 = find_dot_idxs(ax, int(df_accs.shape[0] / 2))
+        locs1 = ax.get_children()[_idx1].get_offsets()
+        locs2 = ax.get_children()[_idx2].get_offsets()
 
         # before plotting, we need to sort so that the data points correspond
         sort_idxs1 = np.argsort(data[data["stream"] == STREAMS[0]][colname].to_numpy())

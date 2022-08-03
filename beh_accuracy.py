@@ -9,7 +9,7 @@ import seaborn as sns
 from scipy.stats import sem
 
 from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, STREAMS, SUBJS
-from utils import get_sourcedata
+from utils import find_dot_idxs, get_sourcedata
 
 # %%
 # Settings
@@ -113,10 +113,9 @@ with sns.plotting_context(**plotting_context):
 
     # connect subj dots with lines
     # https://stackoverflow.com/a/51157346/5201771
-    idx0 = 1
-    idx1 = 2
-    locs1 = ax.get_children()[idx0].get_offsets()
-    locs2 = ax.get_children()[idx1].get_offsets()
+    _idx1, _idx2 = find_dot_idxs(ax, int(df_acc.shape[0] / 2))
+    locs1 = ax.get_children()[_idx1].get_offsets()
+    locs2 = ax.get_children()[_idx2].get_offsets()
 
     # before plotting, we need to sort so that the data points correspond
     sort_idxs1 = np.argsort(data[data["stream"] == STREAMS[0]]["accuracy"].to_numpy())
