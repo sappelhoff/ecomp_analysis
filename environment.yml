@@ -17,9 +17,6 @@ dependencies:
 - isort
 - flake8
 - flake8-docstrings
-- pytest-cov
-- pytest-sugar
-- pytest
 - git-annex
 - pip:
   - mne<1.1
