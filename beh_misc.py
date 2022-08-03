@@ -157,9 +157,10 @@ with sns.plotting_context("talk"):
 
 
 # %%
-# BIC analyses
+# AIC and BIC analyses
 # in single, is: "free" > "k=1" > "k>1" ?
 # in dual, is: "free" > "k=1" > "k<1" ?
+measure = "BIC"
 fname_free = analysis_dir / "derived_data" / "estim_params_Nelder-Mead.tsv"
 fname_k1 = analysis_dir / "derived_data" / "estim_params_Nelder-Mead_k_is_1.tsv"
 fname_kbig = analysis_dir / "derived_data" / "estim_params_Nelder-Mead_k_bigger_1.tsv"
@@ -185,7 +186,7 @@ if not skip:
         df = pd.read_csv(fname, sep="\t")
         df["fit_scenario"] = fit_scenario
         df = df[df["x0_type"] == "specific"][
-            ["subject", "stream", "fit_scenario", "BIC"]
+            ["subject", "stream", "fit_scenario", measure]
         ]
         dfs.append(df)
 
@@ -198,7 +199,7 @@ if not skip:
             col="stream",
             col_order=STREAMS,
             x="fit_scenario",
-            y="BIC",
+            y=measure,
             data=df,
             join=False,
             ci=68,
@@ -210,13 +211,13 @@ if not skip:
     # stats
     # single
     single_free = df[(df["fit_scenario"] == "free") & (df["stream"] == "single")][
-        "BIC"
+        measure
     ].to_numpy()
     single_k1 = df[(df["fit_scenario"] == "k_is_1") & (df["stream"] == "single")][
-        "BIC"
+        measure
     ].to_numpy()
     single_kbig = df[(df["fit_scenario"] == "k_bigger_1") & (df["stream"] == "single")][
-        "BIC"
+        measure
     ].to_numpy()
 
     print(
@@ -230,13 +231,13 @@ if not skip:
 
     # dual
     dual_free = df[(df["fit_scenario"] == "free") & (df["stream"] == "dual")][
-        "BIC"
+        measure
     ].to_numpy()
     dual_k1 = df[(df["fit_scenario"] == "k_is_1") & (df["stream"] == "dual")][
-        "BIC"
+        measure
     ].to_numpy()
     dual_ksmall = df[(df["fit_scenario"] == "k_smaller_1") & (df["stream"] == "dual")][
-        "BIC"
+        measure
     ].to_numpy()
 
     print(
