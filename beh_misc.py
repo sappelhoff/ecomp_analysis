@@ -6,6 +6,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pingouin
 import seaborn as sns
 from scipy.stats import binomtest
 
@@ -153,6 +154,98 @@ with sns.plotting_context("talk"):
     fig, ax = plt.subplots()
     sns.pointplot(x="stream", y="rt", data=df, ci=68, ax=ax)
     sns.despine(fig)
+
+
+# %%
+# BIC analyses
+# in single, is: "free" > "k=1" > "k>1" ?
+# in dual, is: "free" > "k=1" > "k<1" ?
+fname_free = analysis_dir / "derived_data" / "estim_params_Nelder-Mead.tsv"
+fname_k1 = analysis_dir / "derived_data" / "estim_params_Nelder-Mead_k_is_1.tsv"
+fname_kbig = analysis_dir / "derived_data" / "estim_params_Nelder-Mead_k_bigger_1.tsv"
+fname_ksmall = (
+    analysis_dir / "derived_data" / "estim_params_Nelder-Mead_k_smaller_1.tsv"
+)
+fnames = [fname_free, fname_k1, fname_kbig, fname_ksmall]
+fit_scenarios = ["free", "k_is_1", "k_bigger_1", "k_smaller_1"]
+
+skip = False
+for fname in fnames:
+    if not fname.exists():
+        skip = True
+        print(
+            "Necessary files don't exist. Run `beh_modeling.py` with different "
+            f"`fit_scenario` params.\n\nMissing: {fname}"
+        )
+
+if not skip:
+    # load and concatenate data in df
+    dfs = []
+    for fname, fit_scenario in zip(fnames, fit_scenarios):
+        df = pd.read_csv(fname, sep="\t")
+        df["fit_scenario"] = fit_scenario
+        df = df[df["x0_type"] == "specific"][
+            ["subject", "stream", "fit_scenario", "BIC"]
+        ]
+        dfs.append(df)
+
+    df = pd.concat(dfs)
+
+    # plot
+    with sns.plotting_context("talk"):
+        g = sns.catplot(
+            kind="point",
+            col="stream",
+            col_order=STREAMS,
+            x="fit_scenario",
+            y="BIC",
+            data=df,
+            join=False,
+            ci=68,
+        )
+
+        for _, ax in g.axes_dict.items():
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
+
+    # stats
+    # single
+    single_free = df[(df["fit_scenario"] == "free") & (df["stream"] == "single")][
+        "BIC"
+    ].to_numpy()
+    single_k1 = df[(df["fit_scenario"] == "k_is_1") & (df["stream"] == "single")][
+        "BIC"
+    ].to_numpy()
+    single_kbig = df[(df["fit_scenario"] == "k_bigger_1") & (df["stream"] == "single")][
+        "BIC"
+    ].to_numpy()
+
+    print(
+        "single: free vs k1\n",
+        pingouin.ttest(single_free, single_k1, paired=True).round(3),
+    )
+    print(
+        "single: free vs k>1\n",
+        pingouin.ttest(single_free, single_kbig, paired=True).round(3),
+    )
+
+    # dual
+    dual_free = df[(df["fit_scenario"] == "free") & (df["stream"] == "dual")][
+        "BIC"
+    ].to_numpy()
+    dual_k1 = df[(df["fit_scenario"] == "k_is_1") & (df["stream"] == "dual")][
+        "BIC"
+    ].to_numpy()
+    dual_ksmall = df[(df["fit_scenario"] == "k_smaller_1") & (df["stream"] == "dual")][
+        "BIC"
+    ].to_numpy()
+
+    print(
+        "dual: free vs k1\n", pingouin.ttest(dual_free, dual_k1, paired=True).round(3)
+    )
+    print(
+        "dual: free vs k<1\n",
+        pingouin.ttest(dual_free, dual_ksmall, paired=True).round(3),
+    )
 
 
 # %%

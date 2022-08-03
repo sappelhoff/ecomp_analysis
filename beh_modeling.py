@@ -655,11 +655,14 @@ for param in param_names:
 print("\n\n1-samp ttests vs mu\n------------------------------------------")
 use_one_sided = False
 stats_params = []
-_to_test = [("bias", 0), ("kappa", 1), ("leakage", 0)]
-if bounds.lb[2] == 0 and bounds.ub[2] == 0:
-    # don't test leakage if we fixed it at 0
-    _ = _to_test.pop()
-for param, mu in _to_test:
+_to_test = {"bias": 0, "kappa": 1, "leakage": 0}
+
+# don't test parameters that we fixed
+for ibound, (lo, up) in enumerate(zip(lower, upper)):
+    if lo == up:
+        del _to_test[param_names[ibound]]
+
+for param, mu in _to_test.items():
     for stream in STREAMS:
         x = df_specific[df_specific["stream"] == stream][param].to_numpy()
         alt = "two-sided"
