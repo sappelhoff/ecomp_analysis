@@ -43,23 +43,12 @@ minimize_method_opts = {
     ),
 }[minimize_method]
 
-param_names = ["bias", "kappa", "leakage", "noise"]
-
-# parameter bounds (in order of param_names)
-lower = np.array([-0.5, 0, 0, 0.01], dtype=float)
-upper = np.array([0.5, 5, 0, 3], dtype=float)
-bounds = Bounds(lower, upper)
-
-# number of free parameters for BIC and AIC calculation
-n_free_params = len(param_names)
-for lo, up in zip(lower, upper):
-    if lo == up:
-        n_free_params -= 1
-
 analysis_dir = ANALYSIS_DIR_LOCAL
 data_dir = DATA_DIR_LOCAL
 
 overwrite = False
+
+fit_scenario = "free"
 
 do_plot = True
 
@@ -78,6 +67,7 @@ if not hasattr(sys, "ps1"):
         data_dir=data_dir,
         overwrite=overwrite,
         do_plot=do_plot,
+        fit_scenario=fit_scenario,
     )
 
     defaults = parse_overwrite(defaults)
@@ -86,13 +76,60 @@ if not hasattr(sys, "ps1"):
     data_dir = defaults["data_dir"]
     overwrite = defaults["overwrite"]
     do_plot = defaults["do_plot"]
+    fit_scenario = defaults["fit_scenario"]
+
+# %%
+# Set parameter bounds (in order of `param_names`)
+# and reasonable ranges for initial parameter values
+# depending on `fit_scenario`
+#
+# fitting scenarios
+# -----------------
+# "free" -- the "standard case"
+# "k_is_1" -- with k fixed to 1 (=)
+# "k_bigger_1" -- with k not below 1 (>=)
+# "k_smaller_1" -- with k not above 1 (<=)
+param_names = ["bias", "kappa", "leakage", "noise"]
+
+if fit_scenario == "free":
+    lower = np.array([-0.5, 0, 0, 0.01], dtype=float)
+    upper = np.array([0.5, 5, 0, 3], dtype=float)
+    kappa0s = np.arange(0.2, 2.2, 0.2)
+elif fit_scenario == "k_is_1":
+    lower = np.array([-0.5, 1, 0, 0.01], dtype=float)
+    upper = np.array([0.5, 1, 0, 3], dtype=float)
+    kappa0s = [1]
+elif fit_scenario == "k_bigger_1":
+    lower = np.array([-0.5, 1, 0, 0.01], dtype=float)
+    upper = np.array([0.5, 5, 0, 3], dtype=float)
+    kappa0s = np.arange(1.0, 2.2, 0.2)
+else:
+    assert fit_scenario == "k_smaller_1", f"unknown `fit_scenario`: {fit_scenario}"
+    lower = np.array([-0.5, 0, 0, 0.01], dtype=float)
+    upper = np.array([0.5, 1, 0, 3], dtype=float)
+    kappa0s = np.arange(0.2, 1.0, 0.2)
+
+bounds = Bounds(lower, upper)
+bias0s = np.arange(-4, 5) / 10
+leakage0s = [0]  # np.arange(-0.25, 1, 0.25)
+noise0s = np.arange(0.1, 1.1, 0.1)
+
+# number of free parameters for BIC and AIC calculation
+n_free_params = len(param_names)
+for lo, up in zip(lower, upper):
+    if lo == up:
+        n_free_params -= 1
 
 # %%
 # Prepare file paths
-fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
+slug = f"_{fit_scenario}" if fit_scenario != "free" else ""
+
+fname_estimates = (
+    analysis_dir / "derived_data" / f"estim_params_{minimize_method}{slug}.tsv"
+)
 fname_estimates.parent.mkdir(parents=True, exist_ok=True)
 
-fname_x0s = analysis_dir / "derived_data" / f"x0s_{minimize_method}.npy"
+fname_x0s = analysis_dir / "derived_data" / f"x0s_{minimize_method}{slug}.npy"
 
 fname_neurometrics = analysis_dir / "derived_data" / "neurometrics_params.tsv"
 fname_neurometrics_erp = analysis_dir / "derived_data" / "erp_adm.tsv"
@@ -164,6 +201,7 @@ for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
                 data["stream"].append(stream)
                 data["accuracy"].append(acc)
                 data[param].append(x)
+
 # %%
 # Plot accuracy simulation results
 if do_plot:
@@ -466,12 +504,6 @@ if do_plot:
 # Run large set of (reasonable) initial guesses per subj to find best ones
 # NOTE: Depending on how many initial guesses to try, this will take a long time to run
 #       ... could be sped up significantly through parallelization.
-
-# Draw random initial values for the parameters from "reasonable" ranges
-bias0s = np.arange(-4, 5) / 10
-kappa0s = np.arange(0.2, 2.2, 0.2)
-leakage0s = [0]  # np.arange(-0.25, 1, 0.25)
-noise0s = np.arange(0.1, 1.1, 0.1)
 
 if not fname_x0s.exists() or overwrite:
 
