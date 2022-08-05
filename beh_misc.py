@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pingouin
 import seaborn as sns
-from scipy.stats import binomtest
+from scipy.stats import binomtest, sem
 
 from config import ANALYSIS_DIR_LOCAL, BAD_SUBJS, DATA_DIR_LOCAL, STREAMS, SUBJS
 from utils import get_sourcedata
@@ -160,7 +160,7 @@ with sns.plotting_context("talk"):
 # AIC and BIC analyses
 # in single, is: "free" > "k=1" > "k>1" ?
 # in dual, is: "free" > "k=1" > "k<1" ?
-measure = "BIC"
+measure = "AIC"
 fname_free = analysis_dir / "derived_data" / "estim_params_Nelder-Mead.tsv"
 fname_k1 = analysis_dir / "derived_data" / "estim_params_Nelder-Mead_k_is_1.tsv"
 fname_kbig = analysis_dir / "derived_data" / "estim_params_Nelder-Mead_k_bigger_1.tsv"
@@ -221,13 +221,25 @@ if not skip:
     ].to_numpy()
 
     print(
-        "single: free vs k1\n",
-        pingouin.ttest(single_free, single_k1, paired=True).round(3),
+        f"single: means+SEM; {measure} --> "
+        f"free: {single_free.mean():.2f}+-{sem(single_free):.2f}, "
+        f"k1: {single_k1.mean():.2f}+-{sem(single_k1):.2f}, "
+        f"kbig: {single_kbig.mean():.2f}+-{sem(single_kbig):.2f}"
     )
-    print(
-        "single: free vs k>1\n",
-        pingouin.ttest(single_free, single_kbig, paired=True).round(3),
-    )
+
+    stats_single_free = pingouin.ttest(single_free, single_k1, paired=True)
+    t = stats_single_free["T"].to_numpy()[0]
+    dof = stats_single_free["dof"].to_numpy()[0]
+    p = stats_single_free["p-val"].to_numpy()[0]
+    d = stats_single_free["cohen-d"].to_numpy()[0]
+    print(f"single: free vs k1 --> t({dof})={t:.3f}, p={p:.3f}, d={d:.3f}")
+
+    stats_single_kbig = pingouin.ttest(single_free, single_kbig, paired=True)
+    t = stats_single_kbig["T"].to_numpy()[0]
+    dof = stats_single_kbig["dof"].to_numpy()[0]
+    p = stats_single_kbig["p-val"].to_numpy()[0]
+    d = stats_single_kbig["cohen-d"].to_numpy()[0]
+    print(f"single: free vs k>1 --> t({dof})={t:.3f}, p={p:.3f}, d={d:.3f}")
 
     # dual
     dual_free = df[(df["fit_scenario"] == "free") & (df["stream"] == "dual")][
@@ -241,12 +253,25 @@ if not skip:
     ].to_numpy()
 
     print(
-        "dual: free vs k1\n", pingouin.ttest(dual_free, dual_k1, paired=True).round(3)
+        f"dual: means+SEM; {measure} --> "
+        f"free: {dual_free.mean():.2f}+-{sem(dual_free):.2f}, "
+        f"k1: {dual_k1.mean():.2f}+-{sem(dual_k1):.2f}, "
+        f"ksmall: {dual_ksmall.mean():.2f}+-{sem(dual_ksmall):.2f}"
     )
-    print(
-        "dual: free vs k<1\n",
-        pingouin.ttest(dual_free, dual_ksmall, paired=True).round(3),
-    )
+
+    stats_dual_free = pingouin.ttest(dual_free, dual_k1, paired=True)
+    t = stats_dual_free["T"].to_numpy()[0]
+    dof = stats_dual_free["dof"].to_numpy()[0]
+    p = stats_dual_free["p-val"].to_numpy()[0]
+    d = stats_dual_free["cohen-d"].to_numpy()[0]
+    print(f"dual: free vs k1 --> t({dof})={t:.3f}, p={p:.3f}, d={d:.3f}")
+
+    stats_dual_ksmall = pingouin.ttest(dual_free, dual_ksmall, paired=True)
+    t = stats_dual_ksmall["T"].to_numpy()[0]
+    dof = stats_dual_ksmall["dof"].to_numpy()[0]
+    p = stats_dual_ksmall["p-val"].to_numpy()[0]
+    d = stats_dual_ksmall["cohen-d"].to_numpy()[0]
+    print(f"dual: free vs k<1 --> t({dof})={t:.3f}, p={p:.3f}, d={d:.3f}")
 
 
 # %%
