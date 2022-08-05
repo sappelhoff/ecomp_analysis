@@ -275,3 +275,30 @@ if not skip:
 
 
 # %%
+# Comparison kappas in single vs dual
+minimize_method = "Nelder-Mead"
+x0_type = "specific"
+
+fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
+
+if not fname_estimates.exists():
+    skip = True
+    print(
+        "Necessary files don't exist. Run `beh_modeling.py` first."
+        f"\n\nMissing: {fname_estimates}"
+    )
+else:
+    df_estims = pd.read_csv(fname_estimates, sep="\t")
+    df_estims = df_estims[df_estims["x0_type"] == x0_type].reset_index(drop=True)
+
+    k_single = df_estims[df_estims["stream"] == "single"]["kappa"].to_numpy()
+    k_dual = df_estims[df_estims["stream"] == "dual"]["kappa"].to_numpy()
+
+    stats_k = pingouin.ttest(k_single, k_dual, paired=True)
+    t = stats_k["T"].to_numpy()[0]
+    dof = stats_k["dof"].to_numpy()[0]
+    p = stats_k["p-val"].to_numpy()[0]
+    d = stats_k["cohen-d"].to_numpy()[0]
+    print(f"k single vs. dual --> t({dof})={t:.3f}, p={p:.3f}, d={d:.3f}")
+
+# %%
