@@ -23,9 +23,9 @@ def get_sourcedata(sub, stream, data_dir):
     return vhdr, tsv
 
 
-def get_estim_params(sub, stream, x0_type, minimize_method, analysis_dir):
+def get_estim_params(sub, stream, x0_type, minimize_method, slug, analysis_dir):
     """Get the estimated model parameters."""
-    fpath = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
+    fpath = analysis_dir / "derived_data" / f"estim_params_{minimize_method}{slug}.tsv"
     df = pd.read_csv(fpath, sep="\t")
     datasel = df[
         (df["subject"] == sub) & (df["stream"] == stream) & (df["x0_type"] == x0_type)

@@ -35,7 +35,7 @@ x0_type = "specific"
 fname_accs = analysis_dir / "derived_data" / "accuracies.tsv"
 
 fname_weights = analysis_dir / "derived_data" / "weights.tsv"
-fname_weights_k1 = analysis_dir / "derived_data" / "x0s_k1" / "weights_k1.tsv"
+fname_weights_k_is_1 = analysis_dir / "derived_data" / "weights_k_is_1.tsv"
 
 fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
 
@@ -121,7 +121,7 @@ with sns.plotting_context("talk"):
 df_ws = pd.read_csv(fname_weights, sep="\t")
 df_ws = df_ws[df_ws["weight_type"].isin(["data", "model", "model_k1"])]
 
-df_ws_k1 = pd.read_csv(fname_weights_k1, sep="\t")
+df_ws_k1 = pd.read_csv(fname_weights_k_is_1, sep="\t")
 df_ws_k1 = df_ws_k1[df_ws_k1["weight_type"].isin(["data", "model", "model_k1"])]
 
 with sns.plotting_context("talk"):

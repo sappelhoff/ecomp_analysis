@@ -107,7 +107,7 @@ The above will run the `01_find_bads.py` script for each participant,
 using the `overwrite` option,
 and the data and analysis directory paths specified.
 
-Note that many of the other scripts do not accept command line options.
+Note that some of the other scripts do not accept command line options.
 We recommend running them interactively with an editor such as VSCode
 (https://code.visualstudio.com/).
 VSCode will pick up on the `# %%` comments, and render parts of the script
@@ -123,6 +123,9 @@ reproducing results because parts of the information therein cannot be automatic
 (for example, which ICA components are rejected).
 
 1. `beh_misc.py`
+    1. two analyses will be skipped because they depend on outputs from later
+       steps. Simply re-run this script after completing all other steps to
+       get the respective results.
 1. `00_sanity_check.py`
 1. `01_find_bads.py`
 1. `02_inspect_raw.py`
@@ -136,7 +139,14 @@ reproducing results because parts of the information therein cannot be automatic
 1. `rsa_neurometrics.py`
 1. `beh_accuracy.py`
 1. `beh_modeling.py`
+    1. Run with different command line options: `--fit_scenario=X`, where
+       `X` is (i) `free`, (ii) `k_is_1`, (iii) `k_smaller_1`, and
+       (iv) `k_bigger_1`. Or set the `fit_scenario` variable in the script
+       if you do not want to run this from the command line.
 1. `beh_weightings.py`
+    1. Run with different command line options: `--fit_scenario=X`, where
+       `X` is (i) `free`, (ii) `k_is_1`. Or set the `fit_scenario` variable
+       in the script if you do not want to run this from the command line.
 1. `plots_fig1.py`
 1. `plots_fig2.py`
 1. `plots_fig3.py`

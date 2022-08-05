@@ -1,6 +1,7 @@
 """Analyze weights."""
 # %%
 # Imports
+import sys
 import warnings
 
 import matplotlib.pyplot as plt
@@ -21,6 +22,7 @@ from config import (
 from utils import (
     get_estim_params,
     get_sourcedata,
+    parse_overwrite,
     prep_model_inputs,
     prep_weight_calc,
     psychometric_model,
@@ -28,18 +30,40 @@ from utils import (
 
 # %%
 # Settings
+analysis_dir = ANALYSIS_DIR_LOCAL
+data_dir = DATA_DIR_LOCAL
+
 positions = np.arange(10)
 
 minimize_method = "Nelder-Mead"
 
 x0_type = "specific"
 
+# may be: "free" (default), "k_is_1", "k_smaller_1", "k_bigger_1"
+fit_scenario = "free"
+
+# %%
+# When not in an IPython session, get command line inputs
+# https://docs.python.org/3/library/sys.html#sys.ps1
+if not hasattr(sys, "ps1"):
+    defaults = dict(
+        analysis_dir=analysis_dir,
+        data_dir=data_dir,
+        fit_scenario=fit_scenario,
+    )
+
+    defaults = parse_overwrite(defaults)
+
+    analysis_dir = defaults["analysis_dir"]
+    data_dir = defaults["data_dir"]
+    fit_scenario = defaults["fit_scenario"]
+
 # %%
 # Prepare file paths
-analysis_dir = ANALYSIS_DIR_LOCAL
-data_dir = DATA_DIR_LOCAL
-
-fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
+slug = f"_{fit_scenario}" if fit_scenario != "free" else ""
+fname_estimates = (
+    analysis_dir / "derived_data" / f"estim_params_{minimize_method}{slug}.tsv"
+)
 
 # %%
 # Define function to calculate weights
@@ -148,7 +172,7 @@ def calc_nonp_weights(df, nsamples=10):
 
 
 def calc_CP_weights(
-    sub, stream, x0_type, data_dir, analysis_dir, minimize_method, params=[]
+    sub, stream, x0_type, data_dir, analysis_dir, minimize_method, slug, params=[]
 ):
     """Calculate decision weights based on model output `CP`.
 
@@ -169,6 +193,8 @@ def calc_CP_weights(
         The path to the analysis directory.
     minimize_method : {"Neldar-Mead", "L-BFGS-B", "Powell"}
         The method with which the parameters were estimated.
+    slug : {"", "k_is_1", "k_bigger_1", "k_smaller_1"}
+        Modify the file name of the estimated parameters.
     params : list
         Can be an empty list to use the subject and stream specific
         estimated parameters as read from file (default).
@@ -200,7 +226,9 @@ def calc_CP_weights(
     X, categories, y, y_true, ambiguous = prep_model_inputs(df)
 
     # Get estimated parameters and predicted choices
-    parameters = get_estim_params(sub, stream, x0_type, minimize_method, analysis_dir)
+    parameters = get_estim_params(
+        sub, stream, x0_type, minimize_method, slug, analysis_dir
+    )
     if params != []:
         # replace some or all parameters
         assert len(params) == 4
@@ -279,6 +307,7 @@ model_kwargs = dict(
     data_dir=data_dir,
     analysis_dir=analysis_dir,
     minimize_method=minimize_method,
+    slug=slug,
 )
 wtypes = ["data", "model", "model_k1"]
 weight_dfs = []
@@ -410,7 +439,7 @@ if plot_reg_lines and not plotgrid:
         ax.plot(np.arange(9), m * xy[:, 0] + b, color=_color)
 
 # optional horizontal, vertical, and diagonal (=linear weights) reference lines
-fname = analysis_dir / "figures" / "weights.jpg"
+fname = analysis_dir / "figures" / f"weights{slug}.jpg"
 plot_ref_lines = False
 refline_kwargs = dict(linestyle="--", color="black", lw=0.5)
 if plot_ref_lines and not plotgrid:
@@ -424,7 +453,9 @@ if plot_ref_lines and plotgrid:
 
 if plotgrid:
     sns.despine(g.fig)
-    g.fig.suptitle(f"Model based on initial guesses of type '{x0_type}'", y=1.05)
+    g.fig.suptitle(
+        f"Model based on initial guesses of type '{x0_type}' {slug})", y=1.05
+    )
     g.fig.savefig(fname)
 else:
     sns.despine(fig)
@@ -448,7 +479,7 @@ for stream in STREAMS:
             col_wrap=6,
             kind="point",
         )
-    _ = g.fig.suptitle(f'"{stream} stream" task', y=1.05, fontsize=40)
+    _ = g.fig.suptitle(f'"{stream} stream" task {slug}', y=1.05, fontsize=40)
 
     for isub, (col_val, ax) in enumerate(g.axes_dict.items()):
         _df = df_estimates[
@@ -488,7 +519,14 @@ for sub in SUBJS:
         )
 
         weights, _ = calc_CP_weights(
-            sub, stream, x0_type, data_dir, analysis_dir, minimize_method, params=params
+            sub,
+            stream,
+            x0_type,
+            data_dir,
+            analysis_dir,
+            minimize_method,
+            slug,
+            params=params,
         )
 
         # save in DF
@@ -523,8 +561,8 @@ g = sns.catplot(
     kind="point",
 )
 
-g.fig.suptitle(f"Model based on initial guesses of type '{x0_type}'", y=1.05)
-fname = analysis_dir / "figures" / "posweights_numberhue.jpg"
+g.fig.suptitle(f"Model based on initial guesses of type '{x0_type}' {slug}", y=1.05)
+fname = analysis_dir / "figures" / f"posweights_numberhue{slug}.jpg"
 g.fig.savefig(fname)
 
 # %%
@@ -596,6 +634,7 @@ with sns.plotting_context("talk"):
             (
                 "large dots without outline = data (error = SEM)\n"
                 "small dots with black outline = model (error not plotted)"
+                f" {slug}"
             )
         )
 
@@ -618,8 +657,8 @@ g = sns.catplot(
     palette="crest_r",
 )
 
-g.fig.suptitle(f"Model based on initial guesses of type '{x0_type}'", y=1.05)
-fname = analysis_dir / "figures" / "posweights_positionhue.jpg"
+g.fig.suptitle(f"Model based on initial guesses of type '{x0_type}' {slug}", y=1.05)
+fname = analysis_dir / "figures" / f"posweights_positionhue{slug}.jpg"
 g.fig.savefig(fname)
 
 # %%
@@ -631,10 +670,10 @@ posweightdata = posweightdata.sort_values(
 ).reset_index(drop=True)
 
 
-fname = analysis_dir / "derived_data" / "weights.tsv"
+fname = analysis_dir / "derived_data" / f"weights{slug}.tsv"
 weightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
-fname = analysis_dir / "derived_data" / "posweights.tsv"
+fname = analysis_dir / "derived_data" / f"posweights{slug}.tsv"
 posweightdata.to_csv(fname, sep="\t", na_rep="n/a", index=False)
 
 # %%
