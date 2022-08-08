@@ -273,6 +273,13 @@ if not skip:
     d = stats_dual_ksmall["cohen-d"].to_numpy()[0]
     print(f"dual: free vs k<1 --> t({dof})={t:.3f}, p={p:.3f}, d={d:.3f}")
 
+    # single vs dual: free
+    stats_single_dual = pingouin.ttest(single_free, dual_free, paired=True)
+    t = stats_single_dual["T"].to_numpy()[0]
+    dof = stats_single_dual["dof"].to_numpy()[0]
+    p = stats_single_dual["p-val"].to_numpy()[0]
+    d = stats_single_dual["cohen-d"].to_numpy()[0]
+    print(f"single vs dual: free --> t({dof})={t:.3f}, p={p:.3f}, d={d:.3f}")
 
 # %%
 # Comparison kappas in single vs dual

@@ -387,10 +387,6 @@ for stream in STREAMS:
         (datas[4, :] - datas[5, :]) + (datas[5, :] - datas[6, :])
     ) / 2
 
-    vals = ((datas[2, :] - datas[3, :])) - (
-        (datas[4, :] - datas[5, :]) + (datas[5, :] - datas[6, :])
-    ) / 2
-
     # ttest against 0
     _stats = pingouin.ttest(vals, y=0)
     t = _stats["T"].to_numpy()[0]

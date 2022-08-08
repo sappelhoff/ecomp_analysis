@@ -30,6 +30,14 @@ swarmsize = 2
 
 minimize_method = "Nelder-Mead"
 x0_type = "specific"
+
+# Whether or not to draw lines through the extreme and mid points
+# to better show the slopes in the data and compare them without a model
+draw_model_free_lines = False
+
+# Whether or not to additionally draw "single" in "dual" inset and vice versa
+insets_plot_other = True
+
 # %%
 # File paths
 fname_accs = analysis_dir / "derived_data" / "accuracies.tsv"
@@ -193,56 +201,54 @@ with sns.plotting_context("talk"):
         )
         axins.plot(xs, ys, color=f"C{STREAMS.index(stream)}")
 
-        # tmp: plot other curve in same plot
-        _kappa = df_estims[
-            df_estims["stream"]
-            == f"{STREAMS[dict(zip((0, 1), (1, 0)))[STREAMS.index(stream)]]}"
-        ]["kappa"].mean()
-        _ys = eq1(X=xs, bias=0, kappa=_kappa)
-        axins.plot(
-            xs,
-            _ys,
-            color=f"C{dict(zip((0, 1), (1, 0)))[STREAMS.index(stream)]}",
-            zorder=-1,
-            linestyle="--",
-            linewidth=0.75,
-        )
-        # tmp over
+        if insets_plot_other:
+            _kappa = df_estims[
+                df_estims["stream"]
+                == f"{STREAMS[dict(zip((0, 1), (1, 0)))[STREAMS.index(stream)]]}"
+            ]["kappa"].mean()
+            _ys = eq1(X=xs, bias=0, kappa=_kappa)
+            axins.plot(
+                xs,
+                _ys,
+                color=f"C{dict(zip((0, 1), (1, 0)))[STREAMS.index(stream)]}",
+                zorder=-1,
+                linestyle="--",
+                linewidth=0.75,
+            )
 
-        # tmp 2: draw lines through 1,2 and 8,9 and 4,6 --> y=mx+c
-        y1 = data[(data["weight_type"] == "data") & (data["number"] == 1)][
-            "weight"
-        ].mean()
-        y2 = data[(data["weight_type"] == "data") & (data["number"] == 2)][
-            "weight"
-        ].mean()
-        y4 = data[(data["weight_type"] == "data") & (data["number"] == 4)][
-            "weight"
-        ].mean()
-        y6 = data[(data["weight_type"] == "data") & (data["number"] == 6)][
-            "weight"
-        ].mean()
-        y8 = data[(data["weight_type"] == "data") & (data["number"] == 8)][
-            "weight"
-        ].mean()
-        y9 = data[(data["weight_type"] == "data") & (data["number"] == 9)][
-            "weight"
-        ].mean()
+        if draw_model_free_lines:
+            y1 = data[(data["weight_type"] == "data") & (data["number"] == 1)][
+                "weight"
+            ].mean()
+            y2 = data[(data["weight_type"] == "data") & (data["number"] == 2)][
+                "weight"
+            ].mean()
+            y4 = data[(data["weight_type"] == "data") & (data["number"] == 4)][
+                "weight"
+            ].mean()
+            y6 = data[(data["weight_type"] == "data") & (data["number"] == 6)][
+                "weight"
+            ].mean()
+            y8 = data[(data["weight_type"] == "data") & (data["number"] == 8)][
+                "weight"
+            ].mean()
+            y9 = data[(data["weight_type"] == "data") & (data["number"] == 9)][
+                "weight"
+            ].mean()
 
-        _kwargs = dict(color="red", lw=0.75, zorder=100)
+            _kwargs = dict(color="red", lw=0.75, zorder=100)
 
-        _coefs = np.polyfit((0, 1), (y1, y2), 1)
-        polynomial = np.poly1d(_coefs)
-        ax.plot(np.linspace(-3, 4), polynomial(np.linspace(-3, 4)), **_kwargs)
+            _coefs = np.polyfit((0, 1), (y1, y2), 1)
+            polynomial = np.poly1d(_coefs)
+            ax.plot(np.linspace(-3, 4), polynomial(np.linspace(-3, 4)), **_kwargs)
 
-        _coefs = np.polyfit((3, 5), (y4, y6), 1)
-        polynomial = np.poly1d(_coefs)
-        ax.plot(np.linspace(0, 8), polynomial(np.linspace(0, 8)), **_kwargs)
+            _coefs = np.polyfit((3, 5), (y4, y6), 1)
+            polynomial = np.poly1d(_coefs)
+            ax.plot(np.linspace(0, 8), polynomial(np.linspace(0, 8)), **_kwargs)
 
-        _coefs = np.polyfit((7, 8), (y8, y9), 1)
-        polynomial = np.poly1d(_coefs)
-        ax.plot(np.linspace(4, 11), polynomial(np.linspace(4, 11)), **_kwargs)
-        # tmp over
+            _coefs = np.polyfit((7, 8), (y8, y9), 1)
+            polynomial = np.poly1d(_coefs)
+            ax.plot(np.linspace(4, 11), polynomial(np.linspace(4, 11)), **_kwargs)
 
         axins.axhline(0, lw=0.1, color="black")
         sns.despine(ax=axins)
@@ -259,10 +265,11 @@ with sns.plotting_context("talk"):
             transform=ax.transAxes,
             fontsize=12,
             zorder=100,
+            color=f"C{istream}",
         )
 
         # make a legend
-        if istream == 0:
+        if istream in [0, 1]:
             handles = [
                 Line2D([0], [0], color=f"C{istream}", marker="o", lw=4),
                 Line2D(
@@ -278,11 +285,11 @@ with sns.plotting_context("talk"):
 
             ax.legend(
                 handles=handles,
-                labels=["Data", "Model", "Model (k=1)"],
+                labels=["Data", f"Model (k={kappa:.2f})", "Model (k=1.00)"],
                 loc="lower right",
                 ncol=1,
                 frameon=False,
-                fontsize=12,
+                fontsize=10,
             )
 
         # other settings
