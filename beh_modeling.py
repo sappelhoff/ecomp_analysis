@@ -50,6 +50,8 @@ overwrite = False
 
 fit_scenario = "free"
 
+fit_position = "all"  # "all" or "1", "2", ... "10"
+
 do_plot = True
 
 # see section below: "Fit all data as if from single subject"
@@ -68,6 +70,7 @@ if not hasattr(sys, "ps1"):
         overwrite=overwrite,
         do_plot=do_plot,
         fit_scenario=fit_scenario,
+        fit_position=fit_position,
     )
 
     defaults = parse_overwrite(defaults)
@@ -77,6 +80,7 @@ if not hasattr(sys, "ps1"):
     overwrite = defaults["overwrite"]
     do_plot = defaults["do_plot"]
     fit_scenario = defaults["fit_scenario"]
+    fit_position = defaults["fit_position"]
 
 # %%
 # Set parameter bounds (in order of `param_names`)
@@ -129,7 +133,18 @@ fname_estimates = (
 )
 fname_estimates.parent.mkdir(parents=True, exist_ok=True)
 
-fname_x0s = analysis_dir / "derived_data" / f"x0s_{minimize_method}{slug}.npy"
+if fit_position == "all":
+    fname_x0s = analysis_dir / "derived_data" / f"x0s_{minimize_method}{slug}.npy"
+else:
+    msg = "fit_position must be 'all' or the string of a number between 1 and 10."
+    assert fit_position in [str(_) for _ in range(1, 11)], msg
+    fname_x0s = (
+        analysis_dir
+        / "derived_data"
+        / "fit_by_pos"
+        / f"x0s_{minimize_method}{slug}_{fit_position}.npy"
+    )
+    fname_x0s.parent.mkdir(parents=True, exist_ok=True)
 
 fname_neurometrics = analysis_dir / "derived_data" / "neurometrics_params.tsv"
 fname_neurometrics_erp = analysis_dir / "derived_data" / "erp_adm.tsv"
@@ -504,6 +519,10 @@ if do_plot:
 # Run large set of (reasonable) initial guesses per subj to find best ones
 # NOTE: Depending on how many initial guesses to try, this will take a long time to run
 #       ... could be sped up significantly through parallelization.
+#
+# Optionally run this separately for each sample position (1, 2, ..., 10), for example
+# for checking recency/primacy, and whether parameters such as "k" vary over a trial
+# see `fit_position`
 
 if not fname_x0s.exists() or overwrite:
 
@@ -528,6 +547,9 @@ if not fname_x0s.exists() or overwrite:
             df.insert(0, "subject", sub)
 
             X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+
+            if fit_position != "all":
+                ...
 
             # Add non-changing arguments to function
             kwargs = dict(

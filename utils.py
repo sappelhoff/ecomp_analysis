@@ -144,6 +144,7 @@ def prepare_raw_from_source(sub, data_dir, analysis_dir):
 @click.option("--rdm_size", type=str, help="rdm_size")
 @click.option("--do_plot", default=True, type=bool, help="do_plot")
 @click.option("--fit_scenario", type=str, help="fit_scenario")
+@click.option("--fit_position", type=str, help="fit_position")
 def get_inputs(
     sub,
     data_dir,
@@ -160,6 +161,7 @@ def get_inputs(
     rdm_size,
     do_plot,
     fit_scenario,
+    fit_position,
 ):
     """Parse inputs in case script is run from command line.
 
@@ -188,6 +190,7 @@ def get_inputs(
         rdm_size=rdm_size,
         do_plot=do_plot,
         fit_scenario=fit_scenario,
+        fit_position=fit_position,
     )
 
     return inputs

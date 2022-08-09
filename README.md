@@ -140,9 +140,14 @@ reproducing results because parts of the information therein cannot be automatic
 1. `beh_accuracy.py`
 1. `beh_modeling.py`
     1. Run with different command line options: `--fit_scenario=X`, where
-       `X` is (i) `free`, (ii) `k_is_1`, (iii) `k_smaller_1`, and
-       (iv) `k_bigger_1`. Or set the `fit_scenario` variable in the script
+       `X` is (i) `"free"`, (ii) `"k_is_1"`, (iii) `"k_smaller_1"`, and
+       (iv) `"k_bigger_1"`. Or set the `fit_scenario` variable in the script
        if you do not want to run this from the command line.
+       (Keep `fit_position` set to `"all"`)
+    1. Run with different command line options `fit_position=X`, where
+       `X` is a string "1", "2", ..., "10" (So you need to run this
+       ten times). As above, you may also simply set the `fit_position` variable
+       in the script. (Keep `fit_scenario` set to `"free"`)
 1. `beh_weightings.py`
     1. Run with different command line options: `--fit_scenario=X`, where
        `X` is (i) `free`, (ii) `k_is_1`. Or set the `fit_scenario` variable
