@@ -128,13 +128,11 @@ for lo, up in zip(lower, upper):
 # Prepare file paths
 slug = f"_{fit_scenario}" if fit_scenario != "free" else ""
 
-fname_estimates = (
-    analysis_dir / "derived_data" / f"estim_params_{minimize_method}{slug}.tsv"
-)
-fname_estimates.parent.mkdir(parents=True, exist_ok=True)
-
 if fit_position == "all":
     fname_x0s = analysis_dir / "derived_data" / f"x0s_{minimize_method}{slug}.npy"
+    fname_estimates = (
+        analysis_dir / "derived_data" / f"estim_params_{minimize_method}{slug}.tsv"
+    )
 else:
     msg = "fit_position must be 'all' or the string of a number between 1 and 10."
     assert fit_position in [str(_) for _ in range(1, 11)], msg
@@ -144,7 +142,15 @@ else:
         / "fit_by_pos"
         / f"x0s_{minimize_method}{slug}_{fit_position}.npy"
     )
-    fname_x0s.parent.mkdir(parents=True, exist_ok=True)
+    fname_estimates = (
+        analysis_dir
+        / "derived_data"
+        / "fit_by_pos"
+        / f"estim_params_{minimize_method}{slug}_{fit_position}.tsv"
+    )
+
+fname_estimates.parent.mkdir(parents=True, exist_ok=True)
+fname_x0s.parent.mkdir(parents=True, exist_ok=True)
 
 fname_neurometrics = analysis_dir / "derived_data" / "neurometrics_params.tsv"
 fname_neurometrics_erp = analysis_dir / "derived_data" / "erp_adm.tsv"
@@ -401,7 +407,7 @@ for sub in tqdm(SUBJS):
         df = pd.read_csv(tsv, sep="\t")
         df.insert(0, "subject", sub)
 
-        X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+        X, categories, y, _, _ = prep_model_inputs(df)
 
         # Add non-changing arguments to function
         kwargs = dict(
@@ -546,10 +552,17 @@ if not fname_x0s.exists() or overwrite:
             df = pd.read_csv(tsv, sep="\t")
             df.insert(0, "subject", sub)
 
-            X, categories, y, y_true, ambiguous = prep_model_inputs(df)
+            X, categories, y, _, _ = prep_model_inputs(df)
 
             if fit_position != "all":
-                ...
+                _pos = int(fit_position) - 1
+                X = X[:, _pos, np.newaxis]
+                categories = categories[:, _pos, np.newaxis]
+                msg = "for fit_position!='all', leakage must be 0"
+                _leak_idx = param_names.index("leakage")
+                assert lower[_leak_idx] == 0, msg
+                assert upper[_leak_idx] == 0, msg
+                assert leakage0s == [0], msg
 
             # Add non-changing arguments to function
             kwargs = dict(
@@ -627,6 +640,10 @@ bic = np.log(n_trials) * n_free_params + df_specific["loss"].to_numpy()
 
 df_specific.insert(df_specific.columns.tolist().index("loss") + 1, "AIC", aic)
 df_specific.insert(df_specific.columns.tolist().index("loss") + 1, "BIC", bic)
+
+# if we fit by positions, save "specific" results
+if fit_position != "all":
+    df_specific.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 
 # %%
 # Plot info on initial guesses
@@ -718,8 +735,10 @@ print("\n", stats_paired.round(3))
 df_estimates = pd.concat([df_fixed, df_specific]).reset_index(drop=True)
 assert len(df_estimates) == len(SUBJS) * len(STREAMS) * 2
 
-# Save the data
-df_estimates.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
+# Save the data (except when we fit by positions ... then we saved earlier
+# and without combining with fixed starting points)
+if fit_position == "all":
+    df_estimates.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 
 # %%
 # Correlation between noise and kappa per stream
@@ -917,7 +936,7 @@ for istream, stream in enumerate(STREAMS):
     if not do_fit_singlefx:
         continue
 
-    X, categories, y, y_true, ambiguous = prep_model_inputs(
+    X, categories, y, _, _ = prep_model_inputs(
         df_single_sub[df_single_sub["stream"] == stream]
     )
 
