@@ -309,3 +309,46 @@ else:
     print(f"k single vs. dual --> t({dof})={t:.3f}, p={p:.3f}, d={d:.3f}")
 
 # %%
+# Compare "k" by position
+# concatenate positions data frames
+dfs = []
+for pos in [str(_) for _ in range(1, 11)]:
+    fname_estimates_pos = (
+        analysis_dir
+        / "derived_data"
+        / "fit_by_pos"
+        / f"estim_params_{minimize_method}_{pos}.tsv"
+    )
+
+    df = pd.read_csv(fname_estimates_pos, sep="\t")
+    df["sample position"] = pos
+    dfs.append(df)
+
+df = pd.concat(dfs)
+
+# plot
+fig, ax = plt.subplots()
+sns.pointplot(
+    x="sample position",
+    order=[str(_) for _ in range(1, 11)],
+    y="kappa",
+    hue="stream",
+    hue_order=STREAMS,
+    data=df,
+    ax=ax,
+    ci=68,
+    dodge=True,
+)
+ax.axhline(1, lw=0.5, ls="--", c="k")
+
+# statistics
+for stream in STREAMS:
+    stats_pos = pingouin.rm_anova(
+        data=df[df["stream"] == stream],
+        dv="kappa",
+        within="sample position",
+        subject="subject",
+        effsize="np2",
+    )
+    print("\n\n", stream, "\n", stats_pos)
+# %%
