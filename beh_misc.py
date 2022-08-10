@@ -363,3 +363,57 @@ else:
     )
 
 # %%
+# Compare "k" by position: first/second half
+# concatenate positions data frames
+dfs = []
+for pos in ["firsthalf", "secondhalf"]:
+    fname_estimates_pos = (
+        analysis_dir
+        / "derived_data"
+        / "fit_by_pos"
+        / f"estim_params_{minimize_method}_{pos}.tsv"
+    )
+
+    if not fname_estimates_pos.exists():
+        continue
+
+    df = pd.read_csv(fname_estimates_pos, sep="\t")
+    df["half"] = pos
+    dfs.append(df)
+
+if len(dfs) > 0:
+    assert len(dfs) == 2
+    df = pd.concat(dfs)
+
+    # plot
+    fig, ax = plt.subplots()
+    sns.pointplot(
+        x="half",
+        order=["firsthalf", "secondhalf"],
+        y="kappa",
+        hue="stream",
+        hue_order=STREAMS,
+        data=df,
+        ax=ax,
+        ci=68,
+        dodge=True,
+    )
+    ax.axhline(1, lw=0.5, ls="--", c="k")
+
+    # statistics
+    for stream in STREAMS:
+        stats_pos = pingouin.rm_anova(
+            data=df[df["stream"] == stream],
+            dv="kappa",
+            within="half",
+            subject="subject",
+            effsize="np2",
+        )
+        print("\n\n", stream, "\n", stats_pos)
+else:
+    print(
+        "Necessary files don't exist. Run `beh_modeling.py` with different "
+        "`fit_position` params."
+    )
+
+# %%

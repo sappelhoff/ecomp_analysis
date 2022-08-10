@@ -50,7 +50,7 @@ overwrite = False
 
 fit_scenario = "free"
 
-fit_position = "all"  # "all" or "1", "2", ... "10"
+fit_position = "all"  # "all", "firsthalf", "secondhalf", or "1", "2", ... "10"
 
 do_plot = True
 
@@ -134,8 +134,14 @@ if fit_position == "all":
         analysis_dir / "derived_data" / f"estim_params_{minimize_method}{slug}.tsv"
     )
 else:
-    msg = "fit_position must be 'all' or the string of a number between 1 and 10."
-    assert fit_position in [str(_) for _ in range(1, 11)], msg
+    msg = (
+        "fit_position must be 'all', 'firsthalf', 'secondhalf', or the string "
+        "of a number between 1 and 10."
+    )
+    assert fit_position in [str(_) for _ in range(1, 11)] + [
+        "firsthalf",
+        "secondhalf",
+    ], msg
     fname_x0s = (
         analysis_dir
         / "derived_data"
@@ -554,11 +560,29 @@ if not fname_x0s.exists() or overwrite:
 
             X, categories, y, _, _ = prep_model_inputs(df)
 
-            if fit_position != "all":
+            check_leakage = False
+            if fit_position in ["firsthalf", "secondhalf"]:
+                check_leakage = True
+                if fit_position == "firsthalf":
+                    X = X[:, 0:5]
+                    categories = categories[:, 0:5]
+                else:
+                    assert fit_position == "secondhalf"
+                    X = X[:, 5::]
+                    categories = categories[:, 5::]
+            elif fit_position != "all":
+                check_leakage = True
                 _pos = int(fit_position) - 1
                 X = X[:, _pos, np.newaxis]
                 categories = categories[:, _pos, np.newaxis]
-                msg = "for fit_position!='all', leakage must be 0"
+            else:
+                assert fit_position == "all"
+
+            if check_leakage:
+                msg = (
+                    "for `fit_position` other than 'all', 'firsthalf', or "
+                    "'secondhalf', leakage must be 0"
+                )
                 _leak_idx = param_names.index("leakage")
                 assert lower[_leak_idx] == 0, msg
                 assert upper[_leak_idx] == 0, msg
