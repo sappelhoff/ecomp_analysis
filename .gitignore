@@ -10,6 +10,7 @@ figures/*.log
 figures/*.out
 
 nohup.out
+tmp.sh
 
 x0s_*.npy
 
