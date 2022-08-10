@@ -336,7 +336,13 @@ def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
     if gnorm:
         dv = dv / gain
     dv_flipped = dv * category
-    leakage_term = (1 - leakage) ** (seq_length - np.arange(1, seq_length + 1))
+    _, ncols = dv.shape
+    if ncols == seq_length:
+        leakage_term = (1 - leakage) ** (seq_length - np.arange(1, seq_length + 1))
+    else:
+        # for running by different fit_position args: no leakage
+        assert ncols == 1
+        leakage_term = np.ones(1)
     DV = np.dot(dv_flipped, leakage_term)
     return DV
 
