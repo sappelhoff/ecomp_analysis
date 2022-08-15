@@ -402,12 +402,10 @@ if len(dfs) > 0:
 
     # statistics
     for stream in STREAMS:
-        stats_pos = pingouin.rm_anova(
-            data=df[df["stream"] == stream],
-            dv="kappa",
-            within="half",
-            subject="subject",
-            effsize="np2",
+        stats_pos = pingouin.ttest(
+            x=df[(df["stream"] == stream) & (df["half"] == "firsthalf")]["kappa"],
+            y=df[(df["stream"] == stream) & (df["half"] == "secondhalf")]["kappa"],
+            paired=True,
         )
         print("\n\n", stream, "\n", stats_pos)
 else:
