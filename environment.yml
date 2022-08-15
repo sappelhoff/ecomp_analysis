@@ -7,11 +7,20 @@ dependencies:
 - pip
 - ipython
 - ipykernel
-- numpy
-- scipy
-- pandas
-- matplotlib
+- numpy<1.23
+- scipy<1.9
+- pandas<1.5
+- pingouin<0.6
+- statsmodels<0.14
+- matplotlib<3.6
+- seaborn<0.12
+- mne-faster
+- mne-qt-browser
+- python-picard
+- pyprep
+- psutil
 - numba
+- tqdm
 - pre-commit
 - black
 - isort
@@ -21,14 +30,6 @@ dependencies:
 - pip:
   - mne<1.1
   - pooch
-  - tqdm
-  - python-picard
-  - pyprep
-  - mne-faster
-  - mne-qt-browser
-  - psutil
   - pyopengl
-  - pingouin
-  - statsmodels
   - pyyaml
   - datalad

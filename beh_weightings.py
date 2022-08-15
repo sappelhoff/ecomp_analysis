@@ -485,6 +485,7 @@ for stream in STREAMS:
             col="subject",
             col_wrap=6,
             kind="point",
+            palette=["black", "magenta", "gray"],
         )
     _ = g.fig.suptitle(f'"{stream} stream" task {slug}', y=1.05, fontsize=40)
 
