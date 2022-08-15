@@ -366,10 +366,12 @@ posweightdata = pd.concat(posweight_dfs).reset_index(drop=True)
 # %%
 # Model-free analysis of compression vs. anti-compression
 # we take the weight difference of mean(1-2, 8-9) and mean(4-5, 5-6)
+# (we can also take the two-point slopes, only the sign will change)
 # a positive value means compression: the slopes at the edges
 # are shallower than in the middle
 # and vice versa: a negative value means anti-compression
 
+_use_weight_diff = False
 for stream in STREAMS:
     datas = []
     for num in [1, 2, 8, 9, 4, 5, 6]:
@@ -383,9 +385,18 @@ for stream in STREAMS:
 
     datas = np.stack(datas)
 
-    vals = ((datas[0, :] - datas[1, :]) + (datas[2, :] - datas[3, :])) / 2 - (
-        (datas[4, :] - datas[5, :]) + (datas[5, :] - datas[6, :])
-    ) / 2
+    if _use_weight_diff:
+        # simple weight differences
+        vals = ((datas[0, :] - datas[1, :]) + (datas[2, :] - datas[3, :])) / 2 - (
+            (datas[4, :] - datas[5, :]) + (datas[5, :] - datas[6, :])
+        ) / 2
+    else:
+        # "two-point" slopes: m=(y2-y1)/(x2-x1)
+        slope12 = (datas[0, :] - datas[1, :]) / (1 - 2)
+        slope89 = (datas[2, :] - datas[3, :]) / (8 - 9)
+        slope45 = (datas[4, :] - datas[5, :]) / (4 - 5)
+        slope56 = (datas[5, :] - datas[6, :]) / (5 - 6)
+        vals = (slope12 + slope89) / 2 - (slope45 + slope56) / 2
 
     # ttest against 0
     _stats = pingouin.ttest(vals, y=0)
