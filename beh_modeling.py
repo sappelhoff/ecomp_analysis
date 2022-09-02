@@ -731,13 +731,21 @@ for param, mu in _to_test.items():
         alt = "two-sided"
         if param == "kappa" and use_one_sided:
             alt = "greater" if stream == "dual" else "less"
-        p, t = scipy.stats.wilcoxon(x - mu, alternative=alt)
+        t, p = scipy.stats.wilcoxon(x - mu, alternative=alt)
         print(param, stream, np.round(p, 3), np.round(t, 3))
         pstats = pingouin.ttest(x, y=mu, alternative=alt)
         pstats["stream"] = stream
         pstats["parameter"] = param
         pstats["mu"] = mu
         stats_params.append(pstats)
+
+        if param == "kappa":
+            print(np.mean(x).round(2), np.mean(np.log(x)).round(2))
+            pstats = pingouin.ttest(np.log(x), y=0, alternative=alt)
+            pstats["stream"] = stream
+            pstats["parameter"] = f"log({param})"
+            pstats["mu"] = 0
+            stats_params.append(pstats)
 
 stats_params = pd.concat(stats_params).reset_index(drop=True)
 print(
