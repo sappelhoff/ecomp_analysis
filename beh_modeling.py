@@ -93,29 +93,38 @@ if not hasattr(sys, "ps1"):
 # "k_is_1" -- with k fixed to 1 (=)
 # "k_bigger_1" -- with k not below 1 (>=)
 # "k_smaller_1" -- with k not above 1 (<=)
+# "leak" -- like "free", but with leakage parameter allowed
 param_names = ["bias", "kappa", "leakage", "noise"]
 
 if fit_scenario == "free":
     lower = np.array([-0.5, 0, 0, 0.01], dtype=float)
     upper = np.array([0.5, 5, 0, 3], dtype=float)
     kappa0s = np.arange(0.2, 2.2, 0.2)
+    leakage0s = [0]
 elif fit_scenario == "k_is_1":
     lower = np.array([-0.5, 1, 0, 0.01], dtype=float)
     upper = np.array([0.5, 1, 0, 3], dtype=float)
     kappa0s = [1]
+    leakage0s = [0]
 elif fit_scenario == "k_bigger_1":
     lower = np.array([-0.5, 1, 0, 0.01], dtype=float)
     upper = np.array([0.5, 5, 0, 3], dtype=float)
     kappa0s = np.arange(1.0, 2.2, 0.2)
-else:
-    assert fit_scenario == "k_smaller_1", f"unknown `fit_scenario`: {fit_scenario}"
+    leakage0s = [0]
+elif fit_scenario == "k_smaller_1":
     lower = np.array([-0.5, 0, 0, 0.01], dtype=float)
     upper = np.array([0.5, 1, 0, 3], dtype=float)
     kappa0s = np.arange(0.2, 1.0, 0.2)
+    leakage0s = [0]
+else:
+    assert fit_scenario == "leak", f"unknown `fit_scenario`: {fit_scenario}"
+    lower = np.array([-0.5, 0, -0.5, 0.01], dtype=float)
+    upper = np.array([0.5, 5, 1, 3], dtype=float)
+    kappa0s = np.arange(0.2, 2.2, 0.2)
+    leakage0s = np.arange(-0.2, 0.4, 0.1)
 
 bounds = Bounds(lower, upper)
 bias0s = np.arange(-4, 5) / 10
-leakage0s = [0]  # np.arange(-0.25, 1, 0.25)
 noise0s = np.arange(0.1, 1.1, 0.1)
 
 # number of free parameters for BIC and AIC calculation
