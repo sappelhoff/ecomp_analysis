@@ -782,6 +782,65 @@ if fit_position == "all":
     df_estimates.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 
 # %%
+# Compare overall fit between fit_scenarios "free" and "leak"
+estims_free = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
+estims_leak = analysis_dir / "derived_data" / f"estim_params_{minimize_method}_leak.tsv"
+if estims_free.exists() and estims_leak.exists():
+    _free = pd.read_csv(estims_free, sep="\t")
+    _leak = pd.read_csv(estims_leak, sep="\t")
+
+    # compare overall fit by averaging over single/dual per subj
+    _l = _leak.groupby(["subject", "x0_type"])[["AIC", "BIC"]].mean().reset_index()
+    _l["fit_scenario"] = "leak"
+
+    _f = _free.groupby(["subject", "x0_type"])[["AIC", "BIC"]].mean().reset_index()
+    _f["fit_scenario"] = "free"
+
+    df_fit_compare = pd.concat([_l, _f])
+
+    fig, axs = plt.subplots(2, 2, figsize=(8, 6))
+    _all_stats = []
+    for ax, goodness, x0_type in zip(
+        axs.flat, ["AIC", "BIC"] * 2, ["fixed", "fixed", "specific", "specific"]
+    ):
+
+        # plot
+        sns.pointplot(
+            x="fit_scenario",
+            y=goodness,
+            order=["free", "leak"],
+            data=df_fit_compare[df_fit_compare["x0_type"] == x0_type],
+            ax=ax,
+            ci=68,
+        )
+        ax.set_title(x0_type)
+
+        # collect stats
+        _ = df_fit_compare[df_fit_compare["x0_type"] == x0_type]
+        x = _[_["fit_scenario"] == "free"][goodness]
+        y = _[_["fit_scenario"] == "leak"][goodness]
+        _stats = pingouin.ttest(x, y, paired=True)
+        _stats["x0_type"] = x0_type
+        _stats["goodness"] = goodness
+        _all_stats.append(_stats)
+
+    fig.tight_layout()
+    sns.despine(fig)
+
+    # report stats
+    _all_stats = pd.concat(_all_stats)
+    print(
+        "\n",
+        _all_stats[
+            ["T", "dof", "alternative", "p-val", "cohen-d", "x0_type", "goodness"]
+        ].round(3),
+    )
+
+else:
+    print("skipping fit comparison between 'free' and 'leak'. Not all data present.")
+
+
+# %%
 # Correlation between noise and kappa per stream
 with sns.plotting_context("talk"):
     g = sns.lmplot(
