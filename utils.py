@@ -145,6 +145,7 @@ def prepare_raw_from_source(sub, data_dir, analysis_dir):
 @click.option("--do_plot", default=True, type=bool, help="do_plot")
 @click.option("--fit_scenario", type=str, help="fit_scenario")
 @click.option("--fit_position", type=str, help="fit_position")
+@click.option("--norm_leak", default=False, type=bool, help="norm_leak")
 def get_inputs(
     sub,
     data_dir,
@@ -162,6 +163,7 @@ def get_inputs(
     do_plot,
     fit_scenario,
     fit_position,
+    norm_leak,
 ):
     """Parse inputs in case script is run from command line.
 
@@ -191,6 +193,7 @@ def get_inputs(
         do_plot=do_plot,
         fit_scenario=fit_scenario,
         fit_position=fit_position,
+        norm_leak=norm_leak,
     )
 
     return inputs
@@ -291,7 +294,7 @@ def eq2(feature_space, bias, kappa, seq_length=10):
     return gain
 
 
-def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
+def eq3(dv, category, gain, gnorm, leakage, norm_leak=False, seq_length=10):
     """Implement equation 3b from Spitzer et al. 2017 [1]_, [2]_.
 
     Parameters
@@ -317,6 +320,10 @@ def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
         except the last in the sequence receive a weight of ``0``, and
         the last receives a weight of ``1`` (strongest possible recency).
         Values lower than ``0`` indicate primacy (the opposite of recency).
+    norm_leak : bool
+        Whether or not to normalize the leakage vector resulting from the
+        `leakage` parameter. Has no effect when ``leakage==0``, else it
+        ensures that the sum of the leakage vector always equals `seq_length`.
     seq_length : int
         The length of the sample sequence. Defaults to 10, which was
         the sample sequence length in the eComp experiment.
@@ -342,6 +349,8 @@ def eq3(dv, category, gain, gnorm, leakage, seq_length=10):
     else:
         # for running by different fit_position args: no leakage
         leakage_term = np.ones(ncols)
+    if norm_leak:
+        leakage_term = leakage_term * (seq_length / leakage_term.sum())
     DV = np.dot(dv_flipped, leakage_term)
     return DV
 
@@ -576,7 +585,7 @@ def prep_model_inputs(df):
 
 
 def psychometric_model(
-    parameters, X, categories, y, return_val, gain=None, gnorm=False
+    parameters, X, categories, y, return_val, gain=None, gnorm=False, norm_leak=False
 ):
     """Model the behavioral data as in Spitzer 2017, NHB [1]_.
 
@@ -619,6 +628,8 @@ def psychometric_model(
         Can be ``None`` if `gnorm` is ``False``.
     gnorm : bool
         Whether to gain-normalize or not. Defaults to ``False``.
+    norm_leak : bool
+        Whether to normalize the leakage parameter, see ``utils.eq3``.
 
     Returns
     -------
@@ -651,7 +662,14 @@ def psychometric_model(
     dv = eq1(X=X, bias=bias, kappa=kappa)
 
     # Obtain trial level decision variables
-    DV = eq3(dv=dv, category=categories, gain=gain, gnorm=gnorm, leakage=leakage)
+    DV = eq3(
+        dv=dv,
+        category=categories,
+        gain=gain,
+        gnorm=gnorm,
+        leakage=leakage,
+        norm_leak=norm_leak,
+    )
 
     # Convert decision variables to choice probabilities
     CP = eq4(DV, noise=noise)

@@ -48,11 +48,13 @@ data_dir = DATA_DIR_LOCAL
 
 overwrite = False
 
-fit_scenario = "free"
+fit_scenario = "leak"
 
 fit_position = "all"  # "all", "firsthalf", "secondhalf", or "1", "2", ... "10"
 
 do_plot = True
+
+norm_leak = False
 
 # see section below: "Fit all data as if from single subject"
 do_fit_singlefx = False
@@ -71,6 +73,7 @@ if not hasattr(sys, "ps1"):
         do_plot=do_plot,
         fit_scenario=fit_scenario,
         fit_position=fit_position,
+        norm_leak=norm_leak,
     )
 
     defaults = parse_overwrite(defaults)
@@ -81,6 +84,7 @@ if not hasattr(sys, "ps1"):
     do_plot = defaults["do_plot"]
     fit_scenario = defaults["fit_scenario"]
     fit_position = defaults["fit_position"]
+    norm_leak = defaults["norm_leak"]
 
 # %%
 # Set parameter bounds (in order of `param_names`)
@@ -227,6 +231,7 @@ for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
                     categories=categories,
                     y=y,
                     return_val=return_val,
+                    norm_leak=norm_leak,
                 )
 
                 # Calculate accuracy on non-ambiguous, objectively correct choices
@@ -328,6 +333,7 @@ for ignorm_type, gnorm_type in enumerate(tqdm(gnorm_types)):
             return_val=return_val,
             gain=gain,
             gnorm=gnorm,
+            norm_leak=norm_leak,
         )
         for inoise, noise in enumerate(noises):
             parameters = np.array([bias, kappa, leakage, noise])
@@ -432,6 +438,7 @@ for sub in tqdm(SUBJS):
             return_val="G_noCP",
             gain=None,
             gnorm=False,
+            norm_leak=norm_leak,
         )
         fun = partial(psychometric_model, **kwargs)
 
@@ -605,6 +612,7 @@ if not fname_x0s.exists() or overwrite:
                 return_val="G_noCP",
                 gain=None,
                 gnorm=False,
+                norm_leak=norm_leak,
             )
             fun = partial(psychometric_model, **kwargs)
 
@@ -782,6 +790,16 @@ if fit_position == "all":
     df_estimates.to_csv(fname_estimates, sep="\t", na_rep="n/a", index=False)
 
 # %%
+# Compare mean loss between estimates based on fixed vs. specific start values
+if do_plot:
+    with sns.plotting_context("talk"):
+        g = sns.catplot(
+            kind="point", x="x0_type", y="loss", col="stream", data=df_estimates, ci=68
+        )
+
+df_estimates.groupby(["stream", "x0_type"])["loss"].describe()
+
+# %%
 # Compare overall fit between fit_scenarios "free" and "leak"
 estims_free = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
 estims_leak = analysis_dir / "derived_data" / f"estim_params_{minimize_method}_leak.tsv"
@@ -863,15 +881,6 @@ for meta, grp in df_estimates.groupby(["x0_type", "stream"]):
 
 statsout = pd.concat(statsouts).reset_index(drop=True)
 statsout.head()
-
-# %%
-# Compare mean loss between estimates based on fixed vs. specific start values
-with sns.plotting_context("talk"):
-    g = sns.catplot(
-        kind="point", x="x0_type", y="loss", col="stream", data=df_estimates, ci=68
-    )
-
-df_estimates.groupby(["stream", "x0_type"])["loss"].describe()
 
 # %%
 # Correlate parameters within subjects (single vs dual)
@@ -1047,6 +1056,7 @@ for istream, stream in enumerate(STREAMS):
         return_val="G_noCP",
         gain=None,
         gnorm=False,
+        norm_leak=norm_leak,
     )
 
     fun = partial(psychometric_model, **kwargs)
