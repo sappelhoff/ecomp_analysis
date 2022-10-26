@@ -48,7 +48,7 @@ data_dir = DATA_DIR_LOCAL
 
 overwrite = False
 
-fit_scenario = "leak"
+fit_scenario = "free"
 
 fit_position = "all"  # "all", "firsthalf", "secondhalf", or "1", "2", ... "10"
 
@@ -140,6 +140,8 @@ for lo, up in zip(lower, upper):
 # %%
 # Prepare file paths
 slug = f"_{fit_scenario}" if fit_scenario != "free" else ""
+if slug == "leak" and norm_leak:
+    slug += "normed"
 
 if fit_position == "all":
     fname_x0s = analysis_dir / "derived_data" / f"x0s_{minimize_method}{slug}.npy"
