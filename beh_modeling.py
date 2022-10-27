@@ -804,7 +804,11 @@ df_estimates.groupby(["stream", "x0_type"])["loss"].describe()
 # %%
 # Compare overall fit between fit_scenarios "free" and "leak"
 estims_free = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
-estims_leak = analysis_dir / "derived_data" / f"estim_params_{minimize_method}_leak.tsv"
+estims_leak = (
+    analysis_dir
+    / "derived_data"
+    / f"estim_params_{minimize_method}_leak{'normed' if norm_leak else ''}.tsv"
+)
 if estims_free.exists() and estims_leak.exists():
     _free = pd.read_csv(estims_free, sep="\t")
     _leak = pd.read_csv(estims_leak, sep="\t")
@@ -846,6 +850,7 @@ if estims_free.exists() and estims_leak.exists():
 
     fig.tight_layout()
     sns.despine(fig)
+    fig.suptitle("Normed leak" if norm_leak else "")
 
     # report stats
     _all_stats = pd.concat(_all_stats)
@@ -882,7 +887,11 @@ for meta, grp in df_estimates.groupby(["x0_type", "stream"]):
     statsouts.append(out)
 
 statsout = pd.concat(statsouts).reset_index(drop=True)
-statsout.head()
+print("\nCorrelation between noise and kappa per stream\n---")
+print(
+    "\n",
+    statsout[["n", "r", "p-val", "x0_type", "stream"]].round(3),
+)
 
 # %%
 # Correlate parameters within subjects (single vs dual)
@@ -927,8 +936,12 @@ if do_plot:
             facet_kws=dict(sharex=False, sharey=False),
         )
 
-print("Within-subject correlations: Single vs Dual")
-df_corrs
+print("\nWithin-subject correlations: Single vs Dual\n---")
+print(
+    "\n",
+    df_corrs[["n", "r", "p-val", "x0_type", "param"]].round(3),
+)
+
 
 # %%
 # Correlate behavioral modelling and neurometrics "kappa" and "bias" parameters
@@ -944,7 +957,7 @@ for neurom_type in ["rsa", "erp"]:
         print(f"neurometrics params not found ... skipping.\n\n({fname})")
         continue
     else:
-        print(f"\n{neurom_type}\n---------\n\n")
+        print(f"\n{neurom_type}\n---\n")
 
     df_neurom = pd.read_csv(fname, sep="\t")
 
@@ -1079,7 +1092,7 @@ for istream, stream in enumerate(STREAMS):
 # %%
 # plot single subj "fixed effects" results
 if not do_fit_singlefx:
-    print("skipping ...")
+    print("\nskipping 'fixed effects' analysis (`do_fit_singlefx` is False) ...")
 else:
     # Turn results into DataFrame
     dfs_fixedfx = []
