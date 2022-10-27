@@ -140,7 +140,7 @@ for lo, up in zip(lower, upper):
 # %%
 # Prepare file paths
 slug = f"_{fit_scenario}" if fit_scenario != "free" else ""
-if slug == "leak" and norm_leak:
+if slug == "_leak" and norm_leak:
     slug += "normed"
 
 if fit_position == "all":
