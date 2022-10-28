@@ -968,7 +968,7 @@ for neurom_type in ["rsa", "erp"]:
         print(f"neurometrics params not found ... skipping.\n\n({fname})")
         continue
     else:
-        print(f"\n{neurom_type}\n---\n")
+        print(f"{neurom_type}\n---")
 
     df_neurom = pd.read_csv(fname, sep="\t")
 
@@ -1042,16 +1042,23 @@ for neurom_type in ["rsa", "erp"]:
         sns.despine(fig)
         fig.tight_layout()
 
-print("FDR correction of kappa correlations:\n")
+print("Multiple testing corrections of kappa correlations:")
 keys = []
-pvals = []
+pvals_fdr = []
+pvals_bonf = []
+bonf_factor = sum([1 for i in list(pvals_uncorr.keys()) if "kappa" in i])
 for key, val in pvals_uncorr.items():
     if "kappa" in key:
         keys.append(key)
-        pvals.append(val)
-_, corrected = statsmodels.stats.multitest.fdrcorrection(pvals, alpha=0.05)
-for key, pval in zip(keys, corrected):
-    print(key, np.round(pval, 3))
+        pvals_fdr.append(val)
+        pvals_bonf.append(val * bonf_factor)
+
+_, pvals_fdr = statsmodels.stats.multitest.fdrcorrection(pvals_fdr, alpha=0.05)
+
+for key, pval_fdr, pval_bonf in zip(keys, pvals_fdr, pvals_bonf):
+    print(
+        f"{key}:\n    fdr: {np.round(pval_fdr, 3)}\n    bonf: {np.round(pval_bonf, 3)}"
+    )
 
 # %%
 # Fit all data as if from single subject
