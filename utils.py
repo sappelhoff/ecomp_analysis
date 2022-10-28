@@ -214,6 +214,11 @@ def parse_overwrite(defaults):
     else:
         print("Nothing to overwrite, use defaults defined in script.\n")
 
+    print("Using the following configuration:\n")
+    for key, val in defaults.items():
+        print(f"{key} = {val}")
+    print("\n")
+
     return defaults
 
 

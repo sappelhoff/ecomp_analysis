@@ -13,6 +13,7 @@ import pandas as pd
 import pingouin
 import scipy.stats
 import seaborn as sns
+import statsmodels.stats.multitest
 from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
 
@@ -508,7 +509,7 @@ def plot_estim_res(df, plot_single_subj, param_names):
                     order=STREAMS,
                     ax=ax,
                     alpha=0.5,
-                    size=2,
+                    size=1,
                 )
 
                 # https://stackoverflow.com/a/63171175/5201771
@@ -638,7 +639,7 @@ if not fname_x0s.exists() or overwrite:
 
 else:
     # load if already saved
-    print(f"Initial guesses x0 npy file already exists: {fname_x0s}\n\nLoading ...")
+    print(f"\nInitial guesses x0 npy file already exists: {fname_x0s}\n\nLoading ...")
     x0_estimates = np.load(fname_x0s)
 
 # turn into DataFrame and sanitize columns
@@ -662,7 +663,7 @@ df_x0s["stream"] = df_x0s["stream_idx"].map(dict(zip(range(2), STREAMS)))
 nfail = np.sum(~df_x0s["success"].to_numpy())
 nstartvals = len(df_x0s)
 print(f"{(nfail/nstartvals)*100:.2f}% of fitting procedures failed.")
-print("...selecting only successful fits")
+print("...selecting only successful fits\n")
 df_x0s = df_x0s[df_x0s["success"].to_numpy()]
 
 # Get the best fitting start values and estimates per subj and stream
@@ -725,7 +726,7 @@ if do_plot:
 
 # %%
 # Work on stats for estimated params ("specific")
-print("Means and standard errors:\n------------------------------------")
+print("Means and standard errors:\n--------------------------")
 for param in param_names:
     for stream in STREAMS:
         vals = df_specific[df_specific["stream"] == stream][param].to_numpy()
@@ -734,7 +735,7 @@ for param in param_names:
         print(f"{param},{stream} --> {m:.2f} +- {se:.2f}")
 
 # 1-samp tests vs "mu"
-print("\n\n1-samp ttests vs mu\n------------------------------------------")
+print("\n\n1-samp ttests vs mu\n-------------------")
 use_one_sided = False
 stats_params = []
 _to_test = {"bias": 0, "kappa": 1, "leakage": 0}
@@ -854,6 +855,8 @@ if estims_free.exists() and estims_leak.exists():
 
     # report stats
     _all_stats = pd.concat(_all_stats)
+    _strmod = " (normed)" if norm_leak else ""
+    print(f"\nGoodness of fit comparison between free and leak{_strmod}\n---")
     print(
         "\n",
         _all_stats[
@@ -897,8 +900,15 @@ print(
 # Correlate parameters within subjects (single vs dual)
 _data = {"x0_type": [], "parameter": [], "single": [], "dual": []}
 outs = []
+
+# don't test parameters that we fixed
+_to_test = []
+for ibound, (lo, up) in enumerate(zip(lower, upper)):
+    if lo != up:
+        _to_test.append(param_names[ibound])
+
 for x0_type in ["fixed", "specific"]:
-    for param in param_names:
+    for param in _to_test:
 
         xy_list = []
         for stream in STREAMS:
@@ -946,6 +956,7 @@ print(
 # %%
 # Correlate behavioral modelling and neurometrics "kappa" and "bias" parameters
 # do for RSA neurometrics and ERP neurometrics
+pvals_uncorr = {}
 for neurom_type in ["rsa", "erp"]:
     if neurom_type == "rsa":
         fname = fname_neurometrics
@@ -1019,6 +1030,7 @@ for neurom_type in ["rsa", "erp"]:
                 # correlation
                 r, p = scipy.stats.pearsonr(x, y)
                 print(f"corr: r={r:.3f}, p={p:.3f}")
+                pvals_uncorr[f"{neurom_type}-{stream}-{param}"] = p
 
                 # paired t-test
                 _stat = pingouin.ttest(x=x, y=y, paired=True)
@@ -1029,6 +1041,17 @@ for neurom_type in ["rsa", "erp"]:
 
         sns.despine(fig)
         fig.tight_layout()
+
+print("FDR correction of kappa correlations:\n")
+keys = []
+pvals = []
+for key, val in pvals_uncorr.items():
+    if "kappa" in key:
+        keys.append(key)
+        pvals.append(val)
+_, corrected = statsmodels.stats.multitest.fdrcorrection(pvals, alpha=0.05)
+for key, pval in zip(keys, corrected):
+    print(key, np.round(pval, 3))
 
 # %%
 # Fit all data as if from single subject
