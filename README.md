@@ -11,7 +11,7 @@ The archived version can be found on Zenodo:
 All important details are reported in the original paper for the project:
 
 - preprint: [10.1101/2022.03.31.486560](https://doi.org/10.1101/2022.03.31.486560)
-- journal article: forthcoming
+- journal article: forthcoming in PLOS Computational Biology
 
 ## Installation
 
@@ -32,7 +32,7 @@ for running the analyses.
 The code can run with the `mpib_ecomp_sourcedata` dataset:
 
 - repository: https://gin.g-node.org/sappelhoff/mpib_ecomp_sourcedata
-- doi: forthcoming
+- doi: [10.12751/g-node.lir3qw](https://doi.org/10.12751/g-node.lir3qw)
 
 However, running the code the first time might take a long time
 in order to produce all derivatives that are not shipped as part of this
@@ -41,13 +41,13 @@ Downloading the `mpib_ecomp_derivatives` dataset may speed this step up
 (not required):
 
 - repository: https://gin.g-node.org/sappelhoff/mpib_ecomp_derivatives
-- doi: forthcoming
+- doi: [10.12751/g-node.9rtg6f](https://doi.org/10.12751/g-node.9rtg6f)
 
 There is a Brain Imaging Data Structure (BIDS) version of the
 data available:
 
 - repository: https://gin.g-node.org/sappelhoff/mpib_ecomp_dataset
-- doi: forthcoming
+- doi: [10.12751/g-node.jtfg5d](https://doi.org/10.12751/g-node.jtfg5d)
 
 Finally, there is the experiment code that was used when the data was collected:
 
