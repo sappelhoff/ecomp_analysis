@@ -51,6 +51,8 @@ overwrite = False
 
 fit_scenario = "free"
 
+run_mean_DV = False
+
 fit_position = "all"  # "all", "firsthalf", "secondhalf", or "1", "2", ... "10"
 
 do_plot = True
@@ -99,6 +101,7 @@ if not hasattr(sys, "ps1"):
 # "k_bigger_1" -- with k not below 1 (>=)
 # "k_smaller_1" -- with k not above 1 (<=)
 # "leak" -- like "free", but with leakage parameter allowed
+# "meanDV" -- like "free", but X is averaged before distortion via k and b
 param_names = ["bias", "kappa", "leakage", "noise"]
 
 if fit_scenario == "free":
@@ -121,6 +124,12 @@ elif fit_scenario == "k_smaller_1":
     upper = np.array([0.5, 1, 0, 3], dtype=float)
     kappa0s = np.arange(0.2, 1.0, 0.2)
     leakage0s = [0]
+elif fit_scenario == "meanDV":
+    lower = np.array([-0.5, 0, 0, 0.01], dtype=float)
+    upper = np.array([0.5, 5, 0, 3], dtype=float)
+    kappa0s = np.arange(0.2, 2.2, 0.2)
+    leakage0s = [0]
+    run_mean_DV = True
 else:
     assert fit_scenario == "leak", f"unknown `fit_scenario`: {fit_scenario}"
     lower = np.array([-0.5, 0, -0.5, 0.01], dtype=float)
@@ -442,6 +451,7 @@ for sub in tqdm(SUBJS):
             gain=None,
             gnorm=False,
             norm_leak=norm_leak,
+            run_mean_DV=run_mean_DV,
         )
         fun = partial(psychometric_model, **kwargs)
 
@@ -616,6 +626,7 @@ if not fname_x0s.exists() or overwrite:
                 gain=None,
                 gnorm=False,
                 norm_leak=norm_leak,
+                run_mean_DV=run_mean_DV,
             )
             fun = partial(psychometric_model, **kwargs)
 

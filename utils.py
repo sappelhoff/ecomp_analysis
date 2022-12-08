@@ -590,7 +590,15 @@ def prep_model_inputs(df):
 
 
 def psychometric_model(
-    parameters, X, categories, y, return_val, gain=None, gnorm=False, norm_leak=False
+    parameters,
+    X,
+    categories,
+    y,
+    return_val,
+    gain=None,
+    gnorm=False,
+    norm_leak=False,
+    run_mean_DV=False,
 ):
     """Model the behavioral data as in Spitzer 2017, NHB [1]_.
 
@@ -635,6 +643,9 @@ def psychometric_model(
         Whether to gain-normalize or not. Defaults to ``False``.
     norm_leak : bool
         Whether to normalize the leakage parameter, see ``utils.eq3``.
+    run_mean_DV : bool
+        Whether to first average dv before distorting via k and b. Only
+        works *without* leakage and gain normalization (experimental!).
 
     Returns
     -------
@@ -663,18 +674,27 @@ def psychometric_model(
     # unpack parameters
     bias, kappa, leakage, noise = parameters
 
-    # Transform sample values to subjective decision weights
-    dv = eq1(X=X, bias=bias, kappa=kappa)
+    if run_mean_DV:
+        assert not gnorm, f"expected False, but found: {gnorm}"
+        assert leakage == 0, f"expected 0, but found: {leakage}"
+        assert not norm_leak, f"expected False, but found: {norm_leak}"
 
-    # Obtain trial level decision variables
-    DV = eq3(
-        dv=dv,
-        category=categories,
-        gain=gain,
-        gnorm=gnorm,
-        leakage=leakage,
-        norm_leak=norm_leak,
-    )
+        X_mean = np.mean(X, axis=1)
+        DV = np.sign(X_mean + bias) * (np.abs(X_mean + bias) ** kappa)
+
+    else:
+        # Transform sample values to subjective decision weights
+        dv = eq1(X=X, bias=bias, kappa=kappa)
+
+        # Obtain trial level decision variables
+        DV = eq3(
+            dv=dv,
+            category=categories,
+            gain=gain,
+            gnorm=gnorm,
+            leakage=leakage,
+            norm_leak=norm_leak,
+        )
 
     # Convert decision variables to choice probabilities
     CP = eq4(DV, noise=noise)
