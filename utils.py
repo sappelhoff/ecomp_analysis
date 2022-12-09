@@ -679,7 +679,8 @@ def psychometric_model(
         assert leakage == 0, f"expected 0, but found: {leakage}"
         assert not norm_leak, f"expected False, but found: {norm_leak}"
 
-        X_mean = np.mean(X, axis=1)
+        X_flipped = X * categories
+        X_mean = np.mean(X_flipped, axis=1)
         DV = np.sign(X_mean + bias) * (np.abs(X_mean + bias) ** kappa)
 
     else:

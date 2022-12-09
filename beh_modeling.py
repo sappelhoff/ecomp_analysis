@@ -814,6 +814,46 @@ if do_plot:
 df_estimates.groupby(["stream", "x0_type"])["loss"].describe()
 
 # %%
+# Compare fit_scenarios "free" and "meanDV"
+fdf_estimates_meanDV = (
+    analysis_dir / "derived_data" / f"estim_params_{minimize_method}_meanDV.tsv"
+)
+fdf_estimates_free = (
+    analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
+)
+if fdf_estimates_meanDV.exists() and fdf_estimates_free.exists():
+    df_estimates_meanDV = pd.read_csv(fdf_estimates_meanDV, sep="\t")
+    df_estimates_meanDV["fit_scenario"] = "meanDV"
+    df_estimates_free = pd.read_csv(fdf_estimates_free, sep="\t")
+    df_estimates_free["fit_scenario"] = "free"
+    df_meanDVfree = pd.concat([df_estimates_free, df_estimates_meanDV]).reset_index(
+        drop=True
+    )
+
+    # x0_type: fixed / specific
+    # fit_scenario: free / meanDV
+    # stream: single / dual
+    # over subjects
+    # AIC
+    if do_plot:
+        with sns.plotting_context("talk"):
+            g = sns.catplot(
+                kind="point",
+                x="fit_scenario",
+                y="AIC",
+                row="stream",
+                col="x0_type",
+                data=df_meanDVfree,
+                ci=68,
+            )
+
+
+else:
+    print(
+        "Either 'meanDV' or 'free' fit_scenario does not exist (or neither). Skipping."
+    )
+
+# %%
 # Compare overall fit between fit_scenarios "free" and "leak"
 estims_free = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
 estims_leak = (
