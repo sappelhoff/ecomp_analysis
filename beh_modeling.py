@@ -847,6 +847,25 @@ if fdf_estimates_meanDV.exists() and fdf_estimates_free.exists():
                 ci=68,
             )
 
+    # print stats
+    _statdf = []
+    for (_stream, _x0_type) in itertools.product(STREAMS, ["fixed", "specific"]):
+        _ = df_meanDVfree[
+            (df_meanDVfree["stream"] == _stream)
+            & (df_meanDVfree["x0_type"] == _x0_type)
+        ]
+        _ = pingouin.ttest(
+            _[_["fit_scenario"] == "free"]["AIC"].to_numpy(),
+            _[_["fit_scenario"] == "meanDV"]["AIC"].to_numpy(),
+            paired=True,
+        )
+        _["stream"] = _stream
+        _["x0_type"] = _x0_type
+        _statdf.append(_[["T", "p-val", "cohen-d", "stream", "x0_type"]])
+
+    _statdf = pd.concat(_statdf)
+    _statdf
+
 
 else:
     print(
