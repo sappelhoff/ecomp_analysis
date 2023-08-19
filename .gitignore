@@ -4,6 +4,7 @@
 __pycache__
 
 figures/*.jpg
+figures/*.png
 figures/*.pdf
 figures/*.aux
 figures/*.log

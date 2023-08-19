@@ -350,10 +350,16 @@ for ignorm_type, gnorm_type in enumerate(tqdm(gnorm_types)):
 # Plot "change in accuracy" simulations
 if do_plot:
     with sns.plotting_context("talk"):
-        fig, axs = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
 
         for ignorm_type, gnorm_type in enumerate(gnorm_types):
-            ax = axs.flat[ignorm_type]
+
+            if ignorm_type == 1:
+                continue
+            elif ignorm_type == 2:
+                ax = axs.flat[1]
+            else:
+                ax = axs.flat[ignorm_type]
 
             grid_norm = (
                 acc_grid[..., ignorm_type].T - acc_grid[..., idx_kappa_one, ignorm_type]
@@ -362,10 +368,12 @@ if do_plot:
             # Trace maximum values using np.nan (inserts white cells)
             grid_norm[np.arange(n), np.argmax(grid_norm, axis=1)] = np.nan
 
-            im = ax.imshow(grid_norm, origin="upper", interpolation="nearest")
+            im = ax.imshow(grid_norm, origin="upper", interpolation="nearest", vmin=-0.11, vmax=0.025)
 
             ax.axvline(idx_kappa_one, ls="--", c="w")
-            fig.colorbar(im, ax=ax, label="Δ accuracy", shrink=0.625)
+
+            if ignorm_type == 2:
+                fig.colorbar(im, ax=ax, label="Δ accuracy", shrink=1)
 
             # Set ticklabels
             ax.xaxis.set_major_locator(plt.MaxNLocator(6))
@@ -400,7 +408,14 @@ if do_plot:
             )
             ax.set_ylabel(ax.get_ylabel(), labelpad=10)
 
+
+        axs[0].set_title('low task demands')
+        axs[1].set_title('high task demands')
+
     fig.tight_layout()
+
+    fname = analysis_dir / "figures" / "simul_plot.png"
+    plt.savefig(fname, bbox_inches="tight", dpi=600)
 
 # %%
 # Fit model parameters for each subj and stream

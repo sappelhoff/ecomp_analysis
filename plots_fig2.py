@@ -13,6 +13,9 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from config import ANALYSIS_DIR_LOCAL, STREAMS
 from model_rdms import get_models_dict
 
+AAAA = (-0., 1)
+BBBB = (20, 15)
+
 # %%
 # Settings
 analysis_dir = ANALYSIS_DIR_LOCAL
@@ -54,12 +57,8 @@ with sns.plotting_context(**plotting_context):
     ddddddeeeeee
     ddddddeeeeee
     ddddddeeeeee
-    ...ffffff...
-    ...ffffff...
-    ...ffffff...
-    ...ffffff...
     """
-    fig = plt.figure(figsize=(20, 20))
+    fig = plt.figure(figsize=BBBB)
     axd = fig.subplot_mosaic(mosaic)
     fig.tight_layout(h_pad=3, w_pad=2)
 # %%
@@ -126,7 +125,7 @@ sortby = [
 df_rsa = df_rsa.sort_values(by=sortby)[sortby + ["similarity"]]
 
 with sns.plotting_context(**plotting_context):
-    for panel, stream in zip(("d", "e", "f"), ["single", "dual", "diff"]):
+    for panel, stream in zip(("d", "e"), ["single", "dual"]):
         ax = axd[panel]
 
         if stream in STREAMS:
@@ -154,7 +153,7 @@ with sns.plotting_context(**plotting_context):
         )
 
         # legend
-        if stream in STREAMS:
+        if stream != "dual":
             ax.get_legend().remove()
         else:
             handles, labels = ax.get_legend_handles_labels()
@@ -163,8 +162,8 @@ with sns.plotting_context(**plotting_context):
                 for lab in labels
             ]
             ax.legend(
-                loc="upper right",
-                bbox_to_anchor=(-0.2, 1.1),
+                loc="lower center",
+                bbox_to_anchor=AAAA,
                 frameon=False,
                 handles=handles,
                 labels=labels,
@@ -204,10 +203,30 @@ with sns.plotting_context(**plotting_context):
     )
     axd["d"].set_ylim(ylims)
     axd["e"].set_ylim(ylims)
-    axd["f"].set_ylim((axd["f"].get_ylim()[0], axd["f"].get_ylim()[1] * 1.1))
+
+with sns.plotting_context(**dict(context="poster", font_scale=1.5)):
+    ax.text(
+        x=-0.05,
+        y=0.95,
+        s="a)",
+        ha="center",
+        va="center",
+        transform=fig.transFigure,
+        weight="bold",
+    )
+
+    ax.text(
+        x=-0.05,
+        y=0.5,
+        s="b)",
+        ha="center",
+        va="center",
+        transform=fig.transFigure,
+        weight="bold",
+    )
 
 # %%
 # Final settings and save
 fig.savefig(fname_fig2, bbox_inches="tight")
-
+fig
 # %%

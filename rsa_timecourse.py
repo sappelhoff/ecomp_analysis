@@ -31,14 +31,14 @@ from clusterperm import (
     prep_for_clusterperm,
     return_clusters,
 )
-from config import ANALYSIS_DIR_LOCAL, DATA_DIR_EXTERNAL, NUMBERS, STREAMS, SUBJS
+from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, NUMBERS, STREAMS, SUBJS
 from model_rdms import get_models_dict
-from utils import prep_to_plot
+from utils import prep_to_plot, eq1
 
 # %%
 # Settings
 # Select the data source and analysis directory here
-data_dir = DATA_DIR_EXTERNAL
+data_dir = DATA_DIR_LOCAL
 analysis_dir = ANALYSIS_DIR_LOCAL
 
 rsa_method = "pearson"
@@ -124,6 +124,7 @@ fig.tight_layout()
 
 # %%
 # Prepare plot to visualize different model RDMs based on different "k" params
+# plot rdms
 fig, axs = plt.subplots(2, 2, figsize=(5, 5))
 for i, k in enumerate([1, 0.4, 0.1, 3]):
     ax = axs.flat[i]
@@ -135,6 +136,42 @@ for i, k in enumerate([1, 0.4, 0.1, 3]):
     ax.set_title(f"k={k}")
 
 fig.tight_layout()
+
+# prepare plot for SAB poster 2023
+fig, axs = plt.subplots(3, 2, figsize=(7, 10), sharex=True)
+for i, k in enumerate([1, 0.5, 3]):
+    ax = axs[i, 1]
+    _model = get_models_dict("9x9", ["numberline"], False, bias=0, kappa=k)["no_orth"][
+        "numberline"
+    ]
+    ax.imshow(_model)
+    ax.axis("off")
+    # ax.set_title(f"k={k}")
+
+    # plot curve
+    n = 900
+    X = np.linspace(-1, 1, n)
+    xs = np.linspace(1, 9, n)
+
+    with sns.plotting_context("talk"):
+        ax = axs[i, 0]
+        ax.plot(xs, eq1(X, bias=0, kappa=k), label=f"k={k}")
+        vals = eq1(X, bias=0, kappa=1)
+        ax.axline((xs[0], vals[0]), (xs[1], vals[1]), c="black", lw=0.5, ls="--")
+
+        ax.legend(frameon=False, loc="upper left")
+
+        ax.set_xticks(np.arange(1, 10))
+        ax.set_yticks(np.linspace(-1, 1, 3))
+        ax.set(ylabel="Subjective decision value", xlabel="Sample value")
+        ax.axhline(0, c="black", lw=0.5, ls="--")
+        ax.axvline(5, c="black", lw=0.5, ls="--")
+
+sns.despine(fig)
+fig.tight_layout()
+
+fname = analysis_dir / "figures" / "rdm_example.png"
+plt.savefig(fname, bbox_inches="tight", dpi=300)
 
 
 # %%
