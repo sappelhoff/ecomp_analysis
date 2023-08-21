@@ -138,22 +138,22 @@ for i, k in enumerate([1, 0.4, 0.1, 3]):
 fig.tight_layout()
 
 # prepare plot for SAB poster 2023
-fig, axs = plt.subplots(3, 2, figsize=(7, 10), sharex=True)
-for i, k in enumerate([1, 0.5, 3]):
-    ax = axs[i, 1]
-    _model = get_models_dict("9x9", ["numberline"], False, bias=0, kappa=k)["no_orth"][
-        "numberline"
-    ]
-    ax.imshow(_model)
-    ax.axis("off")
-    # ax.set_title(f"k={k}")
+with sns.plotting_context("talk", font_scale=1.1):
+    fig, axs = plt.subplots(3, 2, figsize=(7, 10), sharex=True)
+    for i, k in enumerate([1, 0.5, 3]):
+        ax = axs[i, 1]
+        _model = get_models_dict("9x9", ["numberline"], False, bias=0, kappa=k)[
+            "no_orth"
+        ]["numberline"]
 
-    # plot curve
-    n = 900
-    X = np.linspace(-1, 1, n)
-    xs = np.linspace(1, 9, n)
+        ax.imshow(_model)
+        ax.axis("off")
 
-    with sns.plotting_context("talk"):
+        # plot curve
+        n = 900
+        X = np.linspace(-1, 1, n)
+        xs = np.linspace(1, 9, n)
+
         ax = axs[i, 0]
         ax.plot(xs, eq1(X, bias=0, kappa=k), label=f"k={k}")
         vals = eq1(X, bias=0, kappa=1)
@@ -163,12 +163,26 @@ for i, k in enumerate([1, 0.5, 3]):
 
         ax.set_xticks(np.arange(1, 10))
         ax.set_yticks(np.linspace(-1, 1, 3))
-        ax.set(ylabel="Subjective decision value", xlabel="Sample value")
         ax.axhline(0, c="black", lw=0.5, ls="--")
         ax.axvline(5, c="black", lw=0.5, ls="--")
 
-sns.despine(fig)
-fig.tight_layout()
+        sns.despine(fig)
+
+        ax.arrow(
+            x=0.8,
+            y=0.5,
+            dx=0.1,
+            dy=0,
+            width=0.05,
+            transform=ax.transAxes,
+            clip_on=False,
+            zorder=100,
+            facecolor="black",
+        )
+
+    fig.supxlabel("Sample value", x=0.4, y=0.05)
+    fig.supylabel("Subjective decision value", x=0.075, y=0.55)
+    fig.tight_layout()
 
 fname = analysis_dir / "figures" / "rdm_example.png"
 plt.savefig(fname, bbox_inches="tight", dpi=300)

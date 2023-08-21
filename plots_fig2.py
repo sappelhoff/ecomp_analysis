@@ -13,7 +13,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from config import ANALYSIS_DIR_LOCAL, STREAMS
 from model_rdms import get_models_dict
 
-AAAA = (-0., 1)
+AAAA = (1.0, 0.6)
 BBBB = (20, 15)
 
 # %%
@@ -29,14 +29,14 @@ rsa_colors = {
     "numberline": "C9",
 }
 
-plotting_context = dict(context="poster", font_scale=1.025)
+plotting_context = dict(context="poster", font_scale=1.125)
 
 # %%
 # File paths
 fname_rsa = analysis_dir / "derived_data" / "rsa_timecourses.tsv"
 fname_perm = analysis_dir / "derived_data" / "rsa_perm_results.json"
 
-fname_fig2 = analysis_dir / "figures" / "fig2_pre.pdf"
+fname_fig2 = analysis_dir / "figures" / "rsa_timecourses.png"
 
 
 # %%
@@ -76,7 +76,7 @@ with sns.plotting_context(**plotting_context):
         if panel != "c":
             cax.axis("off")
         else:
-            cbar = plt.colorbar(im, cax=cax)
+            cbar = plt.colorbar(im, cax=cax, label="Normalized\nEuclidean distance")
 
         title = model.capitalize() if model != "numberline" else "Numerical distance"
         ax.set_title(title, color=rsa_colors[model], fontweight="bold")
@@ -158,7 +158,7 @@ with sns.plotting_context(**plotting_context):
         else:
             handles, labels = ax.get_legend_handles_labels()
             labels = [
-                lab.capitalize() if lab != "numberline" else "Numerical distance"
+                lab.capitalize() if lab != "numberline" else "Numerical\ndistance"
                 for lab in labels
             ]
             ax.legend(
@@ -204,29 +204,12 @@ with sns.plotting_context(**plotting_context):
     axd["d"].set_ylim(ylims)
     axd["e"].set_ylim(ylims)
 
-with sns.plotting_context(**dict(context="poster", font_scale=1.5)):
-    ax.text(
-        x=-0.05,
-        y=0.95,
-        s="a)",
-        ha="center",
-        va="center",
-        transform=fig.transFigure,
-        weight="bold",
-    )
-
-    ax.text(
-        x=-0.05,
-        y=0.5,
-        s="b)",
-        ha="center",
-        va="center",
-        transform=fig.transFigure,
-        weight="bold",
-    )
+    # remove labels and ticklabels for right side line plot
+    axd["e"].set_yticklabels([])
+    axd["e"].set_ylabel("")
 
 # %%
 # Final settings and save
-fig.savefig(fname_fig2, bbox_inches="tight")
+fig.savefig(fname_fig2, bbox_inches="tight", dpi=300)
 fig
 # %%

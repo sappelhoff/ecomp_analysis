@@ -349,7 +349,7 @@ for ignorm_type, gnorm_type in enumerate(tqdm(gnorm_types)):
 # %%
 # Plot "change in accuracy" simulations
 if do_plot:
-    with sns.plotting_context("talk"):
+    with sns.plotting_context("talk", font_scale=1.4):
         fig, axs = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
 
         for ignorm_type, gnorm_type in enumerate(gnorm_types):
@@ -368,19 +368,25 @@ if do_plot:
             # Trace maximum values using np.nan (inserts white cells)
             grid_norm[np.arange(n), np.argmax(grid_norm, axis=1)] = np.nan
 
-            im = ax.imshow(grid_norm, origin="upper", interpolation="nearest", vmin=-0.11, vmax=0.025)
+            im = ax.imshow(
+                grid_norm,
+                origin="upper",
+                interpolation="nearest",
+                vmin=-0.11,
+                vmax=0.025,
+            )
 
             ax.axvline(idx_kappa_one, ls="--", c="w")
 
             if ignorm_type == 2:
-                fig.colorbar(im, ax=ax, label="Δ accuracy", shrink=1)
+                fig.colorbar(im, ax=ax, label="Δ Accuracy", shrink=1)
 
             # Set ticklabels
             ax.xaxis.set_major_locator(plt.MaxNLocator(6))
             ax.yaxis.set_major_locator(plt.MaxNLocator(6))
             xticklabels = (
                 [""]
-                + [f"{i:.2f}" for i in kappas[(ax.get_xticks()[1:-1]).astype(int)]]
+                + [f"{i:.1f}" for i in kappas[(ax.get_xticks()[1:-1]).astype(int)]]
                 + [""]
             )
             yticklabels = (
@@ -402,15 +408,14 @@ if do_plot:
                 )
 
             ax.set(
-                xlabel="kappa (k)",
-                ylabel="noise (s)",
+                xlabel="Kappa (k)",
+                ylabel="Noise (s)",
                 title=f'Gain normalization:\n"{gnorm_type}"',
             )
             ax.set_ylabel(ax.get_ylabel(), labelpad=10)
 
-
-        axs[0].set_title('low task demands')
-        axs[1].set_title('high task demands')
+        axs[0].set_title("Low task demands")
+        axs[1].set_title("High task demands")
 
     fig.tight_layout()
 

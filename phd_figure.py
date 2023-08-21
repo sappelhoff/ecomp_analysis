@@ -12,6 +12,13 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+from config import ANALYSIS_DIR_LOCAL
+
+# %%
+# Settings
+
+analysis_dir = ANALYSIS_DIR_LOCAL
+
 # %%
 # Define our equation to obtain transformed subjective decision values
 
@@ -49,11 +56,11 @@ def eq1(X, bias, kappa):
 n = 900
 X = np.linspace(-1, 1, n)
 xs = np.linspace(1, 9, n)
-kappas = dict(zip(["compressive\n(k<1)", "anti-\ncompressive\n(k>1)"], [0.5, 3]))
+kappas = dict(zip(["Compressive\n(k<1)", "Anti-\ncompressive\n(k>1)"], [0.5, 3]))
 
 
-with sns.plotting_context("talk", font_scale=1):
-    fig, axs = plt.subplots(2, 1, figsize=(6, 8), sharex=True)
+with sns.plotting_context("talk", font_scale=1.2):
+    fig, axs = plt.subplots(2, 1, figsize=(6, 8), sharex=True, sharey=True)
 
     axcount = 0
     for title, kappa in kappas.items():
@@ -62,7 +69,7 @@ with sns.plotting_context("talk", font_scale=1):
         vals = eq1(X, bias=0, kappa=1)
         ax.axline((xs[0], vals[0]), (xs[1], vals[1]), c="black", lw=0.5, ls="--")
         axcount += 1
-        ax.text(x=2.5, y=0.5, s=title, ha="center", va="center")
+        ax.text(x=2.75, y=0.5, s=title, ha="center", va="center")
 
     axs.flat[0].legend(frameon=False, loc="lower right")
     axs.flat[1].legend(frameon=False, loc="lower right")
@@ -70,17 +77,19 @@ with sns.plotting_context("talk", font_scale=1):
     for ax in axs:
         ax.set_xticks(np.arange(1, 10))
         ax.set_yticks(np.linspace(-1, 1, 3))
-        ax.set(ylabel="Subjective decision value", xlabel="Sample value")
         ax.axhline(0, c="black", lw=0.5, ls="--")
         ax.axvline(5, c="black", lw=0.5, ls="--")
+        # ax.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
 
     axs.flat[0].set_xlabel("")
 
+    fig.supxlabel("Sample value", x=0.6, y=0.05)
+    fig.supylabel("Subjective decision value", x=0.075, y=0.55)
     fig.tight_layout()
     sns.despine(fig)
 
 # save
-fname = "phd_figure.png"
+fname = analysis_dir / "figures" / "phd_figure.png"
 fig.savefig(fname, bbox_inches="tight", dpi=600)
 
 # %%
