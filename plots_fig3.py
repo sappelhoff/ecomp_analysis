@@ -16,6 +16,8 @@ from utils import prep_to_plot
 analysis_dir = ANALYSIS_DIR_LOCAL
 rdm_size = "18x18"
 
+plotting_context = dict(context="talk", font_scale=1.3)
+
 axhline_args = dict(color="black", linestyle="--", linewidth=1)
 
 rsa_colors = {
@@ -27,7 +29,7 @@ rsa_colors = {
 window_sel = (0.2, 0.6)
 # %%
 # File paths
-fname_fig3 = analysis_dir / "figures" / "fig3_pre.pdf"
+fname_fig3 = analysis_dir / "figures" / "fig_neurometric_maps.png"
 
 fname_mean_rdm_template = str(analysis_dir / "derived_data" / "rdm_{}.npy")
 
@@ -36,8 +38,8 @@ fname_scatters = analysis_dir / "derived_data" / "neurometrics_scatters.npy"
 fname_bs_ks = analysis_dir / "derived_data" / "neurometrics_bs_ks.npy"
 # %%
 # Start figure 3
-with sns.plotting_context("talk"):
-    fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+with sns.plotting_context(**plotting_context):
+    fig, axs = plt.subplots(2, 2, figsize=(12, 12))
     fig.tight_layout()
 
 # %%
@@ -55,7 +57,7 @@ vmin = min(mins)
 vmax = max(maxs)
 
 
-with sns.plotting_context("talk"):
+with sns.plotting_context(**plotting_context):
     for istream, stream in enumerate(STREAMS):
 
         fstr = f"{stream}_{window_sel[0]}_{window_sel[1]}"
@@ -115,7 +117,7 @@ biases, kappas = np.load(fname_bs_ks)[np.array([0, 1]), ...]
 idx_bias_zero = (np.abs(biases - 0.0)).argmin()
 idx_kappa_one = (np.abs(kappas - 1.0)).argmin()
 
-with sns.plotting_context("talk"):
+with sns.plotting_context(**plotting_context):
     for istream, stream in enumerate(STREAMS):
         ax = axs[1, istream]
 
@@ -198,7 +200,7 @@ with sns.plotting_context("talk"):
                     s=label,
                     ha="center",
                     va="center",
-                    fontsize=15,
+                    fontsize=24,
                     transform=ax.transAxes,
                 )
 
@@ -218,6 +220,6 @@ with sns.plotting_context("talk"):
 
 # %%
 # Final settings and save
-fig.savefig(fname_fig3, bbox_inches="tight")
-
+fig.savefig(fname_fig3, bbox_inches="tight", dpi=300)
+fig
 # %%

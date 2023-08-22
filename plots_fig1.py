@@ -16,6 +16,7 @@ from utils import eq1, find_dot_idxs
 # Settings
 analysis_dir = ANALYSIS_DIR_LOCAL
 
+plotting_context = dict(context="talk", font_scale=1.25)
 
 ci = 68
 
@@ -47,7 +48,7 @@ fname_weights_k_is_1 = analysis_dir / "derived_data" / "weights_k_is_1.tsv"
 
 fname_estimates = analysis_dir / "derived_data" / f"estim_params_{minimize_method}.tsv"
 
-fname_fig1 = analysis_dir / "figures" / "fig1b+.pdf"
+fname_fig1 = analysis_dir / "figures" / "behavior_results.png"
 
 # %%
 # Load param estimates
@@ -60,18 +61,18 @@ df_estims = df_estims[df_estims["x0_type"] == x0_type]
 # Fig1a and Fig1b+ are then stitched together in Latex
 
 # figure layout
-with sns.plotting_context("talk"):
-    fig, axs = plt.subplots(2, 3, figsize=(12, 8))
-    fig.tight_layout(h_pad=2.25)
+with sns.plotting_context(**plotting_context):
+    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+    fig.tight_layout()
 # %%
 # panel b - accuracies
 df_accs = pd.read_csv(fname_accs, sep="\t")
-with sns.plotting_context("talk"):
+with sns.plotting_context(**plotting_context):
 
     x = "stream"
     order = STREAMS
     colname = "accuracy"
-    ax = axs[0, 0]
+    ax = axs.flat[0]
     data = df_accs
 
     with plt.rc_context({"lines.linewidth": pointlinewidth}):
@@ -132,14 +133,14 @@ df_ws = df_ws[df_ws["weight_type"].isin(["data", "model", "model_k1"])]
 df_ws_k1 = pd.read_csv(fname_weights_k_is_1, sep="\t")
 df_ws_k1 = df_ws_k1[df_ws_k1["weight_type"].isin(["data", "model", "model_k1"])]
 
-with sns.plotting_context("talk"):
+with sns.plotting_context(**plotting_context):
 
     for istream, stream in enumerate(STREAMS):
         data = df_ws[df_ws["stream"] == stream]
 
         x = "number"
         colname = "weight"
-        ax = axs[0, 1 + istream]
+        ax = axs.flat[1+istream]
 
         sns.pointplot(
             data=data[data["weight_type"] == "data"],
@@ -257,13 +258,13 @@ with sns.plotting_context("talk"):
 
         # inset label
         axins.text(
-            x=0.175,
-            y=0.675,
+            x=0.21,
+            y=0.63,
             s=r"$\widehat{k}$" + f"$ = {kappa:.2f}$",
             ha="left",
             va="center",
             transform=ax.transAxes,
-            fontsize=12,
+            fontsize=14,
             zorder=100,
             color=f"C{istream}",
         )
@@ -286,105 +287,33 @@ with sns.plotting_context("talk"):
             ax.legend(
                 handles=handles,
                 labels=["Data", f"Model (k={kappa:.2f})", "Model (k=1.00)"],
-                loc="lower right",
+                loc="lower left",
                 ncol=1,
                 frameon=False,
-                fontsize=10,
+                fontsize=14,
+                bbox_to_anchor=(0.5, 0),
             )
 
         # other settings
         sns.despine(ax=ax)
         ax.set(xlabel="", ylabel="Decision weight")
         ax.set_title(stream.capitalize())
+        if istream == 1:
+            ax.set_ylabel("")
+            ax.set_yticklabels("")
 
-for ax in axs[0, 1:]:
+for ax in axs.flat[1::]:
     ax.set_ylim(
         (
-            min(axs[0, 1].get_ylim()[0], axs[0, 2].get_ylim()[0]),
-            max(axs[0, 1].get_ylim()[1], axs[0, 2].get_ylim()[1]),
+            min(axs.flat[1].get_ylim()[0], axs.flat[2].get_ylim()[0]),
+            max(axs.flat[1].get_ylim()[1], axs.flat[2].get_ylim()[1]),
         )
     )
 
 
 # %%
-# panels e, f, g - kappa, bias, noise
-param_names = ["kappa", "bias", "noise"]
-df_estims = df_estims[["subject", "stream"] + param_names].melt(
-    id_vars=["subject", "stream"], var_name="parameter"
-)
-
-order = STREAMS
-x = "stream"
-colname = "value"
-hlines = dict(kappa=1, bias=0, noise=0)
-with sns.plotting_context("talk"):
-
-    for iparam, param in enumerate(param_names):
-        ax = axs[1, iparam]
-
-        data = df_estims[df_estims["parameter"] == param]
-
-        sns.pointplot(
-            data=data,
-            x=x,
-            order=order,
-            y=colname,
-            ci=68,
-            ax=ax,
-            markers=pointmarkers,
-            scale=pointscale,
-            errwidth=pointerrwidth,
-            capsize=pointcapwidth,
-            color="black",
-        )
-
-        sns.swarmplot(
-            x=x,
-            order=order,
-            y=colname,
-            data=data,
-            ax=ax,
-            size=swarmsize,
-        )
-
-        # connect subj dots with lines
-        # https://stackoverflow.com/a/51157346/5201771
-        _idx1, _idx2 = find_dot_idxs(ax, int(df_accs.shape[0] / 2))
-        locs1 = ax.get_children()[_idx1].get_offsets()
-        locs2 = ax.get_children()[_idx2].get_offsets()
-
-        # before plotting, we need to sort so that the data points correspond
-        sort_idxs1 = np.argsort(data[data["stream"] == STREAMS[0]][colname].to_numpy())
-        sort_idxs2 = np.argsort(data[data["stream"] == STREAMS[1]][colname].to_numpy())
-        locs2_sorted = locs2[sort_idxs2.argsort()][sort_idxs1]
-
-        for i in range(locs1.shape[0]):
-            _x = [locs1[i, 0], locs2_sorted[i, 0]]
-            _y = [locs1[i, 1], locs2_sorted[i, 1]]
-            ax.plot(_x, _y, **subj_line_settings)
-
-        ax.axhline(hlines[param], xmax=0.95, **axhline_args)
-        sns.despine(ax=ax)
-
-        ax.text(
-            x=0.5,
-            y=0.9,
-            s=param,
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-        )
-
-        ylabel = dict(kappa="$k$", bias="$b$", noise="$s$")[param]
-        ax.set_xlabel("")
-        ax.set_ylabel(ylabel)
-        ax.set_xticklabels([i.capitalize() for i in STREAMS])
-
-# %%
 # Final settings and save
-# axs[1, 0].set_yscale("log")
-# axs[1, 0].set_ylim(0.2, None)
 # Save the figure
-fig.savefig(fname_fig1, bbox_inches="tight")
-
+fig.savefig(fname_fig1, bbox_inches="tight", dpi=300)
+fig
 # %%
