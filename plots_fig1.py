@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+
+from matplotlib import rcParams
 from matplotlib.lines import Line2D
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
@@ -14,6 +16,15 @@ from utils import eq1, find_dot_idxs
 
 # %%
 # Settings
+
+# Use Liberation Sans as standin for Arial
+rcParams.update(
+    {
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Liberation Sans"],
+    }
+)
+
 analysis_dir = ANALYSIS_DIR_LOCAL
 
 plotting_context = dict(context="talk", font_scale=1.25)
@@ -68,7 +79,6 @@ with sns.plotting_context(**plotting_context):
 # panel b - accuracies
 df_accs = pd.read_csv(fname_accs, sep="\t")
 with sns.plotting_context(**plotting_context):
-
     x = "stream"
     order = STREAMS
     colname = "accuracy"
@@ -134,7 +144,6 @@ df_ws_k1 = pd.read_csv(fname_weights_k_is_1, sep="\t")
 df_ws_k1 = df_ws_k1[df_ws_k1["weight_type"].isin(["data", "model", "model_k1"])]
 
 with sns.plotting_context(**plotting_context):
-
     for istream, stream in enumerate(STREAMS):
         data = df_ws[df_ws["stream"] == stream]
 

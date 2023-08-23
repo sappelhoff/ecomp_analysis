@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib import rcParams
 
 from config import ANALYSIS_DIR_LOCAL, STREAMS
 from model_rdms import get_models_dict
@@ -18,6 +19,15 @@ BBBB = (20, 15)
 
 # %%
 # Settings
+
+# Use Liberation Sans as standin for Arial
+rcParams.update(
+    {
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Liberation Sans"],
+    }
+)
+
 analysis_dir = ANALYSIS_DIR_LOCAL
 rdm_size = "18x18"
 

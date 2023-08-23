@@ -21,6 +21,8 @@ import pandas as pd
 import pingouin
 import scipy.stats
 import seaborn as sns
+
+from matplotlib import rcParams
 from scipy.spatial.distance import squareform
 from tqdm.auto import tqdm
 
@@ -33,10 +35,18 @@ from clusterperm import (
 )
 from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, NUMBERS, STREAMS, SUBJS
 from model_rdms import get_models_dict
-from utils import prep_to_plot, eq1
+from utils import eq1, prep_to_plot
 
 # %%
 # Settings
+# Use Liberation Sans as standin for Arial
+rcParams.update(
+    {
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Liberation Sans"],
+    }
+)
+
 # Select the data source and analysis directory here
 data_dir = DATA_DIR_LOCAL
 analysis_dir = ANALYSIS_DIR_LOCAL
@@ -109,7 +119,6 @@ with sns.plotting_context("talk"):
     )
 
     for imodel in range(nmodels):
-
         model = list(models_dict["no_orth"].values())[imodel]
         orthmodel = list(models_dict["orth"].values())[imodel]
         ax1, ax2 = axs[:, imodel]
@@ -270,7 +279,6 @@ for test_model in test_models:
 
     distr = np.full((len(tests), niterations), np.nan)
     for itest, (test, X) in enumerate(tqdm(tests_dict.items())):
-
         # Generate permutation distribution
         for iteration in range(niterations):
             Xperm = perm_X_1samp(X, rng)
@@ -353,7 +361,6 @@ with sns.plotting_context("talk"):
     fig, axs = plt.subplots(2, 1, figsize=(10, 10))
 
     for iax, ax in enumerate(axs.flat):
-
         data = df_rsa[df_rsa["orth"] == bool(iax)]
 
         sns.lineplot(
@@ -473,7 +480,6 @@ g = sns.relplot(
 # %%
 # Show mean RDMs in selected time windows and save
 for window_sel in window_sels:
-
     # find measured time closest to our selection
     start = times[np.argmin(np.abs(times - window_sel[0]))]
     stop = times[np.argmin(np.abs(times - window_sel[1]))]

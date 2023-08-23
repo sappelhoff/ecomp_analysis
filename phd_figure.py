@@ -8,14 +8,23 @@ Required packages:
 
 # %%
 # Imports
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
 import numpy as np
 import seaborn as sns
-import matplotlib.pyplot as plt
 
 from config import ANALYSIS_DIR_LOCAL
 
 # %%
 # Settings
+
+# Use Liberation Sans as standin for Arial
+rcParams.update(
+    {
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Liberation Sans"],
+    }
+)
 
 analysis_dir = ANALYSIS_DIR_LOCAL
 
@@ -56,7 +65,7 @@ def eq1(X, bias, kappa):
 n = 900
 X = np.linspace(-1, 1, n)
 xs = np.linspace(1, 9, n)
-kappas = dict(zip(["Compressive\n(k<1)", "Anti-\ncompressive\n(k>1)"], [0.5, 3]))
+kappas = dict(zip(["Compression\n(k<1)", "Anti-\ncompression\n(k>1)"], [0.5, 3]))
 
 
 with sns.plotting_context("talk", font_scale=1.2):

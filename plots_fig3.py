@@ -6,14 +6,25 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+
+from matplotlib import rcParams
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from config import ANALYSIS_DIR_LOCAL, STREAMS
-from utils import prep_to_plot, eq1
+from utils import eq1, prep_to_plot
 
 # %%
 # Settings
+
+# Use Liberation Sans as standin for Arial
+rcParams.update(
+    {
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Liberation Sans"],
+    }
+)
+
 analysis_dir = ANALYSIS_DIR_LOCAL
 rdm_size = "18x18"
 
@@ -48,7 +59,6 @@ with sns.plotting_context(**plotting_context):
 # find vmin and vmax
 mins, maxs = [], []
 for istream, stream in enumerate(STREAMS):
-
     fstr = f"{stream}_{window_sel[0]}_{window_sel[1]}"
     fname = fname_mean_rdm_template.format(fstr)
     arr = np.load(fname)
@@ -62,7 +72,6 @@ vmax = max(maxs)
 neurometric_estims_inset = [1.49, 2.23]  # map max, see below: print("map max kappa
 with sns.plotting_context(**plotting_context):
     for istream, stream in enumerate(STREAMS):
-
         fstr = f"{stream}_{window_sel[0]}_{window_sel[1]}"
         fname = fname_mean_rdm_template.format(fstr)
         arr = np.load(fname)
@@ -109,7 +118,7 @@ with sns.plotting_context(**plotting_context):
         kappa = neurometric_estims_inset[istream]
         xs = np.linspace(-1, 1, 9)  # "numbers_rescaled"
         ys = eq1(X=xs, bias=0, kappa=kappa)
-        size = 1.25
+        size = 1.6
         axins = inset_axes(
             ax,
             width=size,
@@ -133,7 +142,7 @@ with sns.plotting_context(**plotting_context):
             ha="left",
             va="center",
             transform=axins.transAxes,
-            fontsize=20,
+            fontsize=24,
             zorder=100,
             color=f"C{istream}",
         )

@@ -8,13 +8,16 @@ import warnings
 from functools import partial
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import numpy as np
 import pandas as pd
 import pingouin
 import scipy.stats
 import seaborn as sns
 import statsmodels.stats.multitest
+
+# Use Liberation Sans as standin for Arial
+from matplotlib import rcParams
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
 
@@ -31,6 +34,15 @@ from utils import (
 
 # %%
 # Settings
+
+
+rcParams.update(
+    {
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Liberation Sans"],
+    }
+)
+
 numbers_rescaled = np.interp(NUMBERS, (NUMBERS.min(), NUMBERS.max()), (-1, +1))
 
 # Use a method that can work with bounds. "L-BFGS-B" is scipy default.
@@ -214,7 +226,6 @@ simulation = {
 #       distribution and large number of trials in these datasets.
 for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
     for x in xs_key:
-
         kwargs.update({param: x})
         parameters = np.array(
             [kwargs["bias"], kwargs["kappa"], kwargs["leakage"], kwargs["noise"]]
@@ -222,7 +233,6 @@ for param, (data, xs_key, kwargs) in tqdm(simulation.items()):
 
         for sub in SUBJS:
             for stream in STREAMS:
-
                 _, tsv = get_sourcedata(sub, stream, data_dir)
                 df = pd.read_csv(tsv, sep="\t")
                 df.insert(0, "subject", sub)
@@ -255,7 +265,6 @@ if do_plot:
     with sns.plotting_context("talk"):
         fig, axs = plt.subplots(2, 2, figsize=(15, 10), sharey=True)
         for i, param in enumerate(simulation):
-
             ax = axs.flat[i]
 
             # Get data and turn into df
@@ -315,7 +324,6 @@ gnorm_types = ["none", "experiment-wise", "trial-wise"]
 acc_grid = np.full((n, n, len(gnorm_types)), np.nan)
 for ignorm_type, gnorm_type in enumerate(tqdm(gnorm_types)):
     for ikappa, kappa in enumerate(kappas):
-
         # Setup gain normalization for this kappa parameterization
         gain = None
         gnorm = True
@@ -355,7 +363,6 @@ if do_plot:
         fig, axs = plt.subplots(1, 2, figsize=(11, 5), sharey=True)
 
         for ignorm_type, gnorm_type in enumerate(gnorm_types):
-
             if ignorm_type == 1:
                 continue
             elif ignorm_type == 2:
@@ -417,8 +424,9 @@ if do_plot:
             ax.set_ylabel(ax.get_ylabel(), labelpad=10)
 
             # plot insets
-            xs = np.linspace(-1, 1, 9)  # "numbers_rescaled"
-            ys = eq1(X=xs, bias=0, kappa=[0.1, None, 2.5][ignorm_type])
+            xs = np.linspace(-1, 1, 90)  # "numbers_rescaled"
+            _kappa = [0.3, None, 2.3][ignorm_type]
+            ys = eq1(X=xs, bias=0, kappa=_kappa)
             size = 1.25
             axins = inset_axes(
                 ax,
@@ -438,7 +446,7 @@ if do_plot:
             axins.text(
                 x=0.5,
                 y=0.15,
-                s=f"$k = {[0.1, None, 2.5][ignorm_type]:.1f}$",
+                s=f"$k = {_kappa}$",
                 ha="left",
                 va="center",
                 transform=axins.transAxes,
@@ -449,7 +457,7 @@ if do_plot:
 
             ax.annotate(
                 text="",
-                xy=[(0.01, 0.775), (), (0.975, 0.6)][ignorm_type],
+                xy=[(0.07, 0.675), (), (0.9, 0.6)][ignorm_type],
                 xytext=[(0.1, -0.1), (), (0.9, -0.1)][ignorm_type],
                 xycoords=ax.transAxes,
                 textcoords=axins.transAxes,
@@ -488,7 +496,6 @@ data = {
 
 for sub in tqdm(SUBJS):
     for stream in STREAMS:
-
         _, tsv = get_sourcedata(sub, stream, data_dir)
         df = pd.read_csv(tsv, sep="\t")
         df.insert(0, "subject", sub)
@@ -618,7 +625,6 @@ if do_plot:
 # see `fit_position`
 
 if not fname_x0s.exists() or overwrite:
-
     x0s = list(itertools.product(bias0s, kappa0s, leakage0s, noise0s))
 
     # Estimate parameters based on initial values for each dataset
@@ -890,7 +896,6 @@ if estims_free.exists() and estims_leak.exists():
     for ax, goodness, x0_type in zip(
         axs.flat, ["AIC", "BIC"] * 2, ["fixed", "fixed", "specific", "specific"]
     ):
-
         # plot
         sns.pointplot(
             x="fit_scenario",
@@ -971,7 +976,6 @@ for ibound, (lo, up) in enumerate(zip(lower, upper)):
 
 for x0_type in ["fixed", "specific"]:
     for param in _to_test:
-
         xy_list = []
         for stream in STREAMS:
             xy_list += [
@@ -1169,7 +1173,6 @@ for istream, stream in enumerate(STREAMS):
     fun = partial(psychometric_model, **kwargs)
 
     for ix0, x0 in enumerate(tqdm(_x0s)):
-
         res = minimize(
             fun=fun,
             x0=x0,
