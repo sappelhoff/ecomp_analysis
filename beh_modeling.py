@@ -8,6 +8,7 @@ import warnings
 from functools import partial
 
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import numpy as np
 import pandas as pd
 import pingouin
@@ -19,6 +20,7 @@ from tqdm.auto import tqdm
 
 from config import ANALYSIS_DIR_LOCAL, DATA_DIR_LOCAL, NUMBERS, STREAMS, SUBJS
 from utils import (
+    eq1,
     eq2,
     find_dot_idxs,
     get_sourcedata,
@@ -350,7 +352,7 @@ for ignorm_type, gnorm_type in enumerate(tqdm(gnorm_types)):
 # Plot "change in accuracy" simulations
 if do_plot:
     with sns.plotting_context("talk", font_scale=1.4):
-        fig, axs = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
+        fig, axs = plt.subplots(1, 2, figsize=(11, 5), sharey=True)
 
         for ignorm_type, gnorm_type in enumerate(gnorm_types):
 
@@ -414,8 +416,48 @@ if do_plot:
             )
             ax.set_ylabel(ax.get_ylabel(), labelpad=10)
 
-        axs[0].set_title("Low task demands")
-        axs[1].set_title("High task demands")
+            # plot insets
+            xs = np.linspace(-1, 1, 9)  # "numbers_rescaled"
+            ys = eq1(X=xs, bias=0, kappa=[0.1, None, 2.5][ignorm_type])
+            size = 1.25
+            axins = inset_axes(
+                ax,
+                width=size,
+                height=size,
+                loc="lower center",
+                bbox_to_anchor=[(0.1, 1.25), (), (0.9, 1.25)][ignorm_type],
+                bbox_transform=ax.transAxes,
+            )
+            axins.plot(xs, ys, color="black")
+            axins.axhline(0, lw=0.5, color="black")
+            sns.despine(ax=axins)
+            axins.set_xticks([])
+            axins.set_yticks([])
+
+            # inset label
+            axins.text(
+                x=0.5,
+                y=0.15,
+                s=f"$k = {[0.1, None, 2.5][ignorm_type]:.1f}$",
+                ha="left",
+                va="center",
+                transform=axins.transAxes,
+                fontsize=20,
+                zorder=100,
+                color="black",
+            )
+
+            ax.annotate(
+                text="",
+                xy=[(0.01, 0.775), (), (0.975, 0.6)][ignorm_type],
+                xytext=[(0.1, -0.1), (), (0.9, -0.1)][ignorm_type],
+                xycoords=ax.transAxes,
+                textcoords=axins.transAxes,
+                arrowprops=dict(width=0.5, facecolor="black"),
+            )
+
+        axs[0].set_title("Low\ntask demands", zorder=1000)
+        axs[1].set_title("High\ntask demands", zorder=1000)
 
     fig.tight_layout()
 

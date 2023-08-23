@@ -7,9 +7,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from config import ANALYSIS_DIR_LOCAL, STREAMS
-from utils import prep_to_plot
+from utils import prep_to_plot, eq1
 
 # %%
 # Settings
@@ -57,6 +58,8 @@ vmin = min(mins)
 vmax = max(maxs)
 
 
+# neurometric_estims_inset = [3.81, 3.05]  # participant mean (copied from paper)
+neurometric_estims_inset = [1.49, 2.23]  # map max, see below: print("map max kappa
 with sns.plotting_context(**plotting_context):
     for istream, stream in enumerate(STREAMS):
 
@@ -99,6 +102,40 @@ with sns.plotting_context(**plotting_context):
 
         ax.set_title(
             stream.capitalize() + f" ({' - '.join((str(i) for i in window_sel))} s)"
+        )
+
+        # plot insets
+        # bias = df_estims[df_estims["stream"] == stream]["bias"].mean()
+        kappa = neurometric_estims_inset[istream]
+        xs = np.linspace(-1, 1, 9)  # "numbers_rescaled"
+        ys = eq1(X=xs, bias=0, kappa=kappa)
+        size = 1.25
+        axins = inset_axes(
+            ax,
+            width=size,
+            height=size,
+            loc="upper right",
+            bbox_to_anchor=(0.95, 0.95),
+            bbox_transform=ax.transAxes,
+        )
+        axins.plot(xs, ys, color=f"C{STREAMS.index(stream)}")
+        axins.axhline(0, lw=0.5, color="black")
+        sns.despine(ax=axins)
+        axins.set_xticks([])
+        axins.set_yticks([])
+
+        # inset label
+        axins.text(
+            x=0.25,
+            y=0.15,
+            # s=r"$\widehat{k}$" + f"$ = {kappa:.2f}$",
+            s=f"$k = {kappa:.2f}$",  # no kappa "hat", if it's not estimated
+            ha="left",
+            va="center",
+            transform=axins.transAxes,
+            fontsize=20,
+            zorder=100,
+            color=f"C{istream}",
         )
 
 # %%
@@ -177,6 +214,7 @@ with sns.plotting_context(**plotting_context):
 
         # plot mean maximum
         mean_max_xy = np.unravel_index(np.argmax(grid_mean), grid_mean.shape)[::-1]
+        print("map max kappa:", stream, np.round(kappas[mean_max_xy[0]], 2))
 
         ax.scatter(
             mean_max_xy[0],

@@ -140,7 +140,7 @@ with sns.plotting_context(**plotting_context):
 
         x = "number"
         colname = "weight"
-        ax = axs.flat[1+istream]
+        ax = axs.flat[1 + istream]
 
         sns.pointplot(
             data=data[data["weight_type"] == "data"],
