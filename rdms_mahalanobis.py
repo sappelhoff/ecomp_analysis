@@ -22,7 +22,7 @@ For a given subject:
   compute a covariance matrix (channels x channels) at each timepoint.
 - Using the regression coefficients and the covariance matrix, we can
   compute the Mahalanobis distance (over channels) for each timepoint,
-  gicing us a representational dissimilarity matrix per timepoint of
+  giving us a representational dissimilarity matrix per timepoint of
   shape (conditions x conditions x timepoints).
 
 """
